@@ -18,6 +18,12 @@
   </a>
 </p>
 
+## Installation
+
+```bash
+composer require gacela-project/dependency-resolver
+```
+
 ## Usage
 
 You can define a map between an interface and the concrete class that you want to create (or use) when that interface is
