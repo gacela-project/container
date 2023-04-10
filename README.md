@@ -21,18 +21,34 @@
 ## Usage
 
 You can define a map between an interface and the concrete class that you want to create (or use) when that interface is
-found during the process of auto-wiring via its constructor.
+found during the process of auto-wiring via its constructor. For example:
 
 
 ```php
-
 $mappingInterfaces = [
   AbstractString::class => StringClass::class),
   ClassInterface::class => new ConcreteClass(/* args */)),
   ComplexInterface::class => new class() implements Foo {/** logic */}),
   FromCallable::class => fn() => new StringClass('From callable')),
 ];
+```
 
+### InstanceCreator
+
+Create an instance by class name.
+
+```php
+$resolver = new InstanceCreator($mappingInterfaces);
+
+$instance = $resolver->createByClassName(YourClass::class);
+
+```
+
+### DependencyResolver
+
+Get the resolved dependencies by class name.
+
+```php
 $resolver = new DependencyResolver($mappingInterfaces);
 
 $className = YourClass::class;
@@ -41,4 +57,7 @@ $dependencies = $resolver->resolveDependencies($className);
 $instance = new $className($dependencies);
 ```
 
-In the example above, whenever `AbstractString::class` is found then `StringClass::class` will be resolved.
+### Example
+
+A usage example in the Gacela Framework: [AbstractClassResolver](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L145)
+
