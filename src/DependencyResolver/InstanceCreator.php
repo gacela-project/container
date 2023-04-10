@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\InstanceCreator;
-
-use Gacela\DependencyResolver\DependencyResolver;
+namespace Gacela\DependencyResolver;
 
 final class InstanceCreator
 {
