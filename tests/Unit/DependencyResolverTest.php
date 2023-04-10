@@ -47,7 +47,7 @@ final class DependencyResolverTest extends TestCase
     public function test_use_mapped_interface_dependency(): void
     {
         $person = new Person();
-        $person->name = '';
+        $person->name = 'anything';
 
         $resolver = new DependencyResolver([
             PersonInterface::class => $person,
@@ -56,6 +56,6 @@ final class DependencyResolverTest extends TestCase
 
         $expected = [$person];
 
-        self::assertEquals($expected, $actual);
+        self::assertSame($expected, $actual);
     }
 }
