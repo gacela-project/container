@@ -1,13 +1,12 @@
 {
     "name": "gacela-project/dependency-resolver",
-    "description": "Gacela helps you separate your project into modules",
+    "description": "A minimalistic dependency resolver",
     "type": "library",
     "homepage": "https://gacela-project.com",
     "keywords": [
         "php",
-        "modular",
-        "framework",
-        "kernel"
+        "gacela",
+        "dependency-resolver"
     ],
     "license": "MIT",
     "authors": [
@@ -44,7 +43,6 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "GacelaData\\": "data/",
             "GacelaTest\\": "tests/"
         }
     },
@@ -53,8 +51,7 @@
             "php": "8.0"
         },
         "allow-plugins": {
-            "composer/package-versions-deprecated": true,
-            "veewee/composer-run-parallel": true
+            "composer/package-versions-deprecated": true
         }
     },
     "scripts": {
@@ -64,7 +61,7 @@
             "@csfix",
             "@test-all"
         ],
-        "static-clear-cache": "@parallel clear-cache-psalm clear-cache-phpstan",
+        "static-clear-cache": ["@clear-cache-psalm", "@clear-cache-phpstan"],
         "clear-cache-psalm": "XDEBUG_MODE=off vendor/bin/psalm --clear-cache",
         "clear-cache-phpstan": "XDEBUG_MODE=off vendor/bin/phpstan clear-result-cache",
         "test-all": [

@@ -1,3 +1,5 @@
+# Gacela DependencyResolver
+
 <p align="center">
   <a href="https://github.com/gacela-project/dependency-resolver/actions">
     <img src="https://github.com/gacela-project/dependency-resolver/workflows/CI/badge.svg" alt="GitHub Build Status">
@@ -16,3 +18,27 @@
   </a>
 </p>
 
+## Usage
+
+You can define a map between an interface and the concrete class that you want to create (or use) when that interface is
+found during the process of auto-wiring via its constructor.
+
+
+```php
+
+$mappingInterfaces = [
+  AbstractString::class => StringClass::class),
+  ClassInterface::class => new ConcreteClass(/* args */)),
+  ComplexInterface::class => new class() implements Foo {/** logic */}),
+  FromCallable::class => fn() => new StringClass('From callable')),
+];
+
+$resolver = new DependencyResolver($mappingInterfaces);
+
+$className = YourClass::class;
+
+$dependencies = $resolver->resolveDependencies($className);
+$instance = new $className($dependencies);
+```
+
+In the example above, whenever `AbstractString::class` is found then `StringClass::class` will be resolved.
