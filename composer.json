@@ -1,0 +1,94 @@
+{
+    "name": "gacela-project/dependency-resolver",
+    "description": "Gacela helps you separate your project into modules",
+    "type": "library",
+    "homepage": "https://gacela-project.com",
+    "keywords": [
+        "php",
+        "modular",
+        "framework",
+        "kernel"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jose Maria Valera Reales",
+            "email": "chemaclass@outlook.es",
+            "homepage": "https://chemaclass.com"
+        },
+        {
+            "name": "Jesus Valera Reales",
+            "email": "jesus1902@outlook.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/gacela-project/dependency-resolver/issues"
+    },
+    "prefer-stable": true,
+    "minimum-stability": "dev",
+    "require": {
+        "php": "^8.0, <8.3"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.14",
+        "phpunit/phpunit": "^9.6",
+        "phpstan/phpstan": "^1.10",
+        "psalm/plugin-phpunit": "^0.18",
+        "symfony/var-dumper": "^5.4",
+        "vimeo/psalm": "^5.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gacela\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "GacelaData\\": "data/",
+            "GacelaTest\\": "tests/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.0"
+        },
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true,
+            "veewee/composer-run-parallel": true
+        }
+    },
+    "scripts": {
+        "post-install-cmd": ".github/git-hooks/init.sh",
+        "ctal": [
+            "@static-clear-cache",
+            "@csfix",
+            "@test-all"
+        ],
+        "static-clear-cache": "@parallel clear-cache-psalm clear-cache-phpstan",
+        "clear-cache-psalm": "XDEBUG_MODE=off vendor/bin/psalm --clear-cache",
+        "clear-cache-phpstan": "XDEBUG_MODE=off vendor/bin/phpstan clear-result-cache",
+        "test-all": [
+            "@quality",
+            "@phpunit"
+        ],
+        "quality": [
+            "@csrun",
+            "@psalm",
+            "@phpstan"
+        ],
+        "phpunit": "@test-unit",
+        "test-unit": "XDEBUG_MODE=off ./vendor/bin/phpunit --testsuite=unit",
+        "test-coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --testsuite=unit,integration,feature --coverage-html=data/coverage-html --coverage-xml=data/coverage-xml --log-junit=data/coverage-xml/junit.xml",
+        "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
+        "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
+        "csfix": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix",
+        "csrun": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix --dry-run",
+        "phpbench": "XDEBUG_MODE=off ./vendor/bin/phpbench run --report=aggregate --ansi",
+        "phpbench-base": "XDEBUG_MODE=off ./vendor/bin/phpbench run --tag=baseline --report=aggregate --progress=plain --ansi",
+        "phpbench-ref": "XDEBUG_MODE=off ./vendor/bin/phpbench run --ref=baseline --report=aggregate --progress=plain --ansi",
+        "metrics-report": [
+            "@test-all-suites",
+            "XDEBUG_MODE=off ./vendor/bin/phpmetrics --config=phpmetrics-config.json --junit=data/log-junit.xml"
+        ]
+    }
+}
