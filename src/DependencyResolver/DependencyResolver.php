@@ -38,11 +38,8 @@ final class DependencyResolver
         /** @var list<mixed> $dependencies */
         $dependencies = [];
         foreach ($constructor->getParameters() as $parameter) {
-            $paramType = $parameter->getType();
-            if ($paramType) {
-                /** @psalm-suppress MixedAssignment */
-                $dependencies[] = $this->resolveDependenciesRecursively($parameter);
-            }
+            /** @psalm-suppress MixedAssignment */
+            $dependencies[] = $this->resolveDependenciesRecursively($parameter);
         }
 
         return $dependencies;
@@ -123,7 +120,7 @@ final class DependencyResolver
         }
 
         /** @var mixed $concreteClass */
-        $concreteClass = $this->mappingInterfaces[$reflection->getName()];
+        $concreteClass = $this->mappingInterfaces[$reflection->getName()] ?? null;
 
         if ($concreteClass !== null) {
             /** @var class-string $concreteClass */

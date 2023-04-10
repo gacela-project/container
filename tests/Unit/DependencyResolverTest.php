@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use Gacela\DependencyResolver\DependencyInvalidArgumentException;
+use Gacela\DependencyResolver\DependencyNotFoundException;
 use Gacela\DependencyResolver\DependencyResolver;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
+use GacelaTest\Fake\PersonWithoutDefaultValues;
+use GacelaTest\Fake\PersonWithoutParamType;
 use PHPUnit\Framework\TestCase;
 
 final class DependencyResolverTest extends TestCase
@@ -57,5 +61,29 @@ final class DependencyResolverTest extends TestCase
         $expected = [$person];
 
         self::assertSame($expected, $actual);
+    }
+
+    public function test_missing_interface_dependency(): void
+    {
+        $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(PersonInterface::class));
+
+        $resolver = new DependencyResolver();
+        $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
+    }
+
+    public function test_missing_default_raw_dependency_value(): void
+    {
+        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', PersonWithoutDefaultValues::class));
+
+        $resolver = new DependencyResolver();
+        $resolver->resolveDependencies(PersonWithoutDefaultValues::class);
+    }
+
+    public function test_missing_param_types_on_dependency_value(): void
+    {
+        $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name'));
+
+        $resolver = new DependencyResolver();
+        $resolver->resolveDependencies(PersonWithoutParamType::class);
     }
 }
