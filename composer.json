@@ -1,12 +1,13 @@
 {
-    "name": "gacela-project/dependency-resolver",
+    "name": "gacela-project/resolver",
     "description": "A minimalistic dependency resolver",
     "type": "library",
     "homepage": "https://gacela-project.com",
     "keywords": [
         "php",
         "gacela",
-        "dependency-resolver"
+        "resolver",
+        "resolver"
     ],
     "license": "MIT",
     "authors": [
@@ -21,7 +22,7 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/gacela-project/dependency-resolver/issues"
+        "issues": "https://github.com/gacela-project/resolver/issues"
     },
     "prefer-stable": true,
     "minimum-stability": "dev",

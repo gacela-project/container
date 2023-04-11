@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
-use Gacela\DependencyResolver\DependencyInvalidArgumentException;
-use Gacela\DependencyResolver\DependencyNotFoundException;
-use Gacela\DependencyResolver\DependencyResolver;
+use Gacela\Resolver\DependencyInvalidArgumentException;
+use Gacela\Resolver\DependencyNotFoundException;
+use Gacela\Resolver\DependencyResolver;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Unit;
 
-use Gacela\DependencyResolver\InstanceCreator;
+use Gacela\Resolver\InstanceCreator;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;

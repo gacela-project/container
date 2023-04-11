@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\DependencyResolver;
+namespace Gacela\Resolver;
 
 use ReflectionClass;
 use ReflectionMethod;
