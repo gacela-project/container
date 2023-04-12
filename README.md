@@ -43,9 +43,9 @@ $mappingInterfaces = [
 Create an instance by class name.
 
 ```php
-$resolver = new InstanceCreator($mappingInterfaces);
+$creator = new InstanceCreator($mappingInterfaces);
 
-$instance = $resolver->createByClassName(YourClass::class);
+$instance = $creator->createByClassName(YourClass::class);
 
 ```
 
