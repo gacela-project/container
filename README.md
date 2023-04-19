@@ -59,7 +59,7 @@ $resolver = new DependencyResolver($mappingInterfaces);
 $className = YourClass::class;
 
 $dependencies = $resolver->resolveDependencies($className);
-$instance = new $className($dependencies);
+$instance = new $className(...$dependencies);
 ```
 
 ### Example
