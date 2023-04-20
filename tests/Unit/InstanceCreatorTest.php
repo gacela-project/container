@@ -21,6 +21,13 @@ final class InstanceCreatorTest extends TestCase
         self::assertEquals(new ClassWithoutDependencies(), $actual);
     }
 
+    public function test_static_create_with_dependencies(): void
+    {
+        $actual = InstanceCreator::create(ClassWithObjectDependencies::class);
+
+        self::assertEquals(new ClassWithObjectDependencies(new Person()), $actual);
+    }
+
     public function test_without_dependencies(): void
     {
         $resolver = new InstanceCreator();
