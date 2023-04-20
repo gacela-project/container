@@ -14,6 +14,13 @@ use PHPUnit\Framework\TestCase;
 
 final class InstanceCreatorTest extends TestCase
 {
+    public function test_static_create_without_dependencies(): void
+    {
+        $actual = InstanceCreator::create(ClassWithoutDependencies::class);
+
+        self::assertEquals(new ClassWithoutDependencies(), $actual);
+    }
+
     public function test_without_dependencies(): void
     {
         $resolver = new InstanceCreator();
