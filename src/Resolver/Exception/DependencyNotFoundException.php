@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\Resolver;
+namespace Gacela\Resolver\Exception;
 
 use RuntimeException;
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gacela\Resolver;
 
+use Gacela\Resolver\Exception\DependencyInvalidArgumentException;
+use Gacela\Resolver\Exception\DependencyNotFoundException;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
