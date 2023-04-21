@@ -15,10 +15,10 @@ use function is_object;
 final class DependencyResolver
 {
     /**
-     * @param array<class-string,class-string|callable|object> $mappingInterfaces
+     * @param array<class-string,class-string|callable|object> $bindings
      */
     public function __construct(
-        private array $mappingInterfaces = [],
+        private array $bindings = [],
     ) {
     }
 
@@ -89,14 +89,14 @@ final class DependencyResolver
      */
     private function resolveClass(string $paramTypeName): mixed
     {
-        /** @var mixed $mappedClass */
-        $mappedClass = $this->mappingInterfaces[$paramTypeName] ?? null;
-        if (is_callable($mappedClass)) {
-            return $mappedClass();
+        /** @var mixed $bindClass */
+        $bindClass = $this->bindings[$paramTypeName] ?? null;
+        if (is_callable($bindClass)) {
+            return $bindClass();
         }
 
-        if (is_object($mappedClass)) {
-            return $mappedClass;
+        if (is_object($bindClass)) {
+            return $bindClass;
         }
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
@@ -120,7 +120,7 @@ final class DependencyResolver
         }
 
         /** @var mixed $concreteClass */
-        $concreteClass = $this->mappingInterfaces[$reflection->getName()] ?? null;
+        $concreteClass = $this->bindings[$reflection->getName()] ?? null;
 
         if ($concreteClass !== null) {
             /** @var class-string $concreteClass */

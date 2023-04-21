@@ -12,10 +12,10 @@ final class InstanceCreator
     private array $cachedDependencies = [];
 
     /**
-     * @param array<class-string,class-string|callable|object> $mappingInterfaces
+     * @param array<class-string, class-string|callable|object> $bindings
      */
     public function __construct(
-        private array $mappingInterfaces = [],
+        private array $bindings = [],
     ) {
     }
 
@@ -50,7 +50,7 @@ final class InstanceCreator
     {
         if ($this->dependencyResolver === null) {
             $this->dependencyResolver = new DependencyResolver(
-                $this->mappingInterfaces,
+                $this->bindings,
             );
         }
 
