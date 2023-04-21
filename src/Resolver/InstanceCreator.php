@@ -22,6 +22,14 @@ final class InstanceCreator
     /**
      * @param class-string $className
      */
+    public static function create(string $className): ?object
+    {
+        return (new self())->createByClassName($className);
+    }
+
+    /**
+     * @param class-string $className
+     */
     public function createByClassName(string $className): ?object
     {
         if (class_exists($className)) {
