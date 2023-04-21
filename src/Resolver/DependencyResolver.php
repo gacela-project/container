@@ -89,14 +89,14 @@ final class DependencyResolver
      */
     private function resolveClass(string $paramTypeName): mixed
     {
-        /** @var mixed $mappedClass */
-        $mappedClass = $this->bindings[$paramTypeName] ?? null;
-        if (is_callable($mappedClass)) {
-            return $mappedClass();
+        /** @var mixed $bindedClass */
+        $bindedClass = $this->bindings[$paramTypeName] ?? null;
+        if (is_callable($bindedClass)) {
+            return $bindedClass();
         }
 
-        if (is_object($mappedClass)) {
-            return $mappedClass;
+        if (is_object($bindedClass)) {
+            return $bindedClass;
         }
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
