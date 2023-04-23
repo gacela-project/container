@@ -6,6 +6,7 @@ namespace Gacela\Resolver;
 
 use Psr\Container\ContainerInterface;
 
+use function is_callable;
 use function is_object;
 
 final class Container implements ContainerInterface
@@ -37,29 +38,47 @@ final class Container implements ContainerInterface
     }
 
     /**
-     * @param class-string $className
-     *
-     * @deprecated Use method 'get(string $id)' instead
-     */
-    public function createByClassName(string $className): ?object
-    {
-        return $this->get($className);
-    }
-
-    /**
      * @param class-string|string $id
      */
     public function get(string $id): ?object
     {
+        if (isset($this->bindings[$id])) {
+            $binding = $this->bindings[$id];
+            if (is_callable($binding)) {
+                /** @var mixed $binding */
+                $binding = $binding();
+            }
+            if (is_object($binding)) {
+                return $binding;
+            }
+
+            /** @var class-string $binding */
+            if (class_exists($binding)) {
+                return $this->instantiateClass($binding);
+            }
+        }
+
         if (class_exists($id)) {
-            if (!isset($this->cachedDependencies[$id])) {
-                $this->cachedDependencies[$id] = $this
+            return $this->instantiateClass($id);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function instantiateClass(string $class): ?object
+    {
+        if (class_exists($class)) {
+            if (!isset($this->cachedDependencies[$class])) {
+                $this->cachedDependencies[$class] = $this
                     ->getDependencyResolver()
-                    ->resolveDependencies($id);
+                    ->resolveDependencies($class);
             }
 
             /** @psalm-suppress MixedMethodCall */
-            return new $id(...$this->cachedDependencies[$id]);
+            return new $class(...$this->cachedDependencies[$class]);
         }
 
         return null;

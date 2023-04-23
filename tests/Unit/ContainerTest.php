@@ -75,11 +75,82 @@ final class ContainerTest extends TestCase
         self::assertFalse($actual);
     }
 
-    public function test_has_existing_class(): void
+    public function test_container_has_class(): void
     {
         $container = new Container();
         $actual = $container->has(Person::class);
 
         self::assertTrue($actual);
+    }
+
+    public function test_resolve_object_from_interface(): void
+    {
+        $person = new Person();
+        $person->name = 'person-name';
+
+        $container = new Container([
+            PersonInterface::class => $person,
+        ]);
+        $resolvedPerson = $container->get(PersonInterface::class);
+
+        self::assertSame($resolvedPerson, $person);
+    }
+
+    public function test_resolve_new_object(): void
+    {
+        // We are registering 'PersonInterface::class', but 'Person::class' was not.
+        // As result, a 'new Person()' will be resolved.
+        $person = new Person();
+        $person->name = 'person-name';
+
+        $container = new Container([
+            PersonInterface::class => $person,
+        ]);
+        $resolvedPerson = $container->get(Person::class);
+
+        self::assertEquals($resolvedPerson, new Person()); // different objects!
+    }
+
+    public function test_interface_not_registered_returns_null(): void
+    {
+        $container = new Container([
+            Person::class => new Person(),
+        ]);
+        $resolvedPerson = $container->get(PersonInterface::class);
+
+        self::assertNull($resolvedPerson);
+    }
+
+    public function test_resolve_object_from_classname(): void
+    {
+        $container = new Container([
+            PersonInterface::class => Person::class,
+        ]);
+        $resolvedPerson = $container->get(PersonInterface::class);
+
+        self::assertEquals($resolvedPerson, new Person());
+    }
+
+    public function test_resolve_object_from_instance_in_a_callable(): void
+    {
+        $person = new Person();
+        $person->name = 'person-name';
+
+        $container = new Container([
+            PersonInterface::class => static fn () => $person,
+        ]);
+        $resolvedPerson = $container->get(PersonInterface::class);
+
+        self::assertEquals($resolvedPerson, $person);
+    }
+
+    public function test_resolve_object_from_callable_classname_in_a_callable(): void
+    {
+        $container = new Container([
+            PersonInterface::class => static fn () => Person::class,
+        ]);
+        $resolvedPerson = $container->get(PersonInterface::class);
+
+        self::assertEquals($resolvedPerson, new Person());
     }
 }
