@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Gacela\Resolver\Exception;
 
+use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
-final class DependencyNotFoundException extends RuntimeException
+final class DependencyNotFoundException extends RuntimeException implements NotFoundExceptionInterface
 {
     public static function mapNotFoundForClassName(string $className): self
     {

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Gacela\Resolver;
 
-final class InstanceCreator
+use Psr\Container\ContainerInterface;
+
+use function is_object;
+
+final class Container implements ContainerInterface
 {
     private ?DependencyResolver $dependencyResolver = null;
 
@@ -24,23 +28,38 @@ final class InstanceCreator
      */
     public static function create(string $className): ?object
     {
-        return (new self())->createByClassName($className);
+        return (new self())->get($className);
+    }
+
+    public function has(string $id): bool
+    {
+        return is_object($this->get($id));
     }
 
     /**
      * @param class-string $className
+     *
+     * @deprecated Use method 'get(string $id)' instead
      */
     public function createByClassName(string $className): ?object
     {
-        if (class_exists($className)) {
-            if (!isset($this->cachedDependencies[$className])) {
-                $this->cachedDependencies[$className] = $this
+        return $this->get($className);
+    }
+
+    /**
+     * @param class-string|string $id
+     */
+    public function get(string $id): ?object
+    {
+        if (class_exists($id)) {
+            if (!isset($this->cachedDependencies[$id])) {
+                $this->cachedDependencies[$id] = $this
                     ->getDependencyResolver()
-                    ->resolveDependencies($className);
+                    ->resolveDependencies($id);
             }
 
             /** @psalm-suppress MixedMethodCall */
-            return new $className(...$this->cachedDependencies[$className]);
+            return new $id(...$this->cachedDependencies[$id]);
         }
 
         return null;
