@@ -8,7 +8,7 @@ use Psr\Container\ContainerInterface;
 
 use function is_object;
 
-final class InstanceCreator implements ContainerInterface
+final class Container implements ContainerInterface
 {
     private ?DependencyResolver $dependencyResolver = null;
 
