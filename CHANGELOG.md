@@ -4,6 +4,7 @@
 
 - Rename InstanceCreator to Container
 - Add [PSR-11](https://www.php-fig.org/psr/psr-11/) support
+- Remove `createByClassName()`, use `get()` instead
 
 ### 0.1.0
 ### 2023-03-11
