@@ -1,7 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Rename InstanceCreator to Container
+- Add [PSR-11](https://www.php-fig.org/psr/psr-11/) support
+
 ### 0.1.0
 ### 2023-03-11
 
-Initial release.
-Code extracted originally from `gacela-project/gacela`
+- Initial release: Code extracted originally from `gacela-project/gacela`

@@ -26,43 +26,26 @@ composer require gacela-project/resolver
 
 ## Usage
 
-You can define a map between an interface and the concrete class that you want to create (or use) when that interface is
-found during the process of auto-wiring via its constructor. For example:
+You can define a map between an interface and the concrete class that you want to create (or use) when that interface is found during the process of auto-wiring via its constructor. For example:
+
+### Container
+
+Get (create) an instance by class name.
 
 ```php
-$mappingInterfaces = [
+$bindings = [
   AbstractString::class => StringClass::class),
   ClassInterface::class => new ConcreteClass(/* args */)),
   ComplexInterface::class => new class() implements Foo {/** logic */}),
   FromCallable::class => fn() => new StringClass('From callable')),
 ];
-```
 
-### InstanceCreator
+$container = new Container($bindings);
 
-Create an instance by class name.
-
-```php
-$creator = new InstanceCreator($mappingInterfaces);
-
-$instance = $creator->createByClassName(YourClass::class);
-
-```
-
-### DependencyResolver
-
-Get the resolved dependencies by class name.
-
-```php
-$resolver = new DependencyResolver($mappingInterfaces);
-
-$className = YourClass::class;
-
-$dependencies = $resolver->resolveDependencies($className);
-$instance = new $className(...$dependencies);
+$instance = $container->get(YourClass::class);
 ```
 
 ### Example
 
-A usage example in the Gacela Framework: [AbstractClassResolver](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L145)
+A usage example in the Gacela Framework: [AbstractClassResolver](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L142)
 
