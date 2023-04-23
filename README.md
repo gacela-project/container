@@ -33,19 +33,19 @@ You can define a map between an interface and the concrete class that you want t
 Get (create) an instance by class name.
 
 ```php
-$mappingInterfaces = [
+$bindings = [
   AbstractString::class => StringClass::class),
   ClassInterface::class => new ConcreteClass(/* args */)),
   ComplexInterface::class => new class() implements Foo {/** logic */}),
   FromCallable::class => fn() => new StringClass('From callable')),
 ];
 
-$container = new Container($mappingInterfaces);
+$container = new Container($bindings);
 
 $instance = $container->get(YourClass::class);
 ```
 
 ### Example
 
-A usage example in the Gacela Framework: [AbstractClassResolver](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L145)
+A usage example in the Gacela Framework: [AbstractClassResolver](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L142)
 
