@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Unit;
+namespace GacelaTest\Unit;
 
 use Gacela\Resolver\InstanceCreator;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
@@ -31,15 +31,15 @@ final class InstanceCreatorTest extends TestCase
     public function test_without_dependencies(): void
     {
         $resolver = new InstanceCreator();
-        $actual = $resolver->createByClassName(ClassWithoutDependencies::class);
+        $actual = $resolver->get(ClassWithoutDependencies::class);
 
         self::assertEquals(new ClassWithoutDependencies(), $actual);
     }
 
-    public function test_object_dependencies(): void
+    public function test_object_with_resolvable_dependencies(): void
     {
         $resolver = new InstanceCreator();
-        $actual = $resolver->createByClassName(ClassWithObjectDependencies::class);
+        $actual = $resolver->get(ClassWithObjectDependencies::class);
 
         self::assertEquals(new ClassWithObjectDependencies(new Person()), $actual);
     }
@@ -49,7 +49,7 @@ final class InstanceCreatorTest extends TestCase
         $resolver = new InstanceCreator([
             PersonInterface::class => Person::class,
         ]);
-        $actual = $resolver->createByClassName(ClassWithObjectDependencies::class);
+        $actual = $resolver->get(ClassWithObjectDependencies::class);
 
         self::assertEquals(new ClassWithObjectDependencies(new Person()), $actual);
     }
@@ -62,8 +62,24 @@ final class InstanceCreatorTest extends TestCase
         $resolver = new InstanceCreator([
             PersonInterface::class => $person,
         ]);
-        $actual = $resolver->createByClassName(ClassWithInterfaceDependencies::class);
+        $actual = $resolver->get(ClassWithInterfaceDependencies::class);
 
         self::assertEquals(new ClassWithInterfaceDependencies($person), $actual);
+    }
+
+    public function test_has_not_existing_class(): void
+    {
+        $resolver = new InstanceCreator();
+        $actual = $resolver->has(InexistentClass::class);
+
+        self::assertFalse($actual);
+    }
+
+    public function test_has_existing_class(): void
+    {
+        $resolver = new InstanceCreator();
+        $actual = $resolver->has(Person::class);
+
+        self::assertTrue($actual);
     }
 }

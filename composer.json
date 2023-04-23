@@ -17,7 +17,8 @@
         },
         {
             "name": "Jesus Valera Reales",
-            "email": "jesus1902@outlook.com"
+            "email": "jesus1902@outlook.com",
+            "homepage": "https://jesusvalera.github.io"
         }
     ],
     "support": {
@@ -26,7 +27,8 @@
     "prefer-stable": true,
     "minimum-stability": "dev",
     "require": {
-        "php": "^8.0, <8.3"
+        "php": "^8.0, <8.3",
+        "psr/container": "^1.1"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.14",

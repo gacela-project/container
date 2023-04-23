@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Gacela\Resolver\Exception;
 
 use InvalidArgumentException;
+use Psr\Container\ContainerExceptionInterface;
 
-final class DependencyInvalidArgumentException extends InvalidArgumentException
+final class DependencyInvalidArgumentException extends InvalidArgumentException implements ContainerExceptionInterface
 {
     public static function noParameterTypeFor(string $parameter): self
     {
