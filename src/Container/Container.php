@@ -229,19 +229,14 @@ final class Container implements ContainerInterface
     {
         if (is_callable($factory)) {
             return static function (self $container) use ($instance, $factory) {
-                $r1 = $factory($container);
-                $r2 = $instance($r1, $container);
+                $result = $factory($container);
 
-                return $r2 ?? $r1;
+                return $instance($result, $container) ?? $result;
             };
         }
 
         if (is_object($factory) || is_array($factory)) {
-            return static function (self $container) use ($instance, $factory) {
-                $r = $instance($factory, $container);
-
-                return $r ?? $factory;
-            };
+            return static fn (self $container) => $instance($factory, $container) ?? $factory;
         }
 
         throw ContainerException::instanceNotExtendable();
