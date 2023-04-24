@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+### 2023-04-24
+
+- Add Container methods: set, factory, extend, remove, protect
+
 ## 0.3.0
 ### 2023-04-24
 
