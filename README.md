@@ -1,4 +1,4 @@
-# Gacela Resolver
+# Gacela Container
 
 <p align="center">
   <a href="https://github.com/gacela-project/container/actions">
@@ -26,11 +26,16 @@ composer require gacela-project/container
 
 ## Usage
 
-You can define a map between an interface and the concrete class that you want to create (or use) when that interface is found during the process of auto-wiring via its constructor. For example:
+Get an instance by class name.
+
+> You can define a map between an interface and the concrete class that you want to create (or use) when that interface is found during the process of auto-wiring via its constructor. For example:
 
 ### Container
 
-Get (create) an instance by class name.
+This container will auto-wire all inner dependencies from that class. Depending on the type of dependency it will resolve it differently:
+- `primitive types`: it will use its default value
+- `classes`: it will instantiate it, and if they have dependencies, they will be resolved recursively as well.
+- `interfaces`: they will be resolved according to the **bindings** injected via the Container's constructor.
 
 ```php
 $bindings = [
