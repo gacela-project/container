@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Gacela\Resolver;
+namespace Gacela\Container;
 
-use Gacela\Resolver\Exception\DependencyInvalidArgumentException;
-use Gacela\Resolver\Exception\DependencyNotFoundException;
+use Gacela\Container\Exception\DependencyInvalidArgumentException;
+use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;

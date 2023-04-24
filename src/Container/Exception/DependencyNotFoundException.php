@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\Resolver\Exception;
+namespace Gacela\Container\Exception;
 
 use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;

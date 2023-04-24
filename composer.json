@@ -1,6 +1,6 @@
 {
-    "name": "gacela-project/resolver",
-    "description": "A minimalistic dependency resolver",
+    "name": "gacela-project/container",
+    "description": "A minimalistic container dependency resolver",
     "type": "library",
     "homepage": "https://gacela-project.com",
     "keywords": [

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\Resolver;
+namespace Gacela\Container;
 
 use Psr\Container\ContainerInterface;
 
