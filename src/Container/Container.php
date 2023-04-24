@@ -13,7 +13,7 @@ use function is_array;
 use function is_callable;
 use function is_object;
 
-final class Container implements ContainerInterface
+class Container implements ContainerInterface
 {
     private ?DependencyResolver $dependencyResolver = null;
 
