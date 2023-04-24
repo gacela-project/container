@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
-use Gacela\Resolver\Container;
+use Gacela\Container\Container;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;

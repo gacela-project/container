@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gacela\Resolver\Exception;
+namespace Gacela\Container\Exception;
 
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
