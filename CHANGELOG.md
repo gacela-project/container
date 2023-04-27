@@ -1,9 +1,10 @@
 # Changelog
 
 ## 0.4.0
-### 2023-04-24
+### 2023-04-27
 
 - Add Container methods: set, factory, extend, remove, protect
+- Remove final from `Container` to allow decorating it using extend
 
 ## 0.3.0
 ### 2023-04-24
