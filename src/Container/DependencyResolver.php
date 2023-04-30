@@ -56,7 +56,7 @@ final class DependencyResolver
 
         /** @var class-string $paramTypeName */
         $paramTypeName = $paramType->getName();
-        if ($this->isScalar($paramTypeName) && $parameter->isDefaultValueAvailable()) {
+        if ($parameter->isDefaultValueAvailable()) {
             return $parameter->getDefaultValue();
         }
 
