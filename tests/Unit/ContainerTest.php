@@ -8,6 +8,7 @@ use ArrayObject;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
+use GacelaTest\Fake\ClassWithInnerObjectDependencies;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -30,6 +31,13 @@ final class ContainerTest extends TestCase
         $actual = Container::create(ClassWithDependencyWithoutDependencies::class);
 
         self::assertEquals(new ClassWithDependencyWithoutDependencies(new ClassWithoutDependencies()), $actual);
+    }
+
+    public function test_static_create_class_with_inner_dependencies_with_many_dependencies(): void
+    {
+        $actual = Container::create(ClassWithInnerObjectDependencies::class);
+
+        self::assertEquals(new ClassWithInnerObjectDependencies(new ClassWithRelationship(new Person(), new Person())), $actual);
     }
 
     public function test_static_create_with_dependencies(): void
