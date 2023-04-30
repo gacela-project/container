@@ -7,6 +7,7 @@ namespace GacelaTest\Unit;
 use ArrayObject;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
+use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -22,6 +23,13 @@ final class ContainerTest extends TestCase
         $actual = Container::create(ClassWithoutDependencies::class);
 
         self::assertEquals(new ClassWithoutDependencies(), $actual);
+    }
+
+    public function test_static_create_class_with_inner_dependencies_without_dependencies(): void
+    {
+        $actual = Container::create(ClassWithDependencyWithoutDependencies::class);
+
+        self::assertEquals(new ClassWithDependencyWithoutDependencies(new ClassWithoutDependencies()), $actual);
     }
 
     public function test_static_create_with_dependencies(): void

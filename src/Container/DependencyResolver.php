@@ -103,7 +103,7 @@ final class DependencyResolver
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
         $constructor = $reflection->getConstructor();
-        if (!$constructor) {
+        if ($constructor === null) {
             return $reflection->newInstance();
         }
 
