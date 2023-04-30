@@ -149,11 +149,10 @@ class Container implements ContainerInterface
 
         $rawService = $this->instances[$id];
 
-        /** @psalm-suppress InvalidFunctionCall */
-        $this->instances[$id] = $rawService($this);
-
         /** @var mixed $resolvedService */
-        $resolvedService = $this->instances[$id];
+        $resolvedService = $rawService($this);
+
+        $this->instances[$id] = $resolvedService;
 
         return $resolvedService;
     }
