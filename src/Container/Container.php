@@ -60,7 +60,7 @@ class Container implements ContainerInterface
     public function set(string $id, mixed $instance): void
     {
         if (isset($this->frozenInstances[$id])) {
-            throw ContainerException::instanceFrozen($id);
+            throw ContainerException::frozenInstanceOverride($id);
         }
 
         $this->instances[$id] = $instance;
@@ -111,7 +111,7 @@ class Container implements ContainerInterface
         }
 
         if (isset($this->frozenInstances[$id])) {
-            throw ContainerException::instanceFrozen($id);
+            throw ContainerException::frozenInstanceExtend($id);
         }
 
         if (is_object($this->instances[$id]) && isset($this->protectedInstances[$this->instances[$id]])) {

@@ -14,13 +14,18 @@ final class ContainerException extends Exception implements ContainerExceptionIn
         return new self('The passed instance is not extendable.');
     }
 
-    public static function instanceFrozen(string $id): self
+    public static function frozenInstanceExtend(string $id): self
     {
-        return new self("The instance '{$id}' is frozen and cannot be extendable.");
+        return new self("The instance '{$id}' is frozen and cannot be extended.");
+    }
+
+    public static function frozenInstanceOverride(string $id): self
+    {
+        return new self("The instance '{$id}' is frozen and cannot be override.");
     }
 
     public static function instanceProtected(string $id): self
     {
-        return new self("The instance '{$id}' is protected and cannot be extendable.");
+        return new self("The instance '{$id}' is protected and cannot be extended.");
     }
 }

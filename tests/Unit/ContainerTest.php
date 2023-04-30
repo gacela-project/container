@@ -348,7 +348,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -362,7 +362,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -381,7 +381,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -400,7 +400,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -414,7 +414,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceOverride('service_name'));
         $container->set('service_name', static fn () => new ArrayObject([3]));
     }
 
