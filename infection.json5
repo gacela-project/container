@@ -3,7 +3,7 @@
     logs: {
         html: 'data/mutation-report.html',
         "stryker": {
-            "badge": "main"
+            "report": "main"
         }
     },
     timeout: 3,
