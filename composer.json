@@ -34,7 +34,7 @@
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.16",
         "phpunit/phpunit": "^9.6",
-        "infection/infection": "^0.26.16",
+        "infection/infection": "^0.26",
         "phpstan/phpstan": "^1.10",
         "psalm/plugin-phpunit": "^0.18",
         "symfony/var-dumper": "^5.4",
@@ -86,7 +86,7 @@
         "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
         "csfix": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix",
         "csrun": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix --dry-run",
-        "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection --show-mutations --threads=$(nproc 2> /dev/null || sysctl -n hw.logicalcpu) --min-msi=100 --min-covered-msi=100",
+        "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection --show-mutations --threads=$(nproc 2> /dev/null || sysctl -n hw.logicalcpu) --min-msi=100 --min-covered-msi=100 --test-framework=phpunit",
         "phpbench": "XDEBUG_MODE=off ./vendor/bin/phpbench run --report=aggregate --ansi",
         "phpbench-base": "XDEBUG_MODE=off ./vendor/bin/phpbench run --tag=baseline --report=aggregate --progress=plain --ansi",
         "phpbench-ref": "XDEBUG_MODE=off ./vendor/bin/phpbench run --ref=baseline --report=aggregate --progress=plain --ansi",
