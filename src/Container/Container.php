@@ -59,7 +59,7 @@ class Container implements ContainerInterface
 
     public function set(string $id, mixed $instance): void
     {
-        if (isset($this->frozenInstances[$id])) {
+        if (!empty($this->frozenInstances[$id])) {
             throw ContainerException::frozenInstanceOverride($id);
         }
 
@@ -203,10 +203,6 @@ class Container implements ContainerInterface
 
     private function extendLater(string $id, Closure $instance): void
     {
-        if (!isset($this->instancesToExtend[$id])) {
-            $this->instancesToExtend[$id] = [];
-        }
-
         $this->instancesToExtend[$id][] = $instance;
     }
 
@@ -249,12 +245,10 @@ class Container implements ContainerInterface
         $this->currentlyExtending = $id;
 
         foreach ($this->instancesToExtend[$id] as $instance) {
-            $extended = $this->extend($id, $instance);
+            $this->extend($id, $instance);
         }
 
         unset($this->instancesToExtend[$id]);
         $this->currentlyExtending = null;
-
-        $this->set($id, $extended);
     }
 }
