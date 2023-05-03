@@ -296,6 +296,23 @@ final class ContainerTest extends TestCase
         self::assertEquals(new ArrayObject([1, 2, 3, 4]), $actual);
     }
 
+    public function test_set_after_extend(): void
+    {
+        $container = new Container();
+
+        $container->extend(
+            'service_name',
+            static fn (ArrayObject $arrayObject) => $arrayObject->append(3),
+        );
+
+        $container->set('service_name', static fn () => new ArrayObject([1, 2]));
+
+        /** @var ArrayObject $actual */
+        $actual = $container->get('service_name');
+
+        self::assertEquals(new ArrayObject([1, 2, 3]), $actual);
+    }
+
     public function test_extend_existing_object_service(): void
     {
         $container = new Container();
