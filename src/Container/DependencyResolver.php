@@ -56,7 +56,7 @@ final class DependencyResolver
 
         /** @var class-string $paramTypeName */
         $paramTypeName = $paramType->getName();
-        if ($this->isScalar($paramTypeName) && $parameter->isDefaultValueAvailable()) {
+        if ($parameter->isDefaultValueAvailable()) {
             return $parameter->getDefaultValue();
         }
 
@@ -103,7 +103,7 @@ final class DependencyResolver
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
         $constructor = $reflection->getConstructor();
-        if (!$constructor) {
+        if ($constructor === null) {
             return $reflection->newInstance();
         }
 

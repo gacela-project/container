@@ -7,9 +7,12 @@ namespace GacelaTest\Unit;
 use ArrayObject;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
+use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
+use GacelaTest\Fake\ClassWithInnerObjectDependencies;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\ClassWithRelationship;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use PHPUnit\Framework\TestCase;
@@ -23,11 +26,32 @@ final class ContainerTest extends TestCase
         self::assertEquals(new ClassWithoutDependencies(), $actual);
     }
 
+    public function test_static_create_class_with_inner_dependencies_without_dependencies(): void
+    {
+        $actual = Container::create(ClassWithDependencyWithoutDependencies::class);
+
+        self::assertEquals(new ClassWithDependencyWithoutDependencies(new ClassWithoutDependencies()), $actual);
+    }
+
+    public function test_static_create_class_with_inner_dependencies_with_many_dependencies(): void
+    {
+        $actual = Container::create(ClassWithInnerObjectDependencies::class);
+
+        self::assertEquals(new ClassWithInnerObjectDependencies(new ClassWithRelationship(new Person(), new Person())), $actual);
+    }
+
     public function test_static_create_with_dependencies(): void
     {
         $actual = Container::create(ClassWithObjectDependencies::class);
 
         self::assertEquals(new ClassWithObjectDependencies(new Person()), $actual);
+    }
+
+    public function test_static_create_with_many_dependencies(): void
+    {
+        $actual = Container::create(ClassWithRelationship::class);
+
+        self::assertEquals(new ClassWithRelationship(new Person(), new Person()), $actual);
     }
 
     public function test_without_dependencies(): void
@@ -272,6 +296,23 @@ final class ContainerTest extends TestCase
         self::assertEquals(new ArrayObject([1, 2, 3, 4]), $actual);
     }
 
+    public function test_set_after_extend(): void
+    {
+        $container = new Container();
+
+        $container->extend(
+            'service_name',
+            static fn (ArrayObject $arrayObject) => $arrayObject->append(3),
+        );
+
+        $container->set('service_name', static fn () => new ArrayObject([1, 2]));
+
+        /** @var ArrayObject $actual */
+        $actual = $container->get('service_name');
+
+        self::assertEquals(new ArrayObject([1, 2, 3]), $actual);
+    }
+
     public function test_extend_existing_object_service(): void
     {
         $container = new Container();
@@ -348,7 +389,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -362,7 +403,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -381,7 +422,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -400,7 +441,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceExtend('service_name'));
 
         $container->extend(
             'service_name',
@@ -414,7 +455,7 @@ final class ContainerTest extends TestCase
         $container->set('service_name', static fn () => new ArrayObject([1, 2]));
         $container->get('service_name'); // and get frozen
 
-        $this->expectExceptionObject(ContainerException::instanceFrozen('service_name'));
+        $this->expectExceptionObject(ContainerException::frozenInstanceOverride('service_name'));
         $container->set('service_name', static fn () => new ArrayObject([3]));
     }
 

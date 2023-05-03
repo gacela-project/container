@@ -59,8 +59,8 @@ class Container implements ContainerInterface
 
     public function set(string $id, mixed $instance): void
     {
-        if (isset($this->frozenInstances[$id])) {
-            throw ContainerException::instanceFrozen($id);
+        if (!empty($this->frozenInstances[$id])) {
+            throw ContainerException::frozenInstanceOverride($id);
         }
 
         $this->instances[$id] = $instance;
@@ -111,7 +111,7 @@ class Container implements ContainerInterface
         }
 
         if (isset($this->frozenInstances[$id])) {
-            throw ContainerException::instanceFrozen($id);
+            throw ContainerException::frozenInstanceExtend($id);
         }
 
         if (is_object($this->instances[$id]) && isset($this->protectedInstances[$this->instances[$id]])) {
@@ -149,11 +149,10 @@ class Container implements ContainerInterface
 
         $rawService = $this->instances[$id];
 
-        /** @psalm-suppress InvalidFunctionCall */
-        $this->instances[$id] = $rawService($this);
-
         /** @var mixed $resolvedService */
-        $resolvedService = $this->instances[$id];
+        $resolvedService = $rawService($this);
+
+        $this->instances[$id] = $resolvedService;
 
         return $resolvedService;
     }
@@ -204,10 +203,6 @@ class Container implements ContainerInterface
 
     private function extendLater(string $id, Closure $instance): void
     {
-        if (!isset($this->instancesToExtend[$id])) {
-            $this->instancesToExtend[$id] = [];
-        }
-
         $this->instancesToExtend[$id][] = $instance;
     }
 
@@ -250,12 +245,10 @@ class Container implements ContainerInterface
         $this->currentlyExtending = $id;
 
         foreach ($this->instancesToExtend[$id] as $instance) {
-            $extended = $this->extend($id, $instance);
+            $this->extend($id, $instance);
         }
 
         unset($this->instancesToExtend[$id]);
         $this->currentlyExtending = null;
-
-        $this->set($id, $extended);
     }
 }
