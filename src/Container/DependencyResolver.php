@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Closure;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionClass;
+use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 
 use function is_callable;
 use function is_object;
+use function is_string;
 
 final class DependencyResolver
 {
@@ -25,26 +28,43 @@ final class DependencyResolver
     }
 
     /**
-     * @param class-string $resolvedClassName
+     * @param class-string|Closure $toResolve
      *
      * @return list<mixed>
      */
-    public function resolveDependencies(string $resolvedClassName): array
+    public function resolveDependencies(string|Closure $toResolve): array
     {
-        $reflection = new ReflectionClass($resolvedClassName);
-        $constructor = $reflection->getConstructor();
-        if (!$constructor) {
-            return [];
-        }
-
         /** @var list<mixed> $dependencies */
         $dependencies = [];
-        foreach ($constructor->getParameters() as $parameter) {
+
+        $parameters = $this->getParametersToResolve($toResolve);
+
+        foreach ($parameters as $parameter) {
             /** @psalm-suppress MixedAssignment */
             $dependencies[] = $this->resolveDependenciesRecursively($parameter);
         }
 
         return $dependencies;
+    }
+
+    /**
+     * @param class-string|Closure $toResolve
+     *
+     * @return list<ReflectionParameter>
+     */
+    private function getParametersToResolve(Closure|string $toResolve): array
+    {
+        if (is_string($toResolve)) {
+            $reflection = new ReflectionClass($toResolve);
+            $constructor = $reflection->getConstructor();
+            if (!$constructor) {
+                return [];
+            }
+            return $constructor->getParameters();
+        }
+
+        $reflection = new ReflectionFunction($toResolve);
+        return $reflection->getParameters();
     }
 
     private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed

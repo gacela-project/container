@@ -7,21 +7,18 @@ namespace GacelaTest\Unit;
 use Gacela\Container\DependencyResolver;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
-use GacelaTest\Fake\ClassWithInterfaceDependencies;
-use GacelaTest\Fake\ClassWithObjectDependencies;
-use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
-use GacelaTest\Fake\PersonWithoutDefaultValues;
-use GacelaTest\Fake\PersonWithoutParamType;
 use PHPUnit\Framework\TestCase;
 
-final class ClassDependencyResolverTest extends TestCase
+final class CallableDependencyResolverTest extends TestCase
 {
     public function test_without_dependencies(): void
     {
         $resolver = new DependencyResolver();
-        $actual = $resolver->resolveDependencies(ClassWithoutDependencies::class);
+        $actual = $resolver->resolveDependencies(static function () {
+            return [];
+        });
 
         self::assertSame([], $actual);
     }
@@ -29,7 +26,9 @@ final class ClassDependencyResolverTest extends TestCase
     public function test_object_dependencies(): void
     {
         $resolver = new DependencyResolver();
-        $actual = $resolver->resolveDependencies(ClassWithObjectDependencies::class);
+        $actual = $resolver->resolveDependencies(static function (Person $person) {
+            return $person;
+        });
 
         $expected = [new Person()];
 
@@ -41,7 +40,9 @@ final class ClassDependencyResolverTest extends TestCase
         $resolver = new DependencyResolver([
             PersonInterface::class => Person::class,
         ]);
-        $actual = $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
+        $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
+            return $person;
+        });
 
         $expected = [new Person()];
 
@@ -56,7 +57,10 @@ final class ClassDependencyResolverTest extends TestCase
         $resolver = new DependencyResolver([
             PersonInterface::class => $person,
         ]);
-        $actual = $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
+
+        $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
+            return $person;
+        });
 
         $expected = [$person];
 
@@ -68,15 +72,20 @@ final class ClassDependencyResolverTest extends TestCase
         $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(PersonInterface::class));
 
         $resolver = new DependencyResolver();
-        $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
+
+        $resolver->resolveDependencies(static function (PersonInterface $person) {
+            return $person;
+        });
     }
 
     public function test_missing_default_raw_dependency_value(): void
     {
-        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', PersonWithoutDefaultValues::class));
+        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', self::class));
 
         $resolver = new DependencyResolver();
-        $resolver->resolveDependencies(PersonWithoutDefaultValues::class);
+        $resolver->resolveDependencies(static function (string $name) {
+            return $name;
+        });
     }
 
     public function test_missing_param_types_on_dependency_value(): void
@@ -84,6 +93,8 @@ final class ClassDependencyResolverTest extends TestCase
         $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name'));
 
         $resolver = new DependencyResolver();
-        $resolver->resolveDependencies(PersonWithoutParamType::class);
+        $resolver->resolveDependencies(static function ($name) {
+            return $name;
+        });
     }
 }
