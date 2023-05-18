@@ -15,6 +15,8 @@ interface ContainerInterface extends PsrContainerInterface
      */
     public function get(string $id): mixed;
 
+    public function resolve(Closure $closure): mixed;
+
     /**
      * Check if an instance exists.
      */
