@@ -18,7 +18,7 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Resolve the closure loading automatically all arguments based on current bindings.
      */
-    public function resolve(Closure $closure): mixed;
+    public function resolve(callable $callable): mixed;
 
     /**
      * Check if an instance exists.

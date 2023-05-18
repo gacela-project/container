@@ -90,19 +90,20 @@ class Container implements ContainerInterface
         return $this->createInstance($id);
     }
 
-    public function resolve(Closure $closure): mixed
+    public function resolve(callable $callable): mixed
     {
-        $reflectionFn = new ReflectionFunction($closure);
+        $callable = Closure::fromCallable($callable);
+        $reflectionFn = new ReflectionFunction($callable);
         $callableKey = md5(serialize($reflectionFn->__toString()));
 
         if (!isset($this->cachedDependencies[$callableKey])) {
             $this->cachedDependencies[$callableKey] = $this
                 ->getDependencyResolver()
-                ->resolveDependencies($closure);
+                ->resolveDependencies($callable);
         }
 
         /** @psalm-suppress MixedMethodCall */
-        return $closure(...$this->cachedDependencies[$callableKey]);
+        return $callable(...$this->cachedDependencies[$callableKey]);
     }
 
     public function factory(Closure $instance): Closure
