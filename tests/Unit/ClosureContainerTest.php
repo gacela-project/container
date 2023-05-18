@@ -16,14 +16,18 @@ final class ClosureContainerTest extends TestCase
 {
     public function test_static_create_without_dependencies(): void
     {
-        $actual = Container::resolveClosure(static fn () => '');
+        $container = new Container();
+
+        $actual = $container->resolve(static fn () => '');
 
         self::assertSame('', $actual);
     }
 
     public function test_static_resolve_callable_with_inner_dependencies_without_dependencies(): void
     {
-        $actual = Container::resolveClosure(
+        $container = new Container();
+
+        $actual = $container->resolve(
             static fn (ClassWithoutDependencies $object) => serialize($object),
         );
 
@@ -35,7 +39,9 @@ final class ClosureContainerTest extends TestCase
 
     public function test_static_resolve_callable_with_inner_dependencies_with_many_dependencies(): void
     {
-        $actual = Container::resolveClosure(
+        $container = new Container();
+
+        $actual = $container->resolve(
             static fn (ClassWithRelationship $object) => serialize($object),
         );
 

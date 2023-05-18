@@ -53,11 +53,6 @@ class Container implements ContainerInterface
         return (new self())->get($className);
     }
 
-    public static function resolveClosure(Closure $closure): mixed
-    {
-        return (new self())->resolve($closure);
-    }
-
     public function has(string $id): bool
     {
         return isset($this->instances[$id]);
