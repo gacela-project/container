@@ -51,6 +51,13 @@ $bindings = [
 $container = new Container($bindings);
 
 $instance = $container->get(YourClass::class);
+
+//////////////////////////////////////////////
+# Extra: you can resolve closures on-the-fly using the container bindings
+$resolved = $container->resolve(function (ComplexInterface $i) {
+    // your custom logic
+    return $i->...; 
+});
 ```
 
 ### Example
