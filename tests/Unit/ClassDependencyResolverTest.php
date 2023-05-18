@@ -16,7 +16,7 @@ use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\PersonWithoutParamType;
 use PHPUnit\Framework\TestCase;
 
-final class DependencyResolverTest extends TestCase
+final class ClassDependencyResolverTest extends TestCase
 {
     public function test_without_dependencies(): void
     {
