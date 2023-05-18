@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Accept `Closure|string` in `getParametersToResolve()`
+
 ## 0.4.0
 ### 2023-04-27
 
