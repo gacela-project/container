@@ -16,7 +16,7 @@ interface ContainerInterface extends PsrContainerInterface
     public function get(string $id): mixed;
 
     /**
-     * Resolve the closure loading automatically all arguments based on current bindings.
+     * Resolve the callable loading automatically all arguments based on current bindings.
      */
     public function resolve(callable $callable): mixed;
 
