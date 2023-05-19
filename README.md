@@ -31,7 +31,7 @@ composer require gacela-project/container
 
 Get an instance by class name.
 
-> You can define a map between an interface and the concrete class that you want to create (or use) when that interface is found during the process of auto-wiring via its constructor. For example:
+> You can define a map between an interface and the concrete class that you want to create (or use) when that interface is found during the process of auto-wiring via its constructor.
 
 ### Container
 
@@ -42,10 +42,10 @@ This container will auto-wire all inner dependencies from that class. Depending 
 
 ```php
 $bindings = [
-  AbstractString::class => StringClass::class),
-  ClassInterface::class => new ConcreteClass(/* args */)),
-  ComplexInterface::class => new class() implements Foo {/** logic */}),
-  FromCallable::class => fn() => new StringClass('From callable')),
+  AbstractString::class => StringClass::class,
+  ClassInterface::class => new ConcreteClass(/* args */),
+  ComplexInterface::class => new class() implements Foo {/** logic */},
+  FromCallable::class => fn() => new StringClass('From callable'),
 ];
 
 $container = new Container($bindings);

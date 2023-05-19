@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
+### 2023-05-19
 
 - Accept `Closure|string` in `getParametersToResolve()`
 - Added `resolve(callable)` to `ContainerInterface`
