@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Accept `Closure|string` in `getParametersToResolve()`
+- Added `resolve(callable)` to `ContainerInterface`
 
 ## 0.4.0
 ### 2023-04-27
