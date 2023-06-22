@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Improved error message when no concrete binded class was found
+
 ## 0.4.0
 ### 2023-04-27
 
