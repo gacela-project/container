@@ -6,6 +6,7 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
+use ReflectionFunction;
 use SplObjectStorage;
 
 use function count;
@@ -17,7 +18,7 @@ class Container implements ContainerInterface
 {
     private ?DependencyResolver $dependencyResolver = null;
 
-    /** @var array<class-string,list<mixed>> */
+    /** @var array<class-string|string, list<mixed>> */
     private array $cachedDependencies = [];
 
     /** @var array<string,mixed> */
@@ -82,6 +83,22 @@ class Container implements ContainerInterface
         }
 
         return $this->createInstance($id);
+    }
+
+    public function resolve(callable $callable): mixed
+    {
+        $callable = Closure::fromCallable($callable);
+        $reflectionFn = new ReflectionFunction($callable);
+        $callableKey = md5(serialize($reflectionFn->__toString()));
+
+        if (!isset($this->cachedDependencies[$callableKey])) {
+            $this->cachedDependencies[$callableKey] = $this
+                ->getDependencyResolver()
+                ->resolveDependencies($callable);
+        }
+
+        /** @psalm-suppress MixedMethodCall */
+        return $callable(...$this->cachedDependencies[$callableKey]);
     }
 
     public function factory(Closure $instance): Closure

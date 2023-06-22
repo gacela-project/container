@@ -17,7 +17,7 @@ use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use PHPUnit\Framework\TestCase;
 
-final class ContainerTest extends TestCase
+final class ClassContainerTest extends TestCase
 {
     public function test_static_create_without_dependencies(): void
     {
