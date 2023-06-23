@@ -1,7 +1,8 @@
 {
     "name": "gacela-project/container",
-    "description": "A minimalistic container dependency resolver",
     "type": "library",
+    "description": "A minimalistic container dependency resolver",
+    "license": "MIT",
     "homepage": "https://gacela-project.com",
     "keywords": [
         "php",
@@ -9,7 +10,6 @@
         "resolver",
         "container"
     ],
-    "license": "MIT",
     "authors": [
         {
             "name": "Jose Maria Valera Reales",
@@ -32,13 +32,13 @@
         "psr/container": "^1.1"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.16",
+        "friendsofphp/php-cs-fixer": "^3.18",
         "phpunit/phpunit": "^9.6",
         "infection/infection": "^0.26",
         "phpstan/phpstan": "^1.10",
         "psalm/plugin-phpunit": "^0.18",
         "symfony/var-dumper": "^5.4",
-        "vimeo/psalm": "^5.9"
+        "vimeo/psalm": "^5.12"
     },
     "autoload": {
         "psr-4": {
@@ -50,15 +50,6 @@
             "GacelaTest\\": "tests/"
         }
     },
-    "config": {
-        "platform": {
-            "php": "8.0"
-        },
-        "allow-plugins": {
-            "composer/package-versions-deprecated": true,
-            "infection/extension-installer": true
-        }
-    },
     "scripts": {
         "post-install-cmd": ".github/git-hooks/init.sh",
         "ctal": [
@@ -67,32 +58,31 @@
             "@test-all",
             "@infection"
         ],
-        "static-clear-cache": ["@clear-cache-psalm", "@clear-cache-phpstan"],
-        "clear-cache-psalm": "XDEBUG_MODE=off vendor/bin/psalm --clear-cache",
-        "clear-cache-phpstan": "XDEBUG_MODE=off vendor/bin/phpstan clear-result-cache",
         "test-all": [
             "@quality",
             "@phpunit"
         ],
-        "quality": [
-            "@csrun",
-            "@psalm",
-            "@phpstan"
+        "quality": ["@csrun", "@psalm", "@phpstan"],
+        "phpunit": ["@test-phpunit"],
+        "static-clear-cache": [
+            "XDEBUG_MODE=off vendor/bin/psalm --clear-cache",
+            "XDEBUG_MODE=off vendor/bin/phpstan clear-result-cache"
         ],
-        "phpunit": "@test-unit",
-        "test-unit": "XDEBUG_MODE=off ./vendor/bin/phpunit --testsuite=unit",
-        "test-coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --testsuite=unit,integration,feature --coverage-html=data/coverage-html --coverage-xml=data/coverage-xml --log-junit=data/coverage-xml/junit.xml",
+        "test-phpunit": "XDEBUG_MODE=off ./vendor/bin/phpunit",
+        "test-coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --testsuite=unit,feature --coverage-html=data/coverage-html",
         "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
         "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
         "csfix": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix",
         "csrun": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix --dry-run",
-        "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection --show-mutations --threads=$(nproc 2> /dev/null || sysctl -n hw.logicalcpu) --min-msi=100 --min-covered-msi=100 --test-framework=phpunit",
-        "phpbench": "XDEBUG_MODE=off ./vendor/bin/phpbench run --report=aggregate --ansi",
-        "phpbench-base": "XDEBUG_MODE=off ./vendor/bin/phpbench run --tag=baseline --report=aggregate --progress=plain --ansi",
-        "phpbench-ref": "XDEBUG_MODE=off ./vendor/bin/phpbench run --ref=baseline --report=aggregate --progress=plain --ansi",
-        "metrics-report": [
-            "@test-all-suites",
-            "XDEBUG_MODE=off ./vendor/bin/phpmetrics --config=phpmetrics-config.json --junit=data/log-junit.xml"
-        ]
+        "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection  --show-mutations --threads=max --min-msi=100 --min-covered-msi=100"
+    },
+    "config": {
+        "platform": {
+            "php": "8.0"
+        },
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true,
+            "infection/extension-installer": true
+        }
     }
 }
