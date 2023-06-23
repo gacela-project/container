@@ -12,8 +12,11 @@ final class DependencyNotFoundException extends RuntimeException implements NotF
     public static function mapNotFoundForClassName(string $className): self
     {
         $message = <<<TXT
-Did you forget to map this interface to a concrete class? No concrete class was found that implements:
-{$className}
+No concrete class was found that implements:
+"{$className}"
+Did you forget to bind this interface to a concrete class?
+
+You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings 
 TXT;
         return new self($message);
     }
