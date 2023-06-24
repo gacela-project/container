@@ -19,7 +19,7 @@
         {
             "name": "Jesus Valera Reales",
             "email": "jesus1902@outlook.com",
-            "homepage": "https://jesusvalera.github.io"
+            "homepage": "https://jesusvalerareales.com/"
         }
     ],
     "support": {
@@ -32,7 +32,7 @@
         "psr/container": "^1.1"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.18",
+        "friendsofphp/php-cs-fixer": "^3.19",
         "phpunit/phpunit": "^9.6",
         "infection/infection": "^0.26",
         "phpstan/phpstan": "^1.10",
