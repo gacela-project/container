@@ -28,17 +28,17 @@
     "prefer-stable": true,
     "minimum-stability": "dev",
     "require": {
-        "php": "^8.0, <8.3",
+        "php": ">=8.1",
         "psr/container": "^1.1"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.19",
+        "friendsofphp/php-cs-fixer": "^3.41",
         "phpunit/phpunit": "^9.6",
         "infection/infection": "^0.26",
         "phpstan/phpstan": "^1.10",
         "psalm/plugin-phpunit": "^0.18",
         "symfony/var-dumper": "^5.4",
-        "vimeo/psalm": "^5.12"
+        "vimeo/psalm": "^5.18"
     },
     "autoload": {
         "psr-4": {
@@ -78,7 +78,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.0"
+            "php": "8.1"
         },
         "allow-plugins": {
             "composer/package-versions-deprecated": true,
