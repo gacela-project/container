@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0
+### 2023-12-21
+
+- Change min PHP support for `PHP>=8.1` 
+
 ## 0.5.1
 ### 2023-06-24
 
