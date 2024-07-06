@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0
+## 0.6.1
 ### 2024-07-06
 
 - Support `"psr/container": ">=1.1"`
