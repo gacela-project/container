@@ -1,31 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit bootstrap="vendor/autoload.php"
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php"
          backupGlobals="false"
-         backupStaticAttributes="false"
          colors="true"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
          executionOrder="random"
          processIsolation="false"
          resolveDependencies="true"
          stopOnFailure="false"
-         verbose="true"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         cacheDirectory=".phpunit.cache"
+         backupStaticProperties="false"
 >
     <php>
-        <ini name="error_reporting" value="-1" />
-        <ini name="memory_limit" value="-1" />
+        <ini name="error_reporting" value="-1"/>
+        <ini name="memory_limit" value="-1"/>
     </php>
-
     <testsuites>
         <testsuite name="unit">
             <directory suffix="Test.php">tests/Unit</directory>
         </testsuite>
     </testsuites>
-
-    <coverage>
+    <source>
         <include>
             <directory suffix=".php">src</directory>
         </include>
-    </coverage>
+    </source>
 </phpunit>

@@ -112,7 +112,7 @@ class Container implements ContainerInterface
     {
         unset(
             $this->instances[$id],
-            $this->frozenInstances[$id]
+            $this->frozenInstances[$id],
         );
     }
 
