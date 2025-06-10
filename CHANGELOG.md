@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Container performance avoid reflection
+
 ## 0.6.1
 ### 2024-07-06
 

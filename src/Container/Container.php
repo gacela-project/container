@@ -6,13 +6,16 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
-use ReflectionFunction;
+use InvalidArgumentException;
+
 use SplObjectStorage;
 
 use function count;
+use function get_class;
 use function is_array;
 use function is_callable;
 use function is_object;
+use function is_string;
 
 class Container implements ContainerInterface
 {
@@ -34,8 +37,8 @@ class Container implements ContainerInterface
     private ?string $currentlyExtending = null;
 
     /**
-     * @param array<class-string, class-string|callable|object> $bindings
-     * @param array<string, list<Closure>> $instancesToExtend
+     * @param  array<class-string, class-string|callable|object>  $bindings
+     * @param  array<string, list<Closure>>  $instancesToExtend
      */
     public function __construct(
         private array $bindings = [],
@@ -46,7 +49,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param class-string $className
+     * @param  class-string  $className
      */
     public static function create(string $className): mixed
     {
@@ -74,7 +77,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param class-string|string $id
+     * @param  class-string|string  $id
      */
     public function get(string $id): mixed
     {
@@ -87,9 +90,8 @@ class Container implements ContainerInterface
 
     public function resolve(callable $callable): mixed
     {
+        $callableKey = $this->callableKey($callable);
         $callable = Closure::fromCallable($callable);
-        $reflectionFn = new ReflectionFunction($callable);
-        $callableKey = md5(serialize($reflectionFn->__toString()));
 
         if (!isset($this->cachedDependencies[$callableKey])) {
             $this->cachedDependencies[$callableKey] = $this
@@ -200,7 +202,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param class-string $class
+     * @param  class-string  $class
      */
     private function instantiateClass(string $class): ?object
     {
@@ -232,6 +234,34 @@ class Container implements ContainerInterface
         }
 
         return $this->dependencyResolver;
+    }
+
+    /**
+     * Generates a unique string key for a given callable.
+     *
+     * @psalm-suppress MixedReturnTypeCoercion
+     */
+    private function callableKey(callable $callable): string
+    {
+        if (is_array($callable)) {
+            [$classOrObject, $method] = $callable;
+
+            $className = is_object($classOrObject)
+                ? get_class($classOrObject)
+                : $classOrObject;
+
+            return $className . '::' . $method;
+        }
+
+        if (is_string($callable)) {
+            return $callable;
+        }
+
+        if ($callable instanceof Closure) {
+            return spl_object_hash($callable);
+        }
+
+        throw new InvalidArgumentException('Unsupported callable type');
     }
 
     /**
