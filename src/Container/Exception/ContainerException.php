@@ -21,7 +21,7 @@ final class ContainerException extends Exception implements ContainerExceptionIn
 
     public static function frozenInstanceOverride(string $id): self
     {
-        return new self("The instance '{$id}' is frozen and cannot be override.");
+        return new self("The instance '{$id}' is frozen and cannot be overridden.");
     }
 
     public static function instanceProtected(string $id): self
