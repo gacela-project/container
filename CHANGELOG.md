@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Container performance avoid reflection
+- Fix factory services
 
 ## 0.6.1
 ### 2024-07-06
