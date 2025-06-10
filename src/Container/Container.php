@@ -141,6 +141,11 @@ class Container implements ContainerInterface
         $extended = $this->generateExtendedInstance($instance, $factory);
         $this->set($id, $extended);
 
+        if (is_object($factory) && isset($this->factoryInstances[$factory])) {
+            $this->factoryInstances->detach($factory);
+            $this->factoryInstances->attach($extended);
+        }
+
         return $extended;
     }
 

@@ -271,6 +271,36 @@ final class ClassContainerTest extends TestCase
         );
     }
 
+    public function test_extend_existing_factory_service(): void
+    {
+        $container = new Container();
+        $container->set('n3', 3);
+        $container->set(
+            'service_name',
+            $container->factory(
+                static fn () => new ArrayObject([1, 2]),
+            ),
+        );
+
+        $container->extend(
+            'service_name',
+            static function (ArrayObject $arrayObject, Container $container): ArrayObject {
+                $arrayObject->append($container->get('n3'));
+
+                return $arrayObject;
+            },
+        );
+
+        /** @var ArrayObject $first */
+        $first = $container->get('service_name');
+        /** @var ArrayObject $second */
+        $second = $container->get('service_name');
+
+        self::assertEquals(new ArrayObject([1, 2, 3]), $first);
+        self::assertEquals(new ArrayObject([1, 2, 3]), $second);
+        self::assertNotSame($first, $second);
+    }
+
     public function test_extend_existing_callable_service(): void
     {
         $container = new Container();
