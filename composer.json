@@ -32,12 +32,12 @@
         "psr/container": ">=1.1"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.59",
+        "friendsofphp/php-cs-fixer": "^3.75",
         "phpunit/phpunit": "^10.5",
-        "phpstan/phpstan": "^1.11",
+        "phpstan/phpstan": "^1.12",
         "psalm/plugin-phpunit": "^0.18",
         "symfony/var-dumper": "^5.4",
-        "vimeo/psalm": "^5.25"
+        "vimeo/psalm": "^5.26"
     },
     "autoload": {
         "psr-4": {

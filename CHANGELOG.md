@@ -4,6 +4,7 @@
 
 - Container performance avoid reflection
 - Fix factory services
+- Cache `ReflectionClass` instances to prevent redundant reflection
 
 ## 0.6.1
 ### 2024-07-06

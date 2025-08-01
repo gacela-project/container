@@ -19,6 +19,9 @@ use function is_string;
 
 final class DependencyResolver
 {
+    /** @var array<class-string, ReflectionClass> */
+    private array $reflectionCache = [];
+
     /**
      * @param array<class-string,class-string|callable|object> $bindings
      */
@@ -135,21 +138,25 @@ final class DependencyResolver
      */
     private function resolveReflectionClass(string $paramTypeName): ReflectionClass
     {
-        $reflection = new ReflectionClass($paramTypeName);
+        if (!isset($this->reflectionCache[$paramTypeName])) {
+            $reflection = new ReflectionClass($paramTypeName);
 
-        if ($reflection->isInstantiable()) {
-            return $reflection;
+            if (!$reflection->isInstantiable()) {
+                /** @var mixed $concreteClass */
+                $concreteClass = $this->bindings[$reflection->getName()] ?? null;
+
+                if ($concreteClass !== null) {
+                    /** @var class-string $concreteClass */
+                    $reflection = new ReflectionClass($concreteClass);
+                } else {
+                    throw DependencyNotFoundException::mapNotFoundForClassName($reflection->getName());
+                }
+            }
+
+            $this->reflectionCache[$paramTypeName] = $reflection;
         }
 
-        /** @var mixed $concreteClass */
-        $concreteClass = $this->bindings[$reflection->getName()] ?? null;
-
-        if ($concreteClass !== null) {
-            /** @var class-string $concreteClass */
-            return new ReflectionClass($concreteClass);
-        }
-
-        throw DependencyNotFoundException::mapNotFoundForClassName($reflection->getName());
+        return $this->reflectionCache[$paramTypeName];
     }
 
     private function resolveInnerDependencies(ReflectionMethod $constructor, ReflectionClass $reflection): object
