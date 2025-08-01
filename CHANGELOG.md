@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
+### 2025-08-02
 
 - Container performance avoid reflection
 - Fix factory services
