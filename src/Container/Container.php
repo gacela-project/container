@@ -6,7 +6,6 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
-use InvalidArgumentException;
 
 use SplObjectStorage;
 
@@ -266,7 +265,7 @@ class Container implements ContainerInterface
             return spl_object_hash($callable);
         }
 
-        throw new InvalidArgumentException('Unsupported callable type');
+        return 'callable:' . md5(var_export($callable, true));
     }
 
     /**
