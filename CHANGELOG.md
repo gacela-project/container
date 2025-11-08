@@ -19,6 +19,7 @@
 - Add generic type annotations for better static analysis support
 - Set XDEBUG_MODE=coverage in phpunit.xml for CI compatibility
 - Refactor: Extract InstanceRegistry class to reduce Container complexity
+- Refactor: Extract DependencyCacheManager class to reduce Container complexity
 
 ## 0.7.0
 ### 2025-08-02
