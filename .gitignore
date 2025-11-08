@@ -3,6 +3,7 @@
 .vscode/
 .phpbench/
 .cache/
+.DS_Store
 coverage/
 data/
 vendor/

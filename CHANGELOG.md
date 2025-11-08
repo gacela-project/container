@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Improve error messages with actionable suggestions for easier debugging
+
 ## 0.7.0
 ### 2025-08-02
 
