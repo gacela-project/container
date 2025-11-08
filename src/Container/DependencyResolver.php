@@ -23,6 +23,9 @@ final class DependencyResolver
     /** @var array<class-string, ReflectionClass> */
     private array $reflectionCache = [];
 
+    /** @var array<class-string, ?ReflectionMethod> */
+    private array $constructorCache = [];
+
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
@@ -62,8 +65,7 @@ final class DependencyResolver
     private function getParametersToResolve(Closure|string $toResolve): array
     {
         if (is_string($toResolve)) {
-            $reflection = new ReflectionClass($toResolve);
-            $constructor = $reflection->getConstructor();
+            $constructor = $this->getConstructor($toResolve);
             if (!$constructor) {
                 return [];
             }
@@ -72,6 +74,19 @@ final class DependencyResolver
 
         $reflection = new ReflectionFunction($toResolve);
         return $reflection->getParameters();
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function getConstructor(string $className): ?ReflectionMethod
+    {
+        if (!isset($this->constructorCache[$className])) {
+            $reflection = new ReflectionClass($className);
+            $this->constructorCache[$className] = $reflection->getConstructor();
+        }
+
+        return $this->constructorCache[$className];
     }
 
     private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed
@@ -131,7 +146,7 @@ final class DependencyResolver
         $this->checkCircularDependency($paramTypeName);
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
-        $constructor = $reflection->getConstructor();
+        $constructor = $this->getConstructor($paramTypeName);
         if ($constructor === null) {
             return $reflection->newInstance();
         }
