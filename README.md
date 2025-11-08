@@ -182,6 +182,21 @@ $container->warmUp([
 $service = $container->get(UserService::class); // Faster!
 ```
 
+### Service Aliasing
+
+Create multiple names for the same service:
+
+```php
+// Create an alias
+$container->alias('db', PDO::class);
+
+// Access via alias or original name
+$db1 = $container->get('db');        // Same instance
+$db2 = $container->get(PDO::class);  // Same instance
+
+// Alias resolution is cached for optimal performance
+```
+
 ## API Reference
 
 ### Container Methods
@@ -201,6 +216,7 @@ $service = $container->get(UserService::class); // Faster!
 | `isFrozen(string $id): bool` | Check if service is frozen |
 | `getBindings(): array` | Get all bindings |
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
+| `alias(string $alias, string $id): void` | Create an alias for a service (with caching) |
 
 ### Static Methods
 
