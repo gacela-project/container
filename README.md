@@ -164,6 +164,19 @@ if ($container->isFrozen('logger')) {
 
 // Get all bindings
 $bindings = $container->getBindings();
+
+// Get comprehensive statistics
+$stats = $container->getStats();
+/*
+[
+    'registered_services' => 42,
+    'frozen_services' => 15,
+    'factory_services' => 3,
+    'bindings' => 8,
+    'cached_dependencies' => 25,
+    'memory_usage' => '2.34 MB'
+]
+*/
 ```
 
 ### Performance Optimization
@@ -217,6 +230,7 @@ $db2 = $container->get(PDO::class);  // Same instance
 | `getBindings(): array` | Get all bindings |
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `alias(string $alias, string $id): void` | Create an alias for a service (with caching) |
+| `getStats(): array` | Get container statistics for debugging and performance monitoring |
 
 ### Static Methods
 
