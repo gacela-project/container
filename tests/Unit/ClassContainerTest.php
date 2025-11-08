@@ -532,4 +532,53 @@ final class ClassContainerTest extends TestCase
 
         Container::create(CircularC::class);
     }
+
+    public function test_get_registered_services(): void
+    {
+        $container = new Container();
+        self::assertSame([], $container->getRegisteredServices());
+
+        $container->set('service1', 'value1');
+        $container->set('service2', 'value2');
+
+        self::assertSame(['service1', 'service2'], $container->getRegisteredServices());
+    }
+
+    public function test_is_factory(): void
+    {
+        $container = new Container();
+        $factory = $container->factory(static fn () => new ArrayObject());
+        $nonFactory = static fn () => new ArrayObject();
+
+        $container->set('factory_service', $factory);
+        $container->set('non_factory_service', $nonFactory);
+
+        self::assertTrue($container->isFactory('factory_service'));
+        self::assertFalse($container->isFactory('non_factory_service'));
+        self::assertFalse($container->isFactory('non_existent'));
+    }
+
+    public function test_is_frozen(): void
+    {
+        $container = new Container();
+        $container->set('service', 'value');
+
+        self::assertFalse($container->isFrozen('service'));
+
+        $container->get('service');
+
+        self::assertTrue($container->isFrozen('service'));
+    }
+
+    public function test_get_bindings(): void
+    {
+        $bindings = [
+            PersonInterface::class => Person::class,
+            'some_service' => static fn () => 'value',
+        ];
+
+        $container = new Container($bindings);
+
+        self::assertSame($bindings, $container->getBindings());
+    }
 }

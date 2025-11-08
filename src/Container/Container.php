@@ -155,6 +155,37 @@ class Container implements ContainerInterface
         return $instance;
     }
 
+    /**
+     * @return list<string>
+     */
+    public function getRegisteredServices(): array
+    {
+        return array_values(array_keys($this->instances));
+    }
+
+    public function isFactory(string $id): bool
+    {
+        if (!$this->has($id)) {
+            return false;
+        }
+
+        $instance = $this->instances[$id];
+        return is_object($instance) && isset($this->factoryInstances[$instance]);
+    }
+
+    public function isFrozen(string $id): bool
+    {
+        return isset($this->frozenInstances[$id]);
+    }
+
+    /**
+     * @return array<class-string, class-string|callable|object>
+     */
+    public function getBindings(): array
+    {
+        return $this->bindings;
+    }
+
     private function getInstance(string $id): mixed
     {
         $this->frozenInstances[$id] = true;
