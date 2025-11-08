@@ -7,6 +7,7 @@
 - Optimize callableKey() to use spl_object_id() instead of md5+var_export
 - Add constructor method caching to avoid redundant reflection lookups
 - Add introspection methods: getRegisteredServices(), isFactory(), isFrozen(), getBindings()
+- Add warmUp() method to pre-resolve dependencies for improved performance
 
 ## 0.7.0
 ### 2025-08-02

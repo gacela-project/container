@@ -581,4 +581,35 @@ final class ClassContainerTest extends TestCase
 
         self::assertSame($bindings, $container->getBindings());
     }
+
+    public function test_warm_up_caches_dependencies(): void
+    {
+        $container = new Container();
+
+        // Warm up should pre-resolve dependencies
+        $container->warmUp([
+            ClassWithObjectDependencies::class,
+            ClassWithRelationship::class,
+            Person::class,
+        ]);
+
+        // After warm-up, instantiation should be faster (dependencies cached)
+        $result = $container->get(ClassWithObjectDependencies::class);
+
+        self::assertInstanceOf(ClassWithObjectDependencies::class, $result);
+        self::assertInstanceOf(Person::class, $result->person);
+    }
+
+    public function test_warm_up_skips_non_existent_classes(): void
+    {
+        $container = new Container();
+
+        // Should not throw exception for non-existent class
+        $container->warmUp([
+            'NonExistentClass',
+            Person::class,
+        ]);
+
+        self::assertInstanceOf(Person::class, $container->get(Person::class));
+    }
 }

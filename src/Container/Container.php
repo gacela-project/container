@@ -186,6 +186,25 @@ class Container implements ContainerInterface
         return $this->bindings;
     }
 
+    /**
+     * @param list<class-string> $classNames
+     */
+    public function warmUp(array $classNames): void
+    {
+        foreach ($classNames as $className) {
+            if (!class_exists($className)) {
+                continue;
+            }
+
+            // Pre-resolve dependencies to populate cache
+            if (!isset($this->cachedDependencies[$className])) {
+                $this->cachedDependencies[$className] = $this
+                    ->getDependencyResolver()
+                    ->resolveDependencies($className);
+            }
+        }
+    }
+
     private function getInstance(string $id): mixed
     {
         $this->frozenInstances[$id] = true;

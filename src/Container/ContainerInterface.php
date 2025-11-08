@@ -73,4 +73,12 @@ interface ContainerInterface extends PsrContainerInterface
      * @return array<class-string, class-string|callable|object>
      */
     public function getBindings(): array;
+
+    /**
+     * Pre-resolve and cache dependencies for the given class names.
+     * This can improve performance by avoiding cold-start resolution overhead.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function warmUp(array $classNames): void;
 }
