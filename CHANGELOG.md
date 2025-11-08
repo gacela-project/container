@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add contextual bindings support for class-specific dependency injection
 - Add fuzzy service name suggestions to error messages for better typo detection
 - Add alias resolution caching for improved performance
 - Add getStats() method for container debugging and performance monitoring

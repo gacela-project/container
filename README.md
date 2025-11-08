@@ -62,6 +62,26 @@ $container = new Container($bindings);
 $logger = $container->get(LoggerInterface::class); // Returns FileLogger
 ```
 
+### Contextual Bindings
+
+Different implementations based on which class needs them:
+
+```php
+// UserController gets FileLogger, AdminController gets DatabaseLogger
+$container->when(UserController::class)
+    ->needs(LoggerInterface::class)
+    ->give(FileLogger::class);
+
+$container->when(AdminController::class)
+    ->needs(LoggerInterface::class)
+    ->give(DatabaseLogger::class);
+
+// Multiple classes can share the same contextual binding
+$container->when([ServiceA::class, ServiceB::class])
+    ->needs(CacheInterface::class)
+    ->give(RedisCache::class);
+```
+
 ## How It Works
 
 The container automatically resolves dependencies based on type hints:
@@ -231,6 +251,7 @@ $db2 = $container->get(PDO::class);  // Same instance
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `alias(string $alias, string $id): void` | Create an alias for a service (with caching) |
 | `getStats(): array` | Get container statistics for debugging and performance monitoring |
+| `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes |
 
 ### Static Methods
 

@@ -21,9 +21,11 @@ final class DependencyCacheManager
 
     /**
      * @param array<class-string, class-string|callable|object> $bindings
+     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
      */
     public function __construct(
         private array $bindings = [],
+        private array &$contextualBindings = [],
     ) {
     }
 
@@ -126,6 +128,7 @@ final class DependencyCacheManager
         if ($this->dependencyResolver === null) {
             $this->dependencyResolver = new DependencyResolver(
                 $this->bindings,
+                $this->contextualBindings,
             );
         }
 
