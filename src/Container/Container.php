@@ -12,7 +12,6 @@ use ReflectionNamedType;
 
 use function get_class;
 use function is_array;
-use function is_callable;
 use function is_object;
 use function is_string;
 
@@ -26,17 +25,20 @@ class Container implements ContainerInterface
 
     private DependencyCacheManager $cacheManager;
 
+    private BindingResolver $bindingResolver;
+
     /**
      * @param  array<class-string, class-string|callable|object>  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
      */
     public function __construct(
-        private array $bindings = [],
+        array $bindings = [],
         array $instancesToExtend = [],
     ) {
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
+        $this->bindingResolver = new BindingResolver($bindings);
         $this->cacheManager = new DependencyCacheManager($bindings);
     }
 
@@ -194,7 +196,7 @@ class Container implements ContainerInterface
      */
     public function getBindings(): array
     {
-        return $this->bindings;
+        return $this->bindingResolver->getBindings();
     }
 
     /**
@@ -207,35 +209,7 @@ class Container implements ContainerInterface
 
     private function createInstance(string $class): ?object
     {
-        if (isset($this->bindings[$class])) {
-            $binding = $this->bindings[$class];
-            if (is_callable($binding)) {
-                /** @var mixed $binding */
-                $binding = $binding();
-            }
-            if (is_object($binding)) {
-                return $binding;
-            }
-
-            /** @var class-string $binding */
-            if (class_exists($binding)) {
-                return $this->instantiateClass($binding);
-            }
-        }
-
-        if (class_exists($class)) {
-            return $this->instantiateClass($class);
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  class-string  $class
-     */
-    private function instantiateClass(string $class): ?object
-    {
-        return $this->cacheManager->instantiate($class);
+        return $this->bindingResolver->resolve($class, $this->cacheManager);
     }
 
     /**
@@ -309,16 +283,11 @@ class Container implements ContainerInterface
                 continue;
             }
 
+            /** @var class-string $paramTypeName */
             $paramTypeName = $type->getName();
 
             // Resolve binding if it's an interface
-            if (isset($this->bindings[$paramTypeName])) {
-                $binding = $this->bindings[$paramTypeName];
-                if (is_string($binding) && class_exists($binding)) {
-                    /** @var class-string $paramTypeName */
-                    $paramTypeName = $binding;
-                }
-            }
+            $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
 
             if (isset($dependencies[$paramTypeName])) {
                 continue; // Already processed
