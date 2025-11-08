@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
@@ -14,6 +15,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 
+use function count;
 use function is_callable;
 use function is_object;
 use function is_string;
@@ -35,11 +37,16 @@ final class DependencyResolver
     /** @var array<string, bool> */
     private array $interfaceExistsCache = [];
 
+    /** @var list<class-string> */
+    private array $buildStack = [];
+
     /**
      * @param array<class-string,class-string|callable|object> $bindings
+     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
      */
     public function __construct(
         private array $bindings = [],
+        private array &$contextualBindings = [],
     ) {
     }
 
@@ -50,17 +57,28 @@ final class DependencyResolver
      */
     public function resolveDependencies(string|Closure $toResolve): array
     {
-        /** @var list<mixed> $dependencies */
-        $dependencies = [];
-
-        $parameters = $this->getParametersToResolve($toResolve);
-
-        foreach ($parameters as $parameter) {
-            /** @psalm-suppress MixedAssignment */
-            $dependencies[] = $this->resolveDependenciesRecursively($parameter);
+        // Track which class is being resolved for contextual bindings
+        if (is_string($toResolve)) {
+            $this->buildStack[] = $toResolve;
         }
 
-        return $dependencies;
+        try {
+            /** @var list<mixed> $dependencies */
+            $dependencies = [];
+
+            $parameters = $this->getParametersToResolve($toResolve);
+
+            foreach ($parameters as $parameter) {
+                /** @psalm-suppress MixedAssignment */
+                $dependencies[] = $this->resolveDependenciesRecursively($parameter);
+            }
+
+            return $dependencies;
+        } finally {
+            if (is_string($toResolve)) {
+                array_pop($this->buildStack);
+            }
+        }
     }
 
     /**
@@ -98,6 +116,16 @@ final class DependencyResolver
     private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed
     {
         $this->checkInvalidArgumentParam($parameter);
+
+        // Check for #[Inject] attribute
+        $attributes = $parameter->getAttributes(Inject::class);
+        if (count($attributes) > 0) {
+            /** @var Inject $inject */
+            $inject = $attributes[0]->newInstance();
+            if ($inject->implementation !== null) {
+                return $this->resolveClass($inject->implementation);
+            }
+        }
 
         /** @var ReflectionNamedType $paramType */
         $paramType = $parameter->getType();
@@ -167,6 +195,23 @@ final class DependencyResolver
      */
     private function resolveClass(string $paramTypeName): mixed
     {
+        // Check for contextual binding first
+        $contextualBinding = $this->getContextualBinding($paramTypeName);
+        if ($contextualBinding !== null) {
+            if (is_callable($contextualBinding)) {
+                /** @psalm-suppress MixedFunctionCall */
+                return $contextualBinding();
+            }
+
+            if (is_object($contextualBinding)) {
+                return $contextualBinding;
+            }
+
+            // It's a class string - use it instead of the interface
+            /** @var class-string $contextualBinding */
+            $paramTypeName = $contextualBinding;
+        }
+
         /** @var mixed $bindClass */
         $bindClass = $this->bindings[$paramTypeName] ?? null;
         if (is_callable($bindClass)) {
@@ -260,5 +305,26 @@ final class DependencyResolver
         } finally {
             unset($this->resolvingStack[$className]);
         }
+    }
+
+    /**
+     * Get contextual binding for the current build context.
+     *
+     * @param class-string $abstract
+     *
+     * @return class-string|callable|object|null
+     */
+    private function getContextualBinding(string $abstract): mixed
+    {
+        // Check the build stack for contextual bindings
+        // Start from the end (most specific context) to the beginning
+        for ($i = count($this->buildStack) - 1; $i >= 0; --$i) {
+            $concrete = $this->buildStack[$i];
+            if (isset($this->contextualBindings[$concrete][$abstract])) {
+                return $this->contextualBindings[$concrete][$abstract];
+            }
+        }
+
+        return null;
     }
 }

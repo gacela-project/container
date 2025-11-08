@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Attribute\Factory;
+use Gacela\Container\Attribute\Singleton;
+use ReflectionClass;
 
 use function class_exists;
 use function count;
@@ -17,13 +20,21 @@ final class DependencyCacheManager
     /** @var array<class-string|string, list<mixed>> */
     private array $cachedDependencies = [];
 
+    /** @var array<class-string, object> */
+    private array $singletonInstances = [];
+
+    /** @var array<string, bool> Cache for attribute existence checks */
+    private array $attributeCache = [];
+
     private ?DependencyResolver $dependencyResolver = null;
 
     /**
      * @param array<class-string, class-string|callable|object> $bindings
+     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
      */
     public function __construct(
         private array $bindings = [],
+        private array &$contextualBindings = [],
     ) {
     }
 
@@ -89,18 +100,34 @@ final class DependencyCacheManager
      */
     public function instantiate(string $class): ?object
     {
-        if (class_exists($class)) {
-            if (!isset($this->cachedDependencies[$class])) {
-                $this->cachedDependencies[$class] = $this
-                    ->getDependencyResolver()
-                    ->resolveDependencies($class);
-            }
-
-            /** @psalm-suppress MixedMethodCall */
-            return new $class(...$this->cachedDependencies[$class]);
+        if (!class_exists($class)) {
+            return null;
         }
 
-        return null;
+        // Check for #[Singleton] attribute (cached)
+        if ($this->hasAttribute($class, Singleton::class)) {
+            if (isset($this->singletonInstances[$class])) {
+                return $this->singletonInstances[$class];
+            }
+
+            $instance = $this->createInstance($class);
+            $this->singletonInstances[$class] = $instance;
+            return $instance;
+        }
+
+        // Check for #[Factory] attribute (cached) - always create new instance
+        if ($this->hasAttribute($class, Factory::class)) {
+            // Don't cache dependencies for factory classes to ensure fresh instances
+            $dependencies = $this
+                ->getDependencyResolver()
+                ->resolveDependencies($class);
+
+            /** @psalm-suppress MixedMethodCall */
+            return new $class(...$dependencies);
+        }
+
+        // Default behavior - create new instance
+        return $this->createInstance($class);
     }
 
     /**
@@ -121,14 +148,50 @@ final class DependencyCacheManager
         return array_keys($this->cachedDependencies);
     }
 
+    /**
+     * Create a new instance of a class using cached dependencies.
+     *
+     * @param class-string $class
+     */
+    private function createInstance(string $class): object
+    {
+        if (!isset($this->cachedDependencies[$class])) {
+            $this->cachedDependencies[$class] = $this
+                ->getDependencyResolver()
+                ->resolveDependencies($class);
+        }
+
+        /** @psalm-suppress MixedMethodCall */
+        return new $class(...$this->cachedDependencies[$class]);
+    }
+
     private function getDependencyResolver(): DependencyResolver
     {
         if ($this->dependencyResolver === null) {
             $this->dependencyResolver = new DependencyResolver(
                 $this->bindings,
+                $this->contextualBindings,
             );
         }
 
         return $this->dependencyResolver;
+    }
+
+    /**
+     * Check if a class has a specific attribute, with caching.
+     *
+     * @param class-string $class
+     * @param class-string $attributeClass
+     */
+    private function hasAttribute(string $class, string $attributeClass): bool
+    {
+        $cacheKey = $class . '::' . $attributeClass;
+
+        if (!isset($this->attributeCache[$cacheKey])) {
+            $reflection = new ReflectionClass($class);
+            $this->attributeCache[$cacheKey] = count($reflection->getAttributes($attributeClass)) > 0;
+        }
+
+        return $this->attributeCache[$cacheKey];
     }
 }

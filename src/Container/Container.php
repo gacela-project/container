@@ -27,6 +27,9 @@ class Container implements ContainerInterface
 
     private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
 
+    /** @var array<string, array<class-string, class-string|callable|object>> */
+    private array $contextualBindings = [];
+
     /**
      * @param  array<class-string, class-string|callable|object>  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
@@ -39,7 +42,7 @@ class Container implements ContainerInterface
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($bindings);
-        $this->cacheManager = new DependencyCacheManager($bindings);
+        $this->cacheManager = new DependencyCacheManager($bindings, $this->contextualBindings);
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
@@ -198,6 +201,19 @@ class Container implements ContainerInterface
     public function warmUp(array $classNames): void
     {
         $this->cacheManager->warmUp($classNames);
+    }
+
+    /**
+     * Define a contextual binding.
+     *
+     * @param class-string|list<class-string> $concrete
+     */
+    public function when(string|array $concrete): ContextualBindingBuilder
+    {
+        $builder = new ContextualBindingBuilder($this->contextualBindings);
+        $builder->when($concrete);
+
+        return $builder;
     }
 
     /**
