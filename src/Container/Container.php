@@ -23,15 +23,11 @@ class Container implements ContainerInterface
     /** @var array<class-string|string, list<mixed>> */
     private array $cachedDependencies = [];
 
-    /** @var array<string,mixed> */
-    private array $instances = [];
-
-    /** @var array<string,bool> */
-    private array $frozenInstances = [];
-
     private AliasRegistry $aliasRegistry;
 
     private FactoryManager $factoryManager;
+
+    private InstanceRegistry $instanceRegistry;
 
     /**
      * @param  array<class-string, class-string|callable|object>  $bindings
@@ -43,6 +39,7 @@ class Container implements ContainerInterface
     ) {
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
+        $this->instanceRegistry = new InstanceRegistry();
     }
 
     /**
@@ -56,16 +53,12 @@ class Container implements ContainerInterface
     public function has(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
-        return isset($this->instances[$id]);
+        return $this->instanceRegistry->has($id);
     }
 
     public function set(string $id, mixed $instance): void
     {
-        if (!empty($this->frozenInstances[$id])) {
-            throw ContainerException::frozenInstanceOverride($id);
-        }
-
-        $this->instances[$id] = $instance;
+        $this->instanceRegistry->set($id, $instance);
 
         if ($this->factoryManager->isCurrentlyExtending($id)) {
             return;
@@ -82,7 +75,7 @@ class Container implements ContainerInterface
         $id = $this->aliasRegistry->resolve($id);
 
         if ($this->has($id)) {
-            return $this->getInstance($id);
+            return $this->instanceRegistry->get($id, $this->factoryManager, $this);
         }
 
         return $this->createInstance($id);
@@ -113,11 +106,7 @@ class Container implements ContainerInterface
     public function remove(string $id): void
     {
         $id = $this->aliasRegistry->resolve($id);
-
-        unset(
-            $this->instances[$id],
-            $this->frozenInstances[$id],
-        );
+        $this->instanceRegistry->remove($id);
     }
 
     public function alias(string $alias, string $id): void
@@ -156,15 +145,16 @@ class Container implements ContainerInterface
             return $instance;
         }
 
-        if (isset($this->frozenInstances[$id])) {
+        if ($this->instanceRegistry->isFrozen($id)) {
             throw ContainerException::frozenInstanceExtend($id);
         }
 
-        if ($this->factoryManager->isProtected($this->instances[$id])) {
+        $factory = $this->instanceRegistry->getRaw($id);
+
+        if ($this->factoryManager->isProtected($factory)) {
             throw ContainerException::instanceProtected($id);
         }
 
-        $factory = $this->instances[$id];
         $extended = $this->factoryManager->generateExtendedInstance($instance, $factory, $this);
         $this->set($id, $extended);
 
@@ -185,7 +175,7 @@ class Container implements ContainerInterface
      */
     public function getRegisteredServices(): array
     {
-        return array_keys($this->instances);
+        return $this->instanceRegistry->getAll();
     }
 
     public function isFactory(string $id): bool
@@ -196,13 +186,13 @@ class Container implements ContainerInterface
             return false;
         }
 
-        return $this->factoryManager->isFactory($this->instances[$id]);
+        return $this->factoryManager->isFactory($this->instanceRegistry->getRaw($id));
     }
 
     public function isFrozen(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
-        return isset($this->frozenInstances[$id]);
+        return $this->instanceRegistry->isFrozen($id);
     }
 
     /**
@@ -230,31 +220,6 @@ class Container implements ContainerInterface
                     ->resolveDependencies($className);
             }
         }
-    }
-
-    private function getInstance(string $id): mixed
-    {
-        $this->frozenInstances[$id] = true;
-
-        if (!is_object($this->instances[$id])
-            || $this->factoryManager->isProtected($this->instances[$id])
-            || !method_exists($this->instances[$id], '__invoke')
-        ) {
-            return $this->instances[$id];
-        }
-
-        if ($this->factoryManager->isFactory($this->instances[$id])) {
-            return $this->instances[$id]($this);
-        }
-
-        $rawService = $this->instances[$id];
-
-        /** @var mixed $resolvedService */
-        $resolvedService = $rawService($this);
-
-        $this->instances[$id] = $resolvedService;
-
-        return $resolvedService;
     }
 
     private function createInstance(string $class): ?object
