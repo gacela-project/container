@@ -114,7 +114,8 @@ final class DependencyResolver
     private function checkInvalidArgumentParam(ReflectionParameter $parameter): void
     {
         if (!$parameter->hasType()) {
-            throw DependencyInvalidArgumentException::noParameterTypeFor($parameter->getName());
+            $chain = $this->getResolutionChain();
+            throw DependencyInvalidArgumentException::noParameterTypeFor($parameter->getName(), $chain);
         }
 
         /** @var ReflectionNamedType $paramType */
@@ -124,8 +125,17 @@ final class DependencyResolver
         if ($this->isScalar($paramTypeName) && !$parameter->isDefaultValueAvailable()) {
             /** @var ReflectionClass $reflectionClass */
             $reflectionClass = $parameter->getDeclaringClass();
-            throw DependencyInvalidArgumentException::unableToResolve($paramTypeName, $reflectionClass->getName());
+            $chain = $this->getResolutionChain();
+            throw DependencyInvalidArgumentException::unableToResolve($paramTypeName, $reflectionClass->getName(), $chain);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getResolutionChain(): array
+    {
+        return array_keys($this->resolvingStack);
     }
 
     private function isScalar(string $paramTypeName): bool

@@ -13,6 +13,7 @@
 - Cache class_exists() and interface_exists() calls for better performance
 - Add service aliasing support with alias() method
 - Add getDependencyTree() method to inspect class dependencies
+- Include resolution chain in error messages for better debugging context
 
 ## 0.7.0
 ### 2025-08-02

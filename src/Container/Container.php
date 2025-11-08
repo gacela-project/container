@@ -143,7 +143,8 @@ class Container implements ContainerInterface
         $dependencies = [];
         $this->collectDependencies($className, $dependencies);
 
-        return array_keys($dependencies);
+        /** @var list<string> */
+        return array_values(array_keys($dependencies));
     }
 
     /**
@@ -407,11 +408,7 @@ class Container implements ContainerInterface
      */
     private function collectDependencies(string $className, array &$dependencies): void
     {
-        try {
-            $reflection = new \ReflectionClass($className);
-        } catch (\ReflectionException) {
-            return;
-        }
+        $reflection = new \ReflectionClass($className);
 
         $constructor = $reflection->getConstructor();
         if ($constructor === null) {
@@ -430,6 +427,7 @@ class Container implements ContainerInterface
             if (isset($this->bindings[$paramTypeName])) {
                 $binding = $this->bindings[$paramTypeName];
                 if (is_string($binding) && class_exists($binding)) {
+                    /** @var class-string $paramTypeName */
                     $paramTypeName = $binding;
                 }
             }
@@ -439,7 +437,10 @@ class Container implements ContainerInterface
             }
 
             $dependencies[$paramTypeName] = true;
-            $this->collectDependencies($paramTypeName, $dependencies);
+
+            if (class_exists($paramTypeName)) {
+                $this->collectDependencies($paramTypeName, $dependencies);
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ use ArrayObject;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use GacelaTest\Fake\CircularA;
 use GacelaTest\Fake\CircularC;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
@@ -16,6 +17,7 @@ use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ClassWithRelationship;
+use GacelaTest\Fake\ControllerUsingService;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
@@ -728,5 +730,14 @@ final class ClassContainerTest extends TestCase
         $tree = $container->getDependencyTree(ClassWithoutDependencies::class);
 
         self::assertSame([], $tree);
+    }
+
+    public function test_error_includes_resolution_chain(): void
+    {
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Resolution chain:.*ServiceWithScalarDependency/');
+
+        $container = new Container();
+        $container->get(ControllerUsingService::class);
     }
 }
