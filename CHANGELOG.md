@@ -8,6 +8,7 @@
 - Add constructor method caching to avoid redundant reflection lookups
 - Add introspection methods: getRegisteredServices(), isFactory(), isFrozen(), getBindings()
 - Add warmUp() method to pre-resolve dependencies for improved performance
+- Improve README with comprehensive examples and best practices
 
 ## 0.7.0
 ### 2025-08-02
