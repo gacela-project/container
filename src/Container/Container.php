@@ -33,6 +33,9 @@ class Container implements ContainerInterface
     /** @var array<string,bool> */
     private array $frozenInstances = [];
 
+    /** @var array<string,string> */
+    private array $aliases = [];
+
     private ?string $currentlyExtending = null;
 
     /**
@@ -57,6 +60,7 @@ class Container implements ContainerInterface
 
     public function has(string $id): bool
     {
+        $id = $this->resolveAlias($id);
         return isset($this->instances[$id]);
     }
 
@@ -80,6 +84,8 @@ class Container implements ContainerInterface
      */
     public function get(string $id): mixed
     {
+        $id = $this->resolveAlias($id);
+
         if ($this->has($id)) {
             return $this->getInstance($id);
         }
@@ -111,10 +117,17 @@ class Container implements ContainerInterface
 
     public function remove(string $id): void
     {
+        $id = $this->resolveAlias($id);
+
         unset(
             $this->instances[$id],
             $this->frozenInstances[$id],
         );
+    }
+
+    public function alias(string $alias, string $id): void
+    {
+        $this->aliases[$alias] = $id;
     }
 
     /**
@@ -122,6 +135,8 @@ class Container implements ContainerInterface
      */
     public function extend(string $id, Closure $instance): Closure
     {
+        $id = $this->resolveAlias($id);
+
         if (!$this->has($id)) {
             $this->extendLater($id, $instance);
 
@@ -165,6 +180,8 @@ class Container implements ContainerInterface
 
     public function isFactory(string $id): bool
     {
+        $id = $this->resolveAlias($id);
+
         if (!$this->has($id)) {
             return false;
         }
@@ -176,6 +193,7 @@ class Container implements ContainerInterface
 
     public function isFrozen(string $id): bool
     {
+        $id = $this->resolveAlias($id);
         return isset($this->frozenInstances[$id]);
     }
 
@@ -360,5 +378,10 @@ class Container implements ContainerInterface
 
         unset($this->instancesToExtend[$id]);
         $this->currentlyExtending = null;
+    }
+
+    private function resolveAlias(string $id): string
+    {
+        return $this->aliases[$id] ?? $id;
     }
 }

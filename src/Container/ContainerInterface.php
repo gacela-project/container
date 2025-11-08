@@ -81,4 +81,10 @@ interface ContainerInterface extends PsrContainerInterface
      * @param list<class-string> $classNames
      */
     public function warmUp(array $classNames): void;
+
+    /**
+     * Create an alias for a service.
+     * Allows accessing the same service with multiple identifiers.
+     */
+    public function alias(string $alias, string $id): void;
 }

@@ -632,4 +632,62 @@ final class ClassContainerTest extends TestCase
         self::assertInstanceOf(Person::class, $service->repository->person);
         self::assertInstanceOf(ClassWithoutDependencies::class, $service->repository->config);
     }
+
+    public function test_alias_for_service(): void
+    {
+        $container = new Container();
+        $container->set(Person::class, new Person());
+        $container->alias('person', Person::class);
+
+        self::assertTrue($container->has('person'));
+        self::assertInstanceOf(Person::class, $container->get('person'));
+        self::assertSame($container->get(Person::class), $container->get('person'));
+    }
+
+    public function test_alias_with_factory(): void
+    {
+        $container = new Container();
+        $factory = $container->factory(fn() => new Person());
+        $container->set(Person::class, $factory);
+        $container->alias('person', Person::class);
+
+        self::assertTrue($container->isFactory(Person::class));
+        self::assertTrue($container->isFactory('person'));
+
+        $p1 = $container->get('person');
+        $p2 = $container->get('person');
+
+        self::assertInstanceOf(Person::class, $p1);
+        self::assertInstanceOf(Person::class, $p2);
+        self::assertNotSame($p1, $p2);
+    }
+
+    public function test_alias_frozen_state(): void
+    {
+        $container = new Container();
+        $container->set('service', 'value');
+        $container->alias('svc', 'service');
+
+        self::assertFalse($container->isFrozen('service'));
+        self::assertFalse($container->isFrozen('svc'));
+
+        $container->get('service');
+
+        self::assertTrue($container->isFrozen('service'));
+        self::assertTrue($container->isFrozen('svc'));
+    }
+
+    public function test_remove_via_alias(): void
+    {
+        $container = new Container();
+        $container->set('service', 'value');
+        $container->alias('svc', 'service');
+
+        self::assertTrue($container->has('svc'));
+
+        $container->remove('svc');
+
+        self::assertFalse($container->has('service'));
+        self::assertFalse($container->has('svc'));
+    }
 }
