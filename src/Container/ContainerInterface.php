@@ -87,4 +87,13 @@ interface ContainerInterface extends PsrContainerInterface
      * Allows accessing the same service with multiple identifiers.
      */
     public function alias(string $alias, string $id): void;
+
+    /**
+     * Get the dependency tree for a given class.
+     * Returns a list of all classes/interfaces that this class depends on.
+     *
+     * @param class-string $className
+     * @return list<string>
+     */
+    public function getDependencyTree(string $className): array;
 }

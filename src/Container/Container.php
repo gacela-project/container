@@ -131,6 +131,22 @@ class Container implements ContainerInterface
     }
 
     /**
+     * @param class-string $className
+     * @return list<string>
+     */
+    public function getDependencyTree(string $className): array
+    {
+        if (!class_exists($className)) {
+            return [];
+        }
+
+        $dependencies = [];
+        $this->collectDependencies($className, $dependencies);
+
+        return array_keys($dependencies);
+    }
+
+    /**
      * @psalm-suppress MixedAssignment
      */
     public function extend(string $id, Closure $instance): Closure
@@ -383,5 +399,47 @@ class Container implements ContainerInterface
     private function resolveAlias(string $id): string
     {
         return $this->aliases[$id] ?? $id;
+    }
+
+    /**
+     * @param class-string $className
+     * @param array<string, true> $dependencies
+     */
+    private function collectDependencies(string $className, array &$dependencies): void
+    {
+        try {
+            $reflection = new \ReflectionClass($className);
+        } catch (\ReflectionException) {
+            return;
+        }
+
+        $constructor = $reflection->getConstructor();
+        if ($constructor === null) {
+            return;
+        }
+
+        foreach ($constructor->getParameters() as $parameter) {
+            $type = $parameter->getType();
+            if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
+                continue;
+            }
+
+            $paramTypeName = $type->getName();
+
+            // Resolve binding if it's an interface
+            if (isset($this->bindings[$paramTypeName])) {
+                $binding = $this->bindings[$paramTypeName];
+                if (is_string($binding) && class_exists($binding)) {
+                    $paramTypeName = $binding;
+                }
+            }
+
+            if (isset($dependencies[$paramTypeName])) {
+                continue; // Already processed
+            }
+
+            $dependencies[$paramTypeName] = true;
+            $this->collectDependencies($paramTypeName, $dependencies);
+        }
     }
 }

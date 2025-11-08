@@ -690,4 +690,43 @@ final class ClassContainerTest extends TestCase
         self::assertFalse($container->has('service'));
         self::assertFalse($container->has('svc'));
     }
+
+    public function test_get_dependency_tree_simple(): void
+    {
+        $container = new Container();
+        $tree = $container->getDependencyTree(ClassWithObjectDependencies::class);
+
+        self::assertContains(Person::class, $tree);
+    }
+
+    public function test_get_dependency_tree_nested(): void
+    {
+        $container = new Container();
+        $tree = $container->getDependencyTree(ClassWithInnerObjectDependencies::class);
+
+        self::assertContains(ClassWithRelationship::class, $tree);
+        self::assertContains(Person::class, $tree);
+    }
+
+    public function test_get_dependency_tree_with_bindings(): void
+    {
+        $bindings = [
+            RepositoryInterface::class => DatabaseRepository::class,
+        ];
+
+        $container = new Container($bindings);
+        $tree = $container->getDependencyTree(ServiceWithRepository::class);
+
+        self::assertContains(DatabaseRepository::class, $tree);
+        self::assertContains(Person::class, $tree);
+        self::assertContains(ClassWithoutDependencies::class, $tree);
+    }
+
+    public function test_get_dependency_tree_no_dependencies(): void
+    {
+        $container = new Container();
+        $tree = $container->getDependencyTree(ClassWithoutDependencies::class);
+
+        self::assertSame([], $tree);
+    }
 }
