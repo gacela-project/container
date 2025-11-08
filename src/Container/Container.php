@@ -160,7 +160,7 @@ class Container implements ContainerInterface
      */
     public function getRegisteredServices(): array
     {
-        return array_values(array_keys($this->instances));
+        return array_keys($this->instances);
     }
 
     public function isFactory(string $id): bool
@@ -169,6 +169,7 @@ class Container implements ContainerInterface
             return false;
         }
 
+        /** @var mixed $instance */
         $instance = $this->instances[$id];
         return is_object($instance) && isset($this->factoryInstances[$instance]);
     }
@@ -316,12 +317,14 @@ class Container implements ContainerInterface
         }
 
         // Invokable objects
+        /** @psalm-suppress RedundantCondition */
         if (is_object($callable)) {
             return get_class($callable) . '#' . spl_object_id($callable);
         }
 
-        // This should rarely be reached for valid callables
-        return 'callable:' . spl_object_hash((object) $callable);
+        // Fallback for edge cases
+        /** @psalm-suppress MixedArgument */
+        return 'callable:' . md5(serialize($callable));
     }
 
     /**

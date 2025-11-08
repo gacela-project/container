@@ -4,6 +4,7 @@
 .phpbench/
 .cache/
 .DS_Store
+.claude/
 coverage/
 data/
 vendor/
