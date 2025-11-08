@@ -21,6 +21,7 @@
 - Refactor: Extract InstanceRegistry class to reduce Container complexity
 - Refactor: Extract DependencyCacheManager class to reduce Container complexity
 - Refactor: Extract BindingResolver class to reduce Container complexity
+- Refactor: Extract DependencyTreeAnalyzer class to reduce Container complexity
 
 ## 0.7.0
 ### 2025-08-02

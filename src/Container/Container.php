@@ -7,9 +7,6 @@ namespace Gacela\Container;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 
-use ReflectionClass;
-use ReflectionNamedType;
-
 use function get_class;
 use function is_array;
 use function is_object;
@@ -27,6 +24,8 @@ class Container implements ContainerInterface
 
     private BindingResolver $bindingResolver;
 
+    private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
+
     /**
      * @param  array<class-string, class-string|callable|object>  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
@@ -40,6 +39,7 @@ class Container implements ContainerInterface
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($bindings);
         $this->cacheManager = new DependencyCacheManager($bindings);
+        $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
     /**
@@ -117,15 +117,7 @@ class Container implements ContainerInterface
      */
     public function getDependencyTree(string $className): array
     {
-        if (!class_exists($className)) {
-            return [];
-        }
-
-        $dependencies = [];
-        $this->collectDependencies($className, $dependencies);
-
-        /** @var list<string> */
-        return array_keys($dependencies);
+        return $this->dependencyTreeAnalyzer->analyze($className);
     }
 
     /**
@@ -262,42 +254,5 @@ class Container implements ContainerInterface
 
         $this->factoryManager->clearPendingExtensions($id);
         $this->factoryManager->setCurrentlyExtending(null);
-    }
-
-    /**
-     * @param class-string $className
-     * @param array<string, true> $dependencies
-     */
-    private function collectDependencies(string $className, array &$dependencies): void
-    {
-        $reflection = new ReflectionClass($className);
-
-        $constructor = $reflection->getConstructor();
-        if ($constructor === null) {
-            return;
-        }
-
-        foreach ($constructor->getParameters() as $parameter) {
-            $type = $parameter->getType();
-            if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
-                continue;
-            }
-
-            /** @var class-string $paramTypeName */
-            $paramTypeName = $type->getName();
-
-            // Resolve binding if it's an interface
-            $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
-
-            if (isset($dependencies[$paramTypeName])) {
-                continue; // Already processed
-            }
-
-            $dependencies[$paramTypeName] = true;
-
-            if (class_exists($paramTypeName)) {
-                $this->collectDependencies($paramTypeName, $dependencies);
-            }
-        }
     }
 }
