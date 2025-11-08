@@ -164,6 +164,19 @@ if ($container->isFrozen('logger')) {
 
 // Get all bindings
 $bindings = $container->getBindings();
+
+// Get comprehensive statistics
+$stats = $container->getStats();
+/*
+[
+    'registered_services' => 42,
+    'frozen_services' => 15,
+    'factory_services' => 3,
+    'bindings' => 8,
+    'cached_dependencies' => 25,
+    'memory_usage' => '2.34 MB'
+]
+*/
 ```
 
 ### Performance Optimization
@@ -180,6 +193,21 @@ $container->warmUp([
 
 // Later requests benefit from cached dependency resolution
 $service = $container->get(UserService::class); // Faster!
+```
+
+### Service Aliasing
+
+Create multiple names for the same service:
+
+```php
+// Create an alias
+$container->alias('db', PDO::class);
+
+// Access via alias or original name
+$db1 = $container->get('db');        // Same instance
+$db2 = $container->get(PDO::class);  // Same instance
+
+// Alias resolution is cached for optimal performance
 ```
 
 ## API Reference
@@ -201,6 +229,8 @@ $service = $container->get(UserService::class); // Faster!
 | `isFrozen(string $id): bool` | Check if service is frozen |
 | `getBindings(): array` | Get all bindings |
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
+| `alias(string $alias, string $id): void` | Create an alias for a service (with caching) |
+| `getStats(): array` | Get container statistics for debugging and performance monitoring |
 
 ### Static Methods
 
@@ -273,7 +303,7 @@ $container->warmUp([
 
 ## Error Handling
 
-The container provides clear, actionable error messages:
+The container provides clear, actionable error messages with helpful suggestions:
 
 ### Missing Type Hint
 ```
@@ -299,6 +329,19 @@ Scalar types (string, int, float, bool, array) cannot be auto-resolved.
 
 Provide a default value for the parameter:
   public function __construct(string $param = 'default') { ... }
+```
+
+### Service Not Found (with suggestions)
+```
+No concrete class was found that implements:
+"App\LogerInterface"
+Did you forget to bind this interface to a concrete class?
+
+Did you mean one of these?
+  - App\LoggerInterface
+  - App\Service\LoggerInterface
+
+You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings
 ```
 
 ## Requirements

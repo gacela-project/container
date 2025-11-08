@@ -219,7 +219,14 @@ final class DependencyResolver
                     /** @var class-string $concreteClass */
                     $reflection = new ReflectionClass($concreteClass);
                 } else {
-                    throw DependencyNotFoundException::mapNotFoundForClassName($reflection->getName());
+                    $suggestions = FuzzyMatcher::findSimilar(
+                        $reflection->getName(),
+                        array_keys($this->bindings),
+                    );
+                    throw DependencyNotFoundException::mapNotFoundForClassName(
+                        $reflection->getName(),
+                        $suggestions,
+                    );
                 }
             }
 

@@ -86,4 +86,19 @@ final class ClassDependencyResolverTest extends TestCase
         $resolver = new DependencyResolver();
         $resolver->resolveDependencies(PersonWithoutParamType::class);
     }
+
+    public function test_missing_interface_with_suggestions(): void
+    {
+        $resolver = new DependencyResolver([
+            'GacelaTest\\Fake\\PersonInterfaceTypo' => Person::class,
+            'GacelaTest\\Fake\\PersonInterfce' => Person::class, // Close typo
+        ]);
+
+        try {
+            $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
+            self::fail('Expected DependencyNotFoundException to be thrown');
+        } catch (DependencyNotFoundException $e) {
+            self::assertStringContainsString('Did you mean one of these?', $e->getMessage());
+        }
+    }
 }

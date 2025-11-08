@@ -7,6 +7,7 @@ namespace Gacela\Container;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 
+use function count;
 use function get_class;
 use function is_array;
 use function is_object;
@@ -199,6 +200,43 @@ class Container implements ContainerInterface
         $this->cacheManager->warmUp($classNames);
     }
 
+    /**
+     * Get container statistics for debugging and optimization.
+     *
+     * @return array{
+     *     registered_services: int,
+     *     frozen_services: int,
+     *     factory_services: int,
+     *     bindings: int,
+     *     cached_dependencies: int,
+     *     memory_usage: string
+     * }
+     */
+    public function getStats(): array
+    {
+        $services = $this->getRegisteredServices();
+        $frozenCount = 0;
+        $factoryCount = 0;
+
+        foreach ($services as $serviceId) {
+            if ($this->isFrozen($serviceId)) {
+                ++$frozenCount;
+            }
+            if ($this->isFactory($serviceId)) {
+                ++$factoryCount;
+            }
+        }
+
+        return [
+            'registered_services' => count($services),
+            'frozen_services' => $frozenCount,
+            'factory_services' => $factoryCount,
+            'bindings' => count($this->getBindings()),
+            'cached_dependencies' => $this->cacheManager->getCacheSize(),
+            'memory_usage' => $this->formatBytes(memory_get_usage(true)),
+        ];
+    }
+
     private function createInstance(string $class): ?object
     {
         return $this->bindingResolver->resolve($class, $this->cacheManager);
@@ -254,5 +292,22 @@ class Container implements ContainerInterface
 
         $this->factoryManager->clearPendingExtensions($id);
         $this->factoryManager->setCurrentlyExtending(null);
+    }
+
+    /**
+     * Format bytes into human-readable format.
+     */
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+
+        /** @var int $powInt */
+        $powInt = (int) $pow;
+        $bytes /= (1 << (10 * $powInt));
+
+        return round($bytes, 2) . ' ' . $units[$powInt];
     }
 }

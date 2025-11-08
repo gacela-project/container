@@ -7,6 +7,7 @@ namespace Gacela\Container;
 use Closure;
 
 use function class_exists;
+use function count;
 
 /**
  * Manages dependency resolution caching for performance optimization.
@@ -100,6 +101,24 @@ final class DependencyCacheManager
         }
 
         return null;
+    }
+
+    /**
+     * Get the number of cached dependency resolutions.
+     */
+    public function getCacheSize(): int
+    {
+        return count($this->cachedDependencies);
+    }
+
+    /**
+     * Get all cached class names.
+     *
+     * @return list<string>
+     */
+    public function getCachedClasses(): array
+    {
+        return array_keys($this->cachedDependencies);
     }
 
     private function getDependencyResolver(): DependencyResolver
