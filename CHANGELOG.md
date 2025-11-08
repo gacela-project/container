@@ -14,6 +14,8 @@
 - Add service aliasing support with alias() method
 - Add getDependencyTree() method to inspect class dependencies
 - Include resolution chain in error messages for better debugging context
+- Refactor: Extract AliasRegistry class to reduce Container complexity
+- Refactor: Extract FactoryManager class to reduce Container complexity
 
 ## 0.7.0
 ### 2025-08-02

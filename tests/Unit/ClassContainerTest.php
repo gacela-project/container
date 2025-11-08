@@ -649,7 +649,7 @@ final class ClassContainerTest extends TestCase
     public function test_alias_with_factory(): void
     {
         $container = new Container();
-        $factory = $container->factory(fn() => new Person());
+        $factory = $container->factory(static fn () => new Person());
         $container->set(Person::class, $factory);
         $container->alias('person', Person::class);
 

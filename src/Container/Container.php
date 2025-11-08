@@ -7,9 +7,9 @@ namespace Gacela\Container;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 
-use SplObjectStorage;
+use ReflectionClass;
+use ReflectionNamedType;
 
-use function count;
 use function get_class;
 use function is_array;
 use function is_callable;
@@ -26,17 +26,12 @@ class Container implements ContainerInterface
     /** @var array<string,mixed> */
     private array $instances = [];
 
-    private SplObjectStorage $factoryInstances;
-
-    private SplObjectStorage $protectedInstances;
-
     /** @var array<string,bool> */
     private array $frozenInstances = [];
 
-    /** @var array<string,string> */
-    private array $aliases = [];
+    private AliasRegistry $aliasRegistry;
 
-    private ?string $currentlyExtending = null;
+    private FactoryManager $factoryManager;
 
     /**
      * @param  array<class-string, class-string|callable|object>  $bindings
@@ -44,10 +39,10 @@ class Container implements ContainerInterface
      */
     public function __construct(
         private array $bindings = [],
-        private array $instancesToExtend = [],
+        array $instancesToExtend = [],
     ) {
-        $this->factoryInstances = new SplObjectStorage();
-        $this->protectedInstances = new SplObjectStorage();
+        $this->aliasRegistry = new AliasRegistry();
+        $this->factoryManager = new FactoryManager($instancesToExtend);
     }
 
     /**
@@ -60,7 +55,7 @@ class Container implements ContainerInterface
 
     public function has(string $id): bool
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
         return isset($this->instances[$id]);
     }
 
@@ -72,7 +67,7 @@ class Container implements ContainerInterface
 
         $this->instances[$id] = $instance;
 
-        if ($this->currentlyExtending === $id) {
+        if ($this->factoryManager->isCurrentlyExtending($id)) {
             return;
         }
 
@@ -84,7 +79,7 @@ class Container implements ContainerInterface
      */
     public function get(string $id): mixed
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
 
         if ($this->has($id)) {
             return $this->getInstance($id);
@@ -110,14 +105,14 @@ class Container implements ContainerInterface
 
     public function factory(Closure $instance): Closure
     {
-        $this->factoryInstances->attach($instance);
+        $this->factoryManager->markAsFactory($instance);
 
         return $instance;
     }
 
     public function remove(string $id): void
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
 
         unset(
             $this->instances[$id],
@@ -127,11 +122,12 @@ class Container implements ContainerInterface
 
     public function alias(string $alias, string $id): void
     {
-        $this->aliases[$alias] = $id;
+        $this->aliasRegistry->add($alias, $id);
     }
 
     /**
      * @param class-string $className
+     *
      * @return list<string>
      */
     public function getDependencyTree(string $className): array
@@ -144,7 +140,7 @@ class Container implements ContainerInterface
         $this->collectDependencies($className, $dependencies);
 
         /** @var list<string> */
-        return array_values(array_keys($dependencies));
+        return array_keys($dependencies);
     }
 
     /**
@@ -152,10 +148,10 @@ class Container implements ContainerInterface
      */
     public function extend(string $id, Closure $instance): Closure
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
 
         if (!$this->has($id)) {
-            $this->extendLater($id, $instance);
+            $this->factoryManager->scheduleExtension($id, $instance);
 
             return $instance;
         }
@@ -164,25 +160,22 @@ class Container implements ContainerInterface
             throw ContainerException::frozenInstanceExtend($id);
         }
 
-        if (is_object($this->instances[$id]) && isset($this->protectedInstances[$this->instances[$id]])) {
+        if ($this->factoryManager->isProtected($this->instances[$id])) {
             throw ContainerException::instanceProtected($id);
         }
 
         $factory = $this->instances[$id];
-        $extended = $this->generateExtendedInstance($instance, $factory);
+        $extended = $this->factoryManager->generateExtendedInstance($instance, $factory, $this);
         $this->set($id, $extended);
 
-        if (is_object($factory) && isset($this->factoryInstances[$factory])) {
-            $this->factoryInstances->detach($factory);
-            $this->factoryInstances->attach($extended);
-        }
+        $this->factoryManager->transferFactoryStatus($factory, $extended);
 
         return $extended;
     }
 
     public function protect(Closure $instance): Closure
     {
-        $this->protectedInstances->attach($instance);
+        $this->factoryManager->markAsProtected($instance);
 
         return $instance;
     }
@@ -197,20 +190,18 @@ class Container implements ContainerInterface
 
     public function isFactory(string $id): bool
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
 
         if (!$this->has($id)) {
             return false;
         }
 
-        /** @var mixed $instance */
-        $instance = $this->instances[$id];
-        return is_object($instance) && isset($this->factoryInstances[$instance]);
+        return $this->factoryManager->isFactory($this->instances[$id]);
     }
 
     public function isFrozen(string $id): bool
     {
-        $id = $this->resolveAlias($id);
+        $id = $this->aliasRegistry->resolve($id);
         return isset($this->frozenInstances[$id]);
     }
 
@@ -246,13 +237,13 @@ class Container implements ContainerInterface
         $this->frozenInstances[$id] = true;
 
         if (!is_object($this->instances[$id])
-            || isset($this->protectedInstances[$this->instances[$id]])
+            || $this->factoryManager->isProtected($this->instances[$id])
             || !method_exists($this->instances[$id], '__invoke')
         ) {
             return $this->instances[$id];
         }
 
-        if (isset($this->factoryInstances[$this->instances[$id]])) {
+        if ($this->factoryManager->isFactory($this->instances[$id])) {
             return $this->instances[$id]($this);
         }
 
@@ -310,11 +301,6 @@ class Container implements ContainerInterface
         return null;
     }
 
-    private function extendLater(string $id, Closure $instance): void
-    {
-        $this->instancesToExtend[$id][] = $instance;
-    }
-
     private function getDependencyResolver(): DependencyResolver
     {
         if ($this->dependencyResolver === null) {
@@ -362,44 +348,20 @@ class Container implements ContainerInterface
         return 'callable:' . md5(serialize($callable));
     }
 
-    /**
-     * @psalm-suppress MissingClosureReturnType,MixedAssignment
-     */
-    private function generateExtendedInstance(Closure $instance, mixed $factory): Closure
-    {
-        if (is_callable($factory)) {
-            return static function (self $container) use ($instance, $factory) {
-                $result = $factory($container);
-
-                return $instance($result, $container) ?? $result;
-            };
-        }
-
-        if (is_object($factory) || is_array($factory)) {
-            return static fn (self $container) => $instance($factory, $container) ?? $factory;
-        }
-
-        throw ContainerException::instanceNotExtendable();
-    }
-
     private function extendService(string $id): void
     {
-        if (!isset($this->instancesToExtend[$id]) || count($this->instancesToExtend[$id]) === 0) {
+        if (!$this->factoryManager->hasPendingExtensions($id)) {
             return;
         }
-        $this->currentlyExtending = $id;
 
-        foreach ($this->instancesToExtend[$id] as $instance) {
+        $this->factoryManager->setCurrentlyExtending($id);
+
+        foreach ($this->factoryManager->getPendingExtensions($id) as $instance) {
             $this->extend($id, $instance);
         }
 
-        unset($this->instancesToExtend[$id]);
-        $this->currentlyExtending = null;
-    }
-
-    private function resolveAlias(string $id): string
-    {
-        return $this->aliases[$id] ?? $id;
+        $this->factoryManager->clearPendingExtensions($id);
+        $this->factoryManager->setCurrentlyExtending(null);
     }
 
     /**
@@ -408,7 +370,7 @@ class Container implements ContainerInterface
      */
     private function collectDependencies(string $className, array &$dependencies): void
     {
-        $reflection = new \ReflectionClass($className);
+        $reflection = new ReflectionClass($className);
 
         $constructor = $reflection->getConstructor();
         if ($constructor === null) {
@@ -417,7 +379,7 @@ class Container implements ContainerInterface
 
         foreach ($constructor->getParameters() as $parameter) {
             $type = $parameter->getType();
-            if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
+            if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
                 continue;
             }
 

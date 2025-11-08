@@ -93,6 +93,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Returns a list of all classes/interfaces that this class depends on.
      *
      * @param class-string $className
+     *
      * @return list<string>
      */
     public function getDependencyTree(string $className): array;
