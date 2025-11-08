@@ -16,8 +16,11 @@ use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ClassWithRelationship;
+use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
+use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\TestCase;
 
 final class ClassContainerTest extends TestCase
@@ -611,5 +614,22 @@ final class ClassContainerTest extends TestCase
         ]);
 
         self::assertInstanceOf(Person::class, $container->get(Person::class));
+    }
+
+    public function test_interface_binding_with_constructor_dependencies(): void
+    {
+        // This test ensures that when an interface is bound to a concrete implementation
+        // that has constructor dependencies, those dependencies are properly resolved
+        $bindings = [
+            RepositoryInterface::class => DatabaseRepository::class,
+        ];
+
+        $container = new Container($bindings);
+        $service = $container->get(ServiceWithRepository::class);
+
+        self::assertInstanceOf(ServiceWithRepository::class, $service);
+        self::assertInstanceOf(DatabaseRepository::class, $service->repository);
+        self::assertInstanceOf(Person::class, $service->repository->person);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->repository->config);
     }
 }

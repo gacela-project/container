@@ -146,7 +146,8 @@ final class DependencyResolver
         $this->checkCircularDependency($paramTypeName);
 
         $reflection = $this->resolveReflectionClass($paramTypeName);
-        $constructor = $this->getConstructor($paramTypeName);
+        // Use the concrete class name for caching, not the original parameter type
+        $constructor = $this->getConstructor($reflection->getName());
         if ($constructor === null) {
             return $reflection->newInstance();
         }
