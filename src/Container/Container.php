@@ -251,7 +251,7 @@ class Container implements ContainerInterface
             [$classOrObject, $method] = $callable;
 
             $className = is_object($classOrObject)
-                ? get_class($classOrObject)
+                ? get_class($classOrObject) . '#' . spl_object_id($classOrObject)
                 : $classOrObject;
 
             return $className . '::' . $method;
@@ -265,7 +265,13 @@ class Container implements ContainerInterface
             return spl_object_hash($callable);
         }
 
-        return 'callable:' . md5(var_export($callable, true));
+        // Invokable objects
+        if (is_object($callable)) {
+            return get_class($callable) . '#' . spl_object_id($callable);
+        }
+
+        // This should rarely be reached for valid callables
+        return 'callable:' . spl_object_hash((object) $callable);
     }
 
     /**

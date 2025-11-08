@@ -4,6 +4,7 @@
 
 - Improve error messages with actionable suggestions for easier debugging
 - Add circular dependency detection with helpful error messages
+- Optimize callableKey() to use spl_object_id() instead of md5+var_export
 
 ## 0.7.0
 ### 2025-08-02
