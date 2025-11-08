@@ -273,7 +273,7 @@ $container->warmUp([
 
 ## Error Handling
 
-The container provides clear, actionable error messages:
+The container provides clear, actionable error messages with helpful suggestions:
 
 ### Missing Type Hint
 ```
@@ -299,6 +299,19 @@ Scalar types (string, int, float, bool, array) cannot be auto-resolved.
 
 Provide a default value for the parameter:
   public function __construct(string $param = 'default') { ... }
+```
+
+### Service Not Found (with suggestions)
+```
+No concrete class was found that implements:
+"App\LogerInterface"
+Did you forget to bind this interface to a concrete class?
+
+Did you mean one of these?
+  - App\LoggerInterface
+  - App\Service\LoggerInterface
+
+You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings
 ```
 
 ## Requirements
