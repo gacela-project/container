@@ -18,8 +18,10 @@ use function is_object;
  */
 final class FactoryManager
 {
+    /** @var SplObjectStorage<Closure, mixed> */
     private SplObjectStorage $factoryInstances;
 
+    /** @var SplObjectStorage<Closure, mixed> */
     private SplObjectStorage $protectedInstances;
 
     private ?string $currentlyExtending = null;
@@ -55,7 +57,7 @@ final class FactoryManager
      */
     public function isFactory(mixed $instance): bool
     {
-        return is_object($instance) && isset($this->factoryInstances[$instance]);
+        return $instance instanceof Closure && isset($this->factoryInstances[$instance]);
     }
 
     /**
@@ -63,7 +65,7 @@ final class FactoryManager
      */
     public function isProtected(mixed $instance): bool
     {
-        return is_object($instance) && isset($this->protectedInstances[$instance]);
+        return $instance instanceof Closure && isset($this->protectedInstances[$instance]);
     }
 
     /**
@@ -122,9 +124,9 @@ final class FactoryManager
      */
     public function transferFactoryStatus(mixed $from, mixed $to): void
     {
-        if (is_object($from) && isset($this->factoryInstances[$from])) {
+        if ($from instanceof Closure && isset($this->factoryInstances[$from])) {
             $this->factoryInstances->detach($from);
-            if (is_object($to)) {
+            if ($to instanceof Closure) {
                 $this->factoryInstances->attach($to);
             }
         }

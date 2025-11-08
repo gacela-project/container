@@ -16,6 +16,7 @@
 - Include resolution chain in error messages for better debugging context
 - Refactor: Extract AliasRegistry class to reduce Container complexity
 - Refactor: Extract FactoryManager class to reduce Container complexity
+- Add generic type annotations for better static analysis support
 
 ## 0.7.0
 ### 2025-08-02

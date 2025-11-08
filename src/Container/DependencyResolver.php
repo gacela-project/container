@@ -20,7 +20,7 @@ use function is_string;
 
 final class DependencyResolver
 {
-    /** @var array<class-string, ReflectionClass> */
+    /** @var array<class-string, ReflectionClass<object>> */
     private array $reflectionCache = [];
 
     /** @var array<class-string, ?ReflectionMethod> */
@@ -123,7 +123,7 @@ final class DependencyResolver
         $paramTypeName = $paramType->getName();
 
         if ($this->isScalar($paramTypeName) && !$parameter->isDefaultValueAvailable()) {
-            /** @var ReflectionClass $reflectionClass */
+            /** @var ReflectionClass<object> $reflectionClass */
             $reflectionClass = $parameter->getDeclaringClass();
             $chain = $this->getResolutionChain();
             throw DependencyInvalidArgumentException::unableToResolve($paramTypeName, $reflectionClass->getName(), $chain);
@@ -203,6 +203,8 @@ final class DependencyResolver
 
     /**
      * @param class-string $paramTypeName
+     *
+     * @return ReflectionClass<object>
      */
     private function resolveReflectionClass(string $paramTypeName): ReflectionClass
     {
@@ -227,6 +229,9 @@ final class DependencyResolver
         return $this->reflectionCache[$paramTypeName];
     }
 
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
     private function resolveInnerDependencies(ReflectionMethod $constructor, ReflectionClass $reflection): object
     {
         $className = $reflection->getName();
