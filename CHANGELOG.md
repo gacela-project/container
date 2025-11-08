@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add PHP 8 attributes support: #[Inject], #[Singleton], and #[Factory]
 - Add contextual bindings support for class-specific dependency injection
 - Add fuzzy service name suggestions to error messages for better typo detection
 - Add alias resolution caching for improved performance

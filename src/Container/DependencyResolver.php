@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
@@ -115,6 +116,16 @@ final class DependencyResolver
     private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed
     {
         $this->checkInvalidArgumentParam($parameter);
+
+        // Check for #[Inject] attribute
+        $attributes = $parameter->getAttributes(Inject::class);
+        if (count($attributes) > 0) {
+            /** @var Inject $inject */
+            $inject = $attributes[0]->newInstance();
+            if ($inject->implementation !== null) {
+                return $this->resolveClass($inject->implementation);
+            }
+        }
 
         /** @var ReflectionNamedType $paramType */
         $paramType = $parameter->getType();

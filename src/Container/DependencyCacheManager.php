@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Attribute\Factory;
+use Gacela\Container\Attribute\Singleton;
+use ReflectionClass;
 
 use function class_exists;
 use function count;
@@ -16,6 +19,9 @@ final class DependencyCacheManager
 {
     /** @var array<class-string|string, list<mixed>> */
     private array $cachedDependencies = [];
+
+    /** @var array<class-string, object> */
+    private array $singletonInstances = [];
 
     private ?DependencyResolver $dependencyResolver = null;
 
@@ -91,18 +97,38 @@ final class DependencyCacheManager
      */
     public function instantiate(string $class): ?object
     {
-        if (class_exists($class)) {
-            if (!isset($this->cachedDependencies[$class])) {
-                $this->cachedDependencies[$class] = $this
-                    ->getDependencyResolver()
-                    ->resolveDependencies($class);
-            }
-
-            /** @psalm-suppress MixedMethodCall */
-            return new $class(...$this->cachedDependencies[$class]);
+        if (!class_exists($class)) {
+            return null;
         }
 
-        return null;
+        $reflection = new ReflectionClass($class);
+
+        // Check for #[Singleton] attribute
+        $singletonAttributes = $reflection->getAttributes(Singleton::class);
+        if (count($singletonAttributes) > 0) {
+            if (isset($this->singletonInstances[$class])) {
+                return $this->singletonInstances[$class];
+            }
+
+            $instance = $this->createInstance($class);
+            $this->singletonInstances[$class] = $instance;
+            return $instance;
+        }
+
+        // Check for #[Factory] attribute - always create new instance
+        $factoryAttributes = $reflection->getAttributes(Factory::class);
+        if (count($factoryAttributes) > 0) {
+            // Don't cache dependencies for factory classes to ensure fresh instances
+            $dependencies = $this
+                ->getDependencyResolver()
+                ->resolveDependencies($class);
+
+            /** @psalm-suppress MixedMethodCall */
+            return new $class(...$dependencies);
+        }
+
+        // Default behavior - create new instance
+        return $this->createInstance($class);
     }
 
     /**
@@ -121,6 +147,23 @@ final class DependencyCacheManager
     public function getCachedClasses(): array
     {
         return array_keys($this->cachedDependencies);
+    }
+
+    /**
+     * Create a new instance of a class using cached dependencies.
+     *
+     * @param class-string $class
+     */
+    private function createInstance(string $class): object
+    {
+        if (!isset($this->cachedDependencies[$class])) {
+            $this->cachedDependencies[$class] = $this
+                ->getDependencyResolver()
+                ->resolveDependencies($class);
+        }
+
+        /** @psalm-suppress MixedMethodCall */
+        return new $class(...$this->cachedDependencies[$class]);
     }
 
     private function getDependencyResolver(): DependencyResolver

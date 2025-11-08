@@ -28,6 +28,7 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - ⚡ **Performance Optimized**: Built-in caching and warmup capabilities
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
+- 🏷️ **PHP 8 Attributes**: Declarative configuration with #[Inject], #[Singleton], and #[Factory]
 
 ## Installation
 
@@ -80,6 +81,62 @@ $container->when(AdminController::class)
 $container->when([ServiceA::class, ServiceB::class])
     ->needs(CacheInterface::class)
     ->give(RedisCache::class);
+```
+
+### PHP 8 Attributes
+
+Use attributes for declarative dependency configuration:
+
+#### #[Inject] - Specify Implementation
+
+Override type hints to inject specific implementations:
+
+```php
+use Gacela\Container\Attribute\Inject;
+
+class NotificationService {
+    public function __construct(
+        #[Inject(EmailLogger::class)]
+        private LoggerInterface $logger,
+    ) {}
+}
+
+// EmailLogger will be injected even if LoggerInterface is bound to FileLogger
+$service = $container->get(NotificationService::class);
+```
+
+#### #[Singleton] - Single Instance
+
+Mark a class to be instantiated only once:
+
+```php
+use Gacela\Container\Attribute\Singleton;
+
+#[Singleton]
+class DatabaseConnection {
+    public function __construct(private string $dsn) {}
+}
+
+$conn1 = $container->get(DatabaseConnection::class);
+$conn2 = $container->get(DatabaseConnection::class);
+// $conn1 === $conn2 (same instance)
+```
+
+#### #[Factory] - New Instances
+
+Always create fresh instances:
+
+```php
+use Gacela\Container\Attribute\Factory;
+
+#[Factory]
+class RequestContext {
+    public function __construct(private LoggerInterface $logger) {}
+}
+
+$ctx1 = $container->get(RequestContext::class);
+$ctx2 = $container->get(RequestContext::class);
+// $ctx1 !== $ctx2 (different instances)
 ```
 
 ## How It Works
