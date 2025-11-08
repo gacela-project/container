@@ -29,6 +29,12 @@ final class DependencyResolver
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
+    /** @var array<string, bool> */
+    private array $classExistsCache = [];
+
+    /** @var array<string, bool> */
+    private array $interfaceExistsCache = [];
+
     /**
      * @param array<class-string,class-string|callable|object> $bindings
      */
@@ -124,8 +130,26 @@ final class DependencyResolver
 
     private function isScalar(string $paramTypeName): bool
     {
-        return !class_exists($paramTypeName)
-            && !interface_exists($paramTypeName);
+        return !$this->classExists($paramTypeName)
+            && !$this->interfaceExists($paramTypeName);
+    }
+
+    private function classExists(string $className): bool
+    {
+        if (!isset($this->classExistsCache[$className])) {
+            $this->classExistsCache[$className] = class_exists($className);
+        }
+
+        return $this->classExistsCache[$className];
+    }
+
+    private function interfaceExists(string $interfaceName): bool
+    {
+        if (!isset($this->interfaceExistsCache[$interfaceName])) {
+            $this->interfaceExistsCache[$interfaceName] = interface_exists($interfaceName);
+        }
+
+        return $this->interfaceExistsCache[$interfaceName];
     }
 
     /**

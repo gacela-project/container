@@ -10,6 +10,7 @@
 - Add warmUp() method to pre-resolve dependencies for improved performance
 - Improve README with comprehensive examples and best practices
 - Fix: Constructor caching now uses concrete class name instead of interface name
+- Cache class_exists() and interface_exists() calls for better performance
 
 ## 0.7.0
 ### 2025-08-02
