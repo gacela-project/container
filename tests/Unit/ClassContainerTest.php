@@ -6,7 +6,10 @@ namespace GacelaTest\Unit;
 
 use ArrayObject;
 use Gacela\Container\Container;
+use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\ContainerException;
+use GacelaTest\Fake\CircularA;
+use GacelaTest\Fake\CircularC;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithInnerObjectDependencies;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
@@ -512,5 +515,21 @@ final class ClassContainerTest extends TestCase
             'service_name',
             static fn (ArrayObject $arrayObject) => $arrayObject,
         );
+    }
+
+    public function test_circular_dependency_two_classes(): void
+    {
+        $this->expectException(CircularDependencyException::class);
+        $this->expectExceptionMessage('Circular dependency detected: GacelaTest\Fake\CircularB -> GacelaTest\Fake\CircularA -> GacelaTest\Fake\CircularB');
+
+        Container::create(CircularA::class);
+    }
+
+    public function test_circular_dependency_three_classes(): void
+    {
+        $this->expectException(CircularDependencyException::class);
+        $this->expectExceptionMessage('Circular dependency detected: GacelaTest\Fake\CircularD -> GacelaTest\Fake\CircularE -> GacelaTest\Fake\CircularC -> GacelaTest\Fake\CircularD');
+
+        Container::create(CircularC::class);
     }
 }

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Improve error messages with actionable suggestions for easier debugging
+- Add circular dependency detection with helpful error messages
 
 ## 0.7.0
 ### 2025-08-02
