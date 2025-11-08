@@ -2,32 +2,53 @@
 
 ## Unreleased
 
-- Optimize attribute reflection with caching for 15-20% performance improvement
-- Add PHP 8 attributes support: #[Inject], #[Singleton], and #[Factory]
-- Add contextual bindings support for class-specific dependency injection
-- Add fuzzy service name suggestions to error messages for better typo detection
-- Add alias resolution caching for improved performance
-- Add getStats() method for container debugging and performance monitoring
-- Improve error messages with actionable suggestions for easier debugging
-- Add circular dependency detection with helpful error messages
-- Optimize callableKey() to use spl_object_id() instead of md5+var_export
+### New Features
+
+#### PHP 8 Attributes
+- Add `#[Inject]` attribute to override dependency injection for specific implementations
+- Add `#[Singleton]` attribute to mark classes as single-instance services
+- Add `#[Factory]` attribute to always create new instances
+
+#### Contextual Bindings
+- Add `when()->needs()->give()` fluent API for class-specific dependency injection
+- Support binding different implementations of the same interface based on requesting class
+
+#### Service Aliasing
+- Add `alias()` method to create alternative names for services
+
+#### Introspection & Debugging
+- Add `getStats()` method for container performance monitoring and debugging
+- Add `getRegisteredServices()`, `isFactory()`, `isFrozen()`, `getBindings()` methods
+- Add `getDependencyTree()` method to inspect class dependency hierarchies
+- Add `warmUp()` method to pre-resolve dependencies for improved performance
+
+### Performance Improvements
+- Optimize attribute reflection with caching (15-20% improvement for attributed classes)
+- Add alias resolution caching
+- Optimize `callableKey()` to use `spl_object_id()` instead of `md5+var_export`
 - Add constructor method caching to avoid redundant reflection lookups
-- Add introspection methods: getRegisteredServices(), isFactory(), isFrozen(), getBindings()
-- Add warmUp() method to pre-resolve dependencies for improved performance
-- Improve README with comprehensive examples and best practices
-- Fix: Constructor caching now uses concrete class name instead of interface name
-- Cache class_exists() and interface_exists() calls for better performance
-- Add service aliasing support with alias() method
-- Add getDependencyTree() method to inspect class dependencies
+- Cache `class_exists()` and `interface_exists()` calls
+- Cache `ReflectionClass` instances to prevent redundant reflection
+
+### Developer Experience
+- Add fuzzy service name suggestions to error messages for better typo detection
+- Improve error messages with actionable suggestions
+- Add circular dependency detection with helpful error messages
 - Include resolution chain in error messages for better debugging context
-- Refactor: Extract AliasRegistry class to reduce Container complexity
-- Refactor: Extract FactoryManager class to reduce Container complexity
+- Improve README with comprehensive examples and best practices
+
+### Bug Fixes
+- Fix: Constructor caching now uses concrete class name instead of interface name
+
+### Code Quality
 - Add generic type annotations for better static analysis support
-- Set XDEBUG_MODE=coverage in phpunit.xml for CI compatibility
-- Refactor: Extract InstanceRegistry class to reduce Container complexity
-- Refactor: Extract DependencyCacheManager class to reduce Container complexity
-- Refactor: Extract BindingResolver class to reduce Container complexity
-- Refactor: Extract DependencyTreeAnalyzer class to reduce Container complexity
+- Extract specialized classes to reduce Container complexity:
+  - `AliasRegistry` for alias management
+  - `FactoryManager` for factory service handling
+  - `InstanceRegistry` for instance storage
+  - `DependencyCacheManager` for dependency caching
+  - `BindingResolver` for binding resolution
+  - `DependencyTreeAnalyzer` for dependency analysis
 
 ## 0.7.0
 ### 2025-08-02
