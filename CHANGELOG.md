@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Improve error messages with actionable suggestions for easier debugging
+- Add circular dependency detection with helpful error messages
+- Optimize callableKey() to use spl_object_id() instead of md5+var_export
+- Add constructor method caching to avoid redundant reflection lookups
+- Add introspection methods: getRegisteredServices(), isFactory(), isFrozen(), getBindings()
+- Add warmUp() method to pre-resolve dependencies for improved performance
+- Improve README with comprehensive examples and best practices
+- Fix: Constructor caching now uses concrete class name instead of interface name
+
 ## 0.7.0
 ### 2025-08-02
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionClass;
@@ -21,6 +22,12 @@ final class DependencyResolver
 {
     /** @var array<class-string, ReflectionClass> */
     private array $reflectionCache = [];
+
+    /** @var array<class-string, ?ReflectionMethod> */
+    private array $constructorCache = [];
+
+    /** @var array<class-string, bool> */
+    private array $resolvingStack = [];
 
     /**
      * @param array<class-string,class-string|callable|object> $bindings
@@ -58,8 +65,7 @@ final class DependencyResolver
     private function getParametersToResolve(Closure|string $toResolve): array
     {
         if (is_string($toResolve)) {
-            $reflection = new ReflectionClass($toResolve);
-            $constructor = $reflection->getConstructor();
+            $constructor = $this->getConstructor($toResolve);
             if (!$constructor) {
                 return [];
             }
@@ -68,6 +74,19 @@ final class DependencyResolver
 
         $reflection = new ReflectionFunction($toResolve);
         return $reflection->getParameters();
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function getConstructor(string $className): ?ReflectionMethod
+    {
+        if (!isset($this->constructorCache[$className])) {
+            $reflection = new ReflectionClass($className);
+            $this->constructorCache[$className] = $reflection->getConstructor();
+        }
+
+        return $this->constructorCache[$className];
     }
 
     private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed
@@ -124,13 +143,28 @@ final class DependencyResolver
             return $bindClass;
         }
 
+        $this->checkCircularDependency($paramTypeName);
+
         $reflection = $this->resolveReflectionClass($paramTypeName);
-        $constructor = $reflection->getConstructor();
+        // Use the concrete class name for caching, not the original parameter type
+        $constructor = $this->getConstructor($reflection->getName());
         if ($constructor === null) {
             return $reflection->newInstance();
         }
 
         return $this->resolveInnerDependencies($constructor, $reflection);
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function checkCircularDependency(string $className): void
+    {
+        if (isset($this->resolvingStack[$className])) {
+            $chain = array_keys($this->resolvingStack);
+            $chain[] = $className;
+            throw CircularDependencyException::create($chain);
+        }
     }
 
     /**
@@ -161,17 +195,24 @@ final class DependencyResolver
 
     private function resolveInnerDependencies(ReflectionMethod $constructor, ReflectionClass $reflection): object
     {
-        /** @var list<mixed> $innerDependencies */
-        $innerDependencies = [];
+        $className = $reflection->getName();
+        $this->resolvingStack[$className] = true;
 
-        foreach ($constructor->getParameters() as $constructorParameter) {
-            $paramType = $constructorParameter->getType();
-            if ($paramType) {
-                /** @psalm-suppress MixedAssignment */
-                $innerDependencies[] = $this->resolveDependenciesRecursively($constructorParameter);
+        try {
+            /** @var list<mixed> $innerDependencies */
+            $innerDependencies = [];
+
+            foreach ($constructor->getParameters() as $constructorParameter) {
+                $paramType = $constructorParameter->getType();
+                if ($paramType) {
+                    /** @psalm-suppress MixedAssignment */
+                    $innerDependencies[] = $this->resolveDependenciesRecursively($constructorParameter);
+                }
             }
-        }
 
-        return $reflection->newInstanceArgs($innerDependencies);
+            return $reflection->newInstanceArgs($innerDependencies);
+        } finally {
+            unset($this->resolvingStack[$className]);
+        }
     }
 }

@@ -155,6 +155,57 @@ class Container implements ContainerInterface
         return $instance;
     }
 
+    /**
+     * @return list<string>
+     */
+    public function getRegisteredServices(): array
+    {
+        return array_keys($this->instances);
+    }
+
+    public function isFactory(string $id): bool
+    {
+        if (!$this->has($id)) {
+            return false;
+        }
+
+        /** @var mixed $instance */
+        $instance = $this->instances[$id];
+        return is_object($instance) && isset($this->factoryInstances[$instance]);
+    }
+
+    public function isFrozen(string $id): bool
+    {
+        return isset($this->frozenInstances[$id]);
+    }
+
+    /**
+     * @return array<class-string, class-string|callable|object>
+     */
+    public function getBindings(): array
+    {
+        return $this->bindings;
+    }
+
+    /**
+     * @param list<class-string> $classNames
+     */
+    public function warmUp(array $classNames): void
+    {
+        foreach ($classNames as $className) {
+            if (!class_exists($className)) {
+                continue;
+            }
+
+            // Pre-resolve dependencies to populate cache
+            if (!isset($this->cachedDependencies[$className])) {
+                $this->cachedDependencies[$className] = $this
+                    ->getDependencyResolver()
+                    ->resolveDependencies($className);
+            }
+        }
+    }
+
     private function getInstance(string $id): mixed
     {
         $this->frozenInstances[$id] = true;
@@ -251,7 +302,7 @@ class Container implements ContainerInterface
             [$classOrObject, $method] = $callable;
 
             $className = is_object($classOrObject)
-                ? get_class($classOrObject)
+                ? get_class($classOrObject) . '#' . spl_object_id($classOrObject)
                 : $classOrObject;
 
             return $className . '::' . $method;
@@ -265,7 +316,15 @@ class Container implements ContainerInterface
             return spl_object_hash($callable);
         }
 
-        return 'callable:' . md5(var_export($callable, true));
+        // Invokable objects
+        /** @psalm-suppress RedundantCondition */
+        if (is_object($callable)) {
+            return get_class($callable) . '#' . spl_object_id($callable);
+        }
+
+        // Fallback for edge cases
+        /** @psalm-suppress MixedArgument */
+        return 'callable:' . md5(serialize($callable));
     }
 
     /**

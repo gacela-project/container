@@ -49,4 +49,36 @@ interface ContainerInterface extends PsrContainerInterface
      * Protect an instance to be resolved. A protected instance cannot be extended.
      */
     public function protect(Closure $instance): object;
+
+    /**
+     * Get all registered service identifiers.
+     *
+     * @return list<string>
+     */
+    public function getRegisteredServices(): array;
+
+    /**
+     * Check if a service is marked as a factory.
+     */
+    public function isFactory(string $id): bool;
+
+    /**
+     * Check if a service is frozen (has been accessed).
+     */
+    public function isFrozen(string $id): bool;
+
+    /**
+     * Get all bindings.
+     *
+     * @return array<class-string, class-string|callable|object>
+     */
+    public function getBindings(): array;
+
+    /**
+     * Pre-resolve and cache dependencies for the given class names.
+     * This can improve performance by avoiding cold-start resolution overhead.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function warmUp(array $classNames): void;
 }

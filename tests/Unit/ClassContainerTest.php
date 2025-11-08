@@ -6,15 +6,21 @@ namespace GacelaTest\Unit;
 
 use ArrayObject;
 use Gacela\Container\Container;
+use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\ContainerException;
+use GacelaTest\Fake\CircularA;
+use GacelaTest\Fake\CircularC;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithInnerObjectDependencies;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ClassWithRelationship;
+use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
+use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\TestCase;
 
 final class ClassContainerTest extends TestCase
@@ -512,5 +518,118 @@ final class ClassContainerTest extends TestCase
             'service_name',
             static fn (ArrayObject $arrayObject) => $arrayObject,
         );
+    }
+
+    public function test_circular_dependency_two_classes(): void
+    {
+        $this->expectException(CircularDependencyException::class);
+        $this->expectExceptionMessage('Circular dependency detected: GacelaTest\Fake\CircularB -> GacelaTest\Fake\CircularA -> GacelaTest\Fake\CircularB');
+
+        Container::create(CircularA::class);
+    }
+
+    public function test_circular_dependency_three_classes(): void
+    {
+        $this->expectException(CircularDependencyException::class);
+        $this->expectExceptionMessage('Circular dependency detected: GacelaTest\Fake\CircularD -> GacelaTest\Fake\CircularE -> GacelaTest\Fake\CircularC -> GacelaTest\Fake\CircularD');
+
+        Container::create(CircularC::class);
+    }
+
+    public function test_get_registered_services(): void
+    {
+        $container = new Container();
+        self::assertSame([], $container->getRegisteredServices());
+
+        $container->set('service1', 'value1');
+        $container->set('service2', 'value2');
+
+        self::assertSame(['service1', 'service2'], $container->getRegisteredServices());
+    }
+
+    public function test_is_factory(): void
+    {
+        $container = new Container();
+        $factory = $container->factory(static fn () => new ArrayObject());
+        $nonFactory = static fn () => new ArrayObject();
+
+        $container->set('factory_service', $factory);
+        $container->set('non_factory_service', $nonFactory);
+
+        self::assertTrue($container->isFactory('factory_service'));
+        self::assertFalse($container->isFactory('non_factory_service'));
+        self::assertFalse($container->isFactory('non_existent'));
+    }
+
+    public function test_is_frozen(): void
+    {
+        $container = new Container();
+        $container->set('service', 'value');
+
+        self::assertFalse($container->isFrozen('service'));
+
+        $container->get('service');
+
+        self::assertTrue($container->isFrozen('service'));
+    }
+
+    public function test_get_bindings(): void
+    {
+        $bindings = [
+            PersonInterface::class => Person::class,
+            'some_service' => static fn () => 'value',
+        ];
+
+        $container = new Container($bindings);
+
+        self::assertSame($bindings, $container->getBindings());
+    }
+
+    public function test_warm_up_caches_dependencies(): void
+    {
+        $container = new Container();
+
+        // Warm up should pre-resolve dependencies
+        $container->warmUp([
+            ClassWithObjectDependencies::class,
+            ClassWithRelationship::class,
+            Person::class,
+        ]);
+
+        // After warm-up, instantiation should be faster (dependencies cached)
+        $result = $container->get(ClassWithObjectDependencies::class);
+
+        self::assertInstanceOf(ClassWithObjectDependencies::class, $result);
+        self::assertInstanceOf(Person::class, $result->person);
+    }
+
+    public function test_warm_up_skips_non_existent_classes(): void
+    {
+        $container = new Container();
+
+        // Should not throw exception for non-existent class
+        $container->warmUp([
+            'NonExistentClass',
+            Person::class,
+        ]);
+
+        self::assertInstanceOf(Person::class, $container->get(Person::class));
+    }
+
+    public function test_interface_binding_with_constructor_dependencies(): void
+    {
+        // This test ensures that when an interface is bound to a concrete implementation
+        // that has constructor dependencies, those dependencies are properly resolved
+        $bindings = [
+            RepositoryInterface::class => DatabaseRepository::class,
+        ];
+
+        $container = new Container($bindings);
+        $service = $container->get(ServiceWithRepository::class);
+
+        self::assertInstanceOf(ServiceWithRepository::class, $service);
+        self::assertInstanceOf(DatabaseRepository::class, $service->repository);
+        self::assertInstanceOf(Person::class, $service->repository->person);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->repository->config);
     }
 }
