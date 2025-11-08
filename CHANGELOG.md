@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add fuzzy service name suggestions to error messages for better typo detection
+- Add alias resolution caching for improved performance
+- Add getStats() method for container debugging and performance monitoring
 - Improve error messages with actionable suggestions for easier debugging
 - Add circular dependency detection with helpful error messages
 - Optimize callableKey() to use spl_object_id() instead of md5+var_export
