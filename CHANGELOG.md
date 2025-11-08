@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.8.0](https://github.com/gacela-project/container/compare/0.7.0...0.8.0) - 2025-11-08
 
 ### New Features
 
@@ -50,48 +50,40 @@
   - `BindingResolver` for binding resolution
   - `DependencyTreeAnalyzer` for dependency analysis
 
-## 0.7.0
-### 2025-08-02
+## [0.7.0](https://github.com/gacela-project/container/compare/0.6.1...0.7.0) - 2025-08-02
 
 - Container performance avoid reflection
 - Fix factory services
 - Cache `ReflectionClass` instances to prevent redundant reflection
 
-## 0.6.1
-### 2024-07-06
+## [0.6.1](https://github.com/gacela-project/container/compare/0.6.0...0.6.1) - 2024-07-06
 
 - Support `"psr/container": ">=1.1"`
 
-## 0.6.0
-### 2023-12-21
+## [0.6.0](https://github.com/gacela-project/container/compare/0.5.1...0.6.0) - 2023-12-21
 
-- Change min PHP support for `PHP>=8.1` 
+- Change min PHP support for `PHP>=8.1`
 
-## 0.5.1
-### 2023-06-24
+## [0.5.1](https://github.com/gacela-project/container/compare/0.5.0...0.5.1) - 2023-06-24
 
 - Improved error message when no concrete binded class was found
 
-## 0.5.0
-### 2023-05-19
+## [0.5.0](https://github.com/gacela-project/container/compare/0.4.0...0.5.0) - 2023-05-19
 
 - Accept `Closure|string` in `getParametersToResolve()`
 - Added `resolve(callable)` to `ContainerInterface`
 
-## 0.4.0
-### 2023-04-27
+## [0.4.0](https://github.com/gacela-project/container/compare/0.3.0...0.4.0) - 2023-04-27
 
 - Add Container methods: set, factory, extend, remove, protect
 - Remove final from `Container` to allow decorating it using extend
 
-## 0.3.0
-### 2023-04-24
+## [0.3.0](https://github.com/gacela-project/container/compare/0.1.0...0.3.0) - 2023-04-24
 
 - Rename InstanceCreator to Container
 - Add [PSR-11](https://www.php-fig.org/psr/psr-11/) support
 - Remove `createByClassName()`, use `get()` instead
 
-## 0.1.0
-### 2023-03-11
+## [0.1.0](https://github.com/gacela-project/container/releases/tag/0.1.0) - 2023-03-11
 
 - Initial release: Code extracted originally from `gacela-project/gacela`
