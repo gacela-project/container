@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1](https://github.com/gacela-project/container/compare/0.8.0...0.8.1) - 2026-06-05
+
+### Fixed
+
+- PHP 8.5 compatibility: replace deprecated `SplObjectStorage::attach()`/`detach()` with `offsetSet()`/`offsetUnset()` in `FactoryManager`
+
 ## [0.8.0](https://github.com/gacela-project/container/compare/0.7.0...0.8.0) - 2025-11-08
 
 ### New Features

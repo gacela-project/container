@@ -41,7 +41,7 @@ final class FactoryManager
      */
     public function markAsFactory(Closure $instance): void
     {
-        $this->factoryInstances->attach($instance);
+        $this->factoryInstances->offsetSet($instance, null);
     }
 
     /**
@@ -49,7 +49,7 @@ final class FactoryManager
      */
     public function markAsProtected(Closure $instance): void
     {
-        $this->protectedInstances->attach($instance);
+        $this->protectedInstances->offsetSet($instance, null);
     }
 
     /**
@@ -125,9 +125,9 @@ final class FactoryManager
     public function transferFactoryStatus(mixed $from, mixed $to): void
     {
         if ($from instanceof Closure && isset($this->factoryInstances[$from])) {
-            $this->factoryInstances->detach($from);
+            $this->factoryInstances->offsetUnset($from);
             if ($to instanceof Closure) {
-                $this->factoryInstances->attach($to);
+                $this->factoryInstances->offsetSet($to, null);
             }
         }
     }
