@@ -48,9 +48,7 @@ final class AliasRegistryTest extends TestCase
         $registry = new AliasRegistry();
         $registry->add('alias', 'ServiceName');
 
-        // First call should populate cache
         $result1 = $registry->resolve('alias');
-        // Second call should use cache
         $result2 = $registry->resolve('alias');
 
         self::assertSame('ServiceName', $result1);
@@ -62,13 +60,10 @@ final class AliasRegistryTest extends TestCase
         $registry = new AliasRegistry();
         $registry->add('alias1', 'ServiceA');
 
-        // Populate cache
+        // Populate the resolution cache, then add an alias to invalidate it
         $registry->resolve('alias1');
-
-        // Add new alias should clear cache
         $registry->add('alias2', 'ServiceB');
 
-        // Both should work correctly
         self::assertSame('ServiceA', $registry->resolve('alias1'));
         self::assertSame('ServiceB', $registry->resolve('alias2'));
     }
@@ -77,9 +72,7 @@ final class AliasRegistryTest extends TestCase
     {
         $registry = new AliasRegistry();
 
-        // First call
         $result1 = $registry->resolve('DirectService');
-        // Second call should use cache
         $result2 = $registry->resolve('DirectService');
 
         self::assertSame('DirectService', $result1);

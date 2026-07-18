@@ -40,8 +40,6 @@ final class DependencyTreeAnalyzer
     }
 
     /**
-     * Recursively collect dependencies for a class.
-     *
      * @param class-string $className
      * @param array<string, true> $dependencies
      */
@@ -67,7 +65,7 @@ final class DependencyTreeAnalyzer
             $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
 
             if (isset($dependencies[$paramTypeName])) {
-                continue; // Already processed
+                continue;
             }
 
             $dependencies[$paramTypeName] = true;

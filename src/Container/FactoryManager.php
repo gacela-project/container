@@ -8,20 +8,22 @@ use Closure;
 use Gacela\Container\Exception\ContainerException;
 use SplObjectStorage;
 
-use function count;
 use function is_array;
 use function is_callable;
 use function is_object;
 
 /**
  * Manages factory instances, protected closures, and service extensions.
+ *
+ * Note: SplObjectStorage is accessed via offsetSet()/offsetUnset() instead of
+ * attach()/detach(), which are deprecated as of PHP 8.5. Behavior is identical.
  */
 final class FactoryManager
 {
-    /** @var SplObjectStorage<Closure, mixed> */
+    /** @var SplObjectStorage<Closure, null> */
     private SplObjectStorage $factoryInstances;
 
-    /** @var SplObjectStorage<Closure, mixed> */
+    /** @var SplObjectStorage<Closure, null> */
     private SplObjectStorage $protectedInstances;
 
     private ?string $currentlyExtending = null;
@@ -52,17 +54,11 @@ final class FactoryManager
         $this->protectedInstances->offsetSet($instance, null);
     }
 
-    /**
-     * Check if an instance is marked as a factory.
-     */
     public function isFactory(mixed $instance): bool
     {
         return $instance instanceof Closure && isset($this->factoryInstances[$instance]);
     }
 
-    /**
-     * Check if an instance is protected.
-     */
     public function isProtected(mixed $instance): bool
     {
         return $instance instanceof Closure && isset($this->protectedInstances[$instance]);
@@ -76,17 +72,12 @@ final class FactoryManager
         $this->instancesToExtend[$id][] = $instance;
     }
 
-    /**
-     * Check if there are pending extensions for a service.
-     */
     public function hasPendingExtensions(string $id): bool
     {
-        return isset($this->instancesToExtend[$id]) && count($this->instancesToExtend[$id]) > 0;
+        return isset($this->instancesToExtend[$id]);
     }
 
     /**
-     * Get pending extensions for a service.
-     *
      * @return list<Closure>
      */
     public function getPendingExtensions(string $id): array
@@ -94,25 +85,16 @@ final class FactoryManager
         return $this->instancesToExtend[$id] ?? [];
     }
 
-    /**
-     * Clear pending extensions for a service.
-     */
     public function clearPendingExtensions(string $id): void
     {
         unset($this->instancesToExtend[$id]);
     }
 
-    /**
-     * Set the service ID currently being extended.
-     */
     public function setCurrentlyExtending(?string $id): void
     {
         $this->currentlyExtending = $id;
     }
 
-    /**
-     * Check if we're currently extending a specific service.
-     */
     public function isCurrentlyExtending(string $id): bool
     {
         return $this->currentlyExtending === $id;
@@ -122,25 +104,21 @@ final class FactoryManager
      * Transfer factory status from one instance to another.
      * Used when extending a factory service.
      */
-    public function transferFactoryStatus(mixed $from, mixed $to): void
+    public function transferFactoryStatus(mixed $from, Closure $to): void
     {
         if ($from instanceof Closure && isset($this->factoryInstances[$from])) {
             $this->factoryInstances->offsetUnset($from);
-            if ($to instanceof Closure) {
-                $this->factoryInstances->offsetSet($to, null);
-            }
+            $this->factoryInstances->offsetSet($to, null);
         }
     }
 
     /**
-     * Generate an extended instance wrapper.
-     *
-     * @psalm-suppress MissingClosureReturnType,MixedAssignment
+     * @psalm-suppress MixedAssignment
      */
-    public function generateExtendedInstance(Closure $instance, mixed $factory, Container $container): Closure
+    public function generateExtendedInstance(Closure $instance, mixed $factory): Closure
     {
         if (is_callable($factory)) {
-            return static function (Container $c) use ($instance, $factory) {
+            return static function (ContainerInterface $c) use ($instance, $factory): mixed {
                 $result = $factory($c);
 
                 return $instance($result, $c) ?? $result;
@@ -148,7 +126,7 @@ final class FactoryManager
         }
 
         if (is_object($factory) || is_array($factory)) {
-            return static fn (Container $c) => $instance($factory, $c) ?? $factory;
+            return static fn (ContainerInterface $c): mixed => $instance($factory, $c) ?? $factory;
         }
 
         throw ContainerException::instanceNotExtendable();

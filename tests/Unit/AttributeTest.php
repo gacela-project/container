@@ -87,23 +87,18 @@ final class AttributeTest extends TestCase
             AttributeLoggerInterface::class => AttributeFileLogger::class,
         ]);
 
-        // Singleton should return same instance
         $singleton1 = $container->get(SingletonWithDependencies::class);
         $singleton2 = $container->get(SingletonWithDependencies::class);
         self::assertSame($singleton1, $singleton2);
 
-        // Factory should return different instances
         $factory1 = $container->get(FactoryWithDependencies::class);
         $factory2 = $container->get(FactoryWithDependencies::class);
         self::assertNotSame($factory1, $factory2);
 
-        // Inject should use specific implementation
         $service = $container->get(ServiceWithInjectAttribute::class);
         self::assertInstanceOf(AttributeConsoleLogger::class, $service->logger);
     }
 }
-
-// Test interfaces and classes
 
 interface AttributeLoggerInterface
 {

@@ -13,6 +13,10 @@ use function is_array;
 use function is_object;
 use function is_string;
 
+/**
+ * @psalm-import-type BindingsMap from ContainerInterface
+ * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ */
 class Container implements ContainerInterface
 {
     private AliasRegistry $aliasRegistry;
@@ -27,11 +31,11 @@ class Container implements ContainerInterface
 
     private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
 
-    /** @var array<string, array<class-string, class-string|callable|object>> */
+    /** @var ContextualBindingsMap */
     private array $contextualBindings = [];
 
     /**
-     * @param  array<class-string, class-string|callable|object>  $bindings
+     * @param  BindingsMap  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
      */
     public function __construct(
@@ -47,11 +51,18 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param  class-string  $className
+     * @template T of object
+     *
+     * @param class-string<T> $className
+     *
+     * @return T|null
      */
-    public static function create(string $className): mixed
+    public static function create(string $className): ?object
     {
-        return (new self())->get($className);
+        /** @var T|null $instance */
+        $instance = (new self())->get($className);
+
+        return $instance;
     }
 
     public function has(string $id): bool
@@ -147,7 +158,7 @@ class Container implements ContainerInterface
             throw ContainerException::instanceProtected($id);
         }
 
-        $extended = $this->factoryManager->generateExtendedInstance($instance, $factory, $this);
+        $extended = $this->factoryManager->generateExtendedInstance($instance, $factory);
         $this->set($id, $extended);
 
         $this->factoryManager->transferFactoryStatus($factory, $extended);
@@ -188,7 +199,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @return array<class-string, class-string|callable|object>
+     * @return BindingsMap
      */
     public function getBindings(): array
     {
@@ -217,8 +228,6 @@ class Container implements ContainerInterface
     }
 
     /**
-     * Get container statistics for debugging and optimization.
-     *
      * @return array{
      *     registered_services: int,
      *     frozen_services: int,
@@ -259,8 +268,6 @@ class Container implements ContainerInterface
     }
 
     /**
-     * Generates a unique string key for a given callable.
-     *
      * @psalm-suppress MixedReturnTypeCoercion
      */
     private function callableKey(callable $callable): string
@@ -279,19 +286,9 @@ class Container implements ContainerInterface
             return $callable;
         }
 
-        if ($callable instanceof Closure) {
-            return spl_object_hash($callable);
-        }
-
-        // Invokable objects
-        /** @psalm-suppress RedundantCondition */
-        if (is_object($callable)) {
-            return get_class($callable) . '#' . spl_object_id($callable);
-        }
-
-        // Fallback for edge cases
-        /** @psalm-suppress MixedArgument */
-        return 'callable:' . md5(serialize($callable));
+        // Only closures and invokable objects remain once array and string are ruled out
+        /** @var callable&object $callable */
+        return get_class($callable) . '#' . spl_object_id($callable);
     }
 
     private function extendService(string $id): void
@@ -310,9 +307,6 @@ class Container implements ContainerInterface
         $this->factoryManager->setCurrentlyExtending(null);
     }
 
-    /**
-     * Format bytes into human-readable format.
-     */
     private function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];

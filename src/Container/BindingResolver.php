@@ -11,20 +11,19 @@ use function is_string;
 
 /**
  * Resolves abstract types to concrete implementations using bindings.
+ *
+ * @psalm-import-type BindingsMap from ContainerInterface
  */
 final class BindingResolver
 {
     /**
-     * @param array<class-string, class-string|callable|object> $bindings
+     * @param BindingsMap $bindings
      */
     public function __construct(
         private array $bindings = [],
     ) {
     }
 
-    /**
-     * Resolve a class to a concrete instance using bindings.
-     */
     public function resolve(string $class, DependencyCacheManager $cacheManager): ?object
     {
         if (isset($this->bindings[$class])) {
@@ -53,17 +52,7 @@ final class BindingResolver
     }
 
     /**
-     * Check if a binding exists for a class.
-     */
-    public function hasBinding(string $class): bool
-    {
-        return isset($this->bindings[$class]);
-    }
-
-    /**
-     * Get all bindings.
-     *
-     * @return array<class-string, class-string|callable|object>
+     * @return BindingsMap
      */
     public function getBindings(): array
     {

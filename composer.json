@@ -23,7 +23,7 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/gacela-project/resolver/issues"
+        "issues": "https://github.com/gacela-project/container/issues"
     },
     "prefer-stable": true,
     "minimum-stability": "dev",
