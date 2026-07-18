@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Narrow the return type of `ContainerInterface::factory()` and `ContainerInterface::protect()` from `object` to `Closure`
+
 ## [0.8.1](https://github.com/gacela-project/container/compare/0.8.0...0.8.1) - 2026-06-05
 
 ### Fixed
