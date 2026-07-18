@@ -1,0 +1,56 @@
+# Release
+
+Guide to cut a new Gacela Container release.
+
+## TL;DR — Automated
+
+```bash
+./release.sh              # auto-bump minor (e.g., 1.12.0 → 1.13.0)
+./release.sh 1.13.0       # explicit version
+./release.sh --dry-run    # preview without touching anything
+```
+
+The script handles pre-flight checks, file updates, quality+tests, commit, tag, push, and GitHub release.
+Run `./release.sh --help` for all options.
+
+## Pre-flight requirements
+
+The script (and a manual release) assume:
+
+- `gh` CLI installed and authenticated (`gh auth login`)
+- Working tree is clean and on `main`, in sync with `origin/main`
+- `CHANGELOG.md` has a non-empty `## Unreleased` section
+- You can push to `origin` and create releases
+
+## Manual steps (if not using the script)
+
+1. **No version file to bump** — the version is derived at runtime from Composer's metadata (the git tag), so creating the tag in step 4 is what sets the version.
+2. **Update [`CHANGELOG.md`](../CHANGELOG.md)**:
+   - Rename the current `## Unreleased` header to
+     `## [X.Y.Z](https://github.com/gacela-project/container/compare/<prev>...<X.Y.Z>) - YYYY-MM-DD`
+   - Insert a fresh empty `## Unreleased` section at the top.
+3. **Confirm CI is green** for the current `main` HEAD (the script checks GitHub check-runs). Locally you can still run `composer quality && composer test` if you want extra assurance.
+4. **Commit, tag, push**:
+   ```bash
+   git add CHANGELOG.md
+   git commit -m "chore(release): X.Y.Z"
+   git tag -s X.Y.Z -m "Release X.Y.Z"
+   git push origin main
+   git push origin X.Y.Z
+   ```
+5. **Create the GitHub release** from the pushed tag, using the CHANGELOG section you just renamed as the body:
+   [new release](https://github.com/gacela-project/container/releases/new) — or via CLI:
+   ```bash
+   awk '/^## \[X\.Y\.Z\]/{flag=1;next} /^## /{flag=0} flag' CHANGELOG.md > /tmp/release-notes.md
+   gh release create X.Y.Z --title X.Y.Z --notes-file /tmp/release-notes.md
+   ```
+
+## Rollback
+
+If the script fails mid-way before pushing, restore local file changes:
+
+```bash
+./release.sh --rollback
+```
+
+Tags are unprefixed (e.g., `1.12.0`, not `v1.12.0`).

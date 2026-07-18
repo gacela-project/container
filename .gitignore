@@ -5,6 +5,7 @@
 .cache/
 .DS_Store
 .claude/
+.release-state/
 coverage/
 data/
 vendor/

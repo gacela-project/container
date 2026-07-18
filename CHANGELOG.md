@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## [0.8.1](https://github.com/gacela-project/container/compare/0.8.0...0.8.1) - 2026-06-05
 
 ### Fixed
