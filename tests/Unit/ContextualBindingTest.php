@@ -16,7 +16,6 @@ final class FileLogger implements LoggerInterface
 {
     public function log(string $message): void
     {
-        // File logging implementation
     }
 }
 
@@ -24,7 +23,6 @@ final class DatabaseLogger implements LoggerInterface
 {
     public function log(string $message): void
     {
-        // Database logging implementation
     }
 }
 

@@ -17,9 +17,9 @@ return (new Config())
         '@PSR12' => true,
         'array_syntax' => ['syntax' => 'short'],
         'backtick_to_shell_exec' => true,
-        'braces' => [
-            'allow_single_line_closure' => true,
-            'allow_single_line_anonymous_class_with_empty_body' => true,
+        'braces_position' => [
+            'allow_single_line_anonymous_functions' => true,
+            'allow_single_line_empty_anonymous_classes' => true,
         ],
         'class_definition' => ['single_line' => true],
         'concat_space' => ['spacing' => 'one'],
@@ -29,7 +29,6 @@ return (new Config())
         'ereg_to_preg' => true,
         'explicit_string_variable' => true,
         'fully_qualified_strict_types' => true,
-        'function_typehint_space' => true,
         'general_phpdoc_annotation_remove' => [
             'annotations' => [
                 'author',
@@ -47,8 +46,8 @@ return (new Config())
         'native_function_invocation' => [
             'include' => ['@compiler_optimized'],
         ],
-        'native_function_type_declaration_casing' => true,
-        'new_with_braces' => true,
+        'native_type_declaration_casing' => true,
+        'new_with_parentheses' => ['anonymous_class' => true, 'named_class' => true],
         'no_blank_lines_after_class_opening' => true,
         'no_empty_comment' => true,
         'no_empty_phpdoc' => true,
@@ -61,7 +60,7 @@ return (new Config())
         'no_multiline_whitespace_around_double_arrow' => true,
         'no_singleline_whitespace_before_semicolons' => true,
         'no_short_bool_cast' => true,
-        'no_trailing_comma_in_singleline_array' => true,
+        'no_trailing_comma_in_singleline' => true,
         'no_trailing_whitespace' => true,
         'no_trailing_whitespace_in_comment' => true,
         'no_useless_else' => true,
@@ -115,9 +114,10 @@ return (new Config())
             'elements' => ['arguments', 'arrays', 'match', 'parameters'],
         ],
         'trim_array_spaces' => true,
+        'type_declaration_spaces' => true,
         'unary_operator_spaces' => true,
         'types_spaces' => true,
-        'visibility_required' => true,
+        'modifier_keywords' => true,
         'void_return' => true,
         'yoda_style' => [
             'equal' => false,

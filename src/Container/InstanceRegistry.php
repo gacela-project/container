@@ -20,22 +20,17 @@ final class InstanceRegistry
     /** @var array<string,bool> */
     private array $frozenInstances = [];
 
-    /**
-     * Check if an instance is registered.
-     */
     public function has(string $id): bool
     {
         return isset($this->instances[$id]);
     }
 
     /**
-     * Store a service instance.
-     *
      * @throws ContainerException if instance is frozen
      */
     public function set(string $id, mixed $instance): void
     {
-        if (!empty($this->frozenInstances[$id])) {
+        if (isset($this->frozenInstances[$id])) {
             throw ContainerException::frozenInstanceOverride($id);
         }
 
@@ -43,27 +38,29 @@ final class InstanceRegistry
     }
 
     /**
-     * Get a service instance, handling frozen state and factory/protected closures.
+     * Resolve and return the instance; freezes it as a side effect.
+     * Factory closures are re-invoked each call; protected closures are returned as-is.
      */
-    public function get(string $id, FactoryManager $factoryManager, Container $container): mixed
+    public function get(string $id, FactoryManager $factoryManager, ContainerInterface $container): mixed
     {
         $this->frozenInstances[$id] = true;
 
-        if (!is_object($this->instances[$id])
-            || $factoryManager->isProtected($this->instances[$id])
-            || !method_exists($this->instances[$id], '__invoke')
+        /** @var mixed $instance */
+        $instance = $this->instances[$id];
+
+        if (!is_object($instance)
+            || $factoryManager->isProtected($instance)
+            || !method_exists($instance, '__invoke')
         ) {
-            return $this->instances[$id];
+            return $instance;
         }
 
-        if ($factoryManager->isFactory($this->instances[$id])) {
-            return $this->instances[$id]($container);
+        if ($factoryManager->isFactory($instance)) {
+            return $instance($container);
         }
-
-        $rawService = $this->instances[$id];
 
         /** @var mixed $resolvedService */
-        $resolvedService = $rawService($container);
+        $resolvedService = $instance($container);
 
         $this->instances[$id] = $resolvedService;
 
@@ -81,17 +78,12 @@ final class InstanceRegistry
         );
     }
 
-    /**
-     * Check if an instance is frozen.
-     */
     public function isFrozen(string $id): bool
     {
         return isset($this->frozenInstances[$id]);
     }
 
     /**
-     * Get all registered service IDs.
-     *
      * @return list<string>
      */
     public function getAll(): array
@@ -100,18 +92,10 @@ final class InstanceRegistry
     }
 
     /**
-     * Get raw instance for internal use (e.g., factory status transfer, extension).
+     * Get the stored value without invoking closures or freezing the service.
      */
     public function getRaw(string $id): mixed
     {
         return $this->instances[$id] ?? null;
-    }
-
-    /**
-     * Update instance directly (for lazy-loaded services).
-     */
-    public function update(string $id, mixed $instance): void
-    {
-        $this->instances[$id] = $instance;
     }
 }

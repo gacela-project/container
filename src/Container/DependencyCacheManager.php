@@ -13,11 +13,14 @@ use function class_exists;
 use function count;
 
 /**
- * Manages dependency resolution caching for performance optimization.
+ * Caches dependency resolutions, singleton instances, and attribute lookups.
+ *
+ * @psalm-import-type BindingsMap from ContainerInterface
+ * @psalm-import-type ContextualBindingsMap from ContainerInterface
  */
 final class DependencyCacheManager
 {
-    /** @var array<class-string|string, list<mixed>> */
+    /** @var array<string, list<mixed>> */
     private array $cachedDependencies = [];
 
     /** @var array<class-string, object> */
@@ -29,8 +32,8 @@ final class DependencyCacheManager
     private ?DependencyResolver $dependencyResolver = null;
 
     /**
-     * @param array<class-string, class-string|callable|object> $bindings
-     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
+     * @param BindingsMap $bindings
+     * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
         private array $bindings = [],
@@ -39,42 +42,14 @@ final class DependencyCacheManager
     }
 
     /**
-     * Resolve dependencies for a class, using cache if available.
-     *
-     * @param class-string $className
-     *
-     * @return list<mixed>
-     */
-    public function resolveDependencies(string $className): array
-    {
-        if (!isset($this->cachedDependencies[$className])) {
-            $this->cachedDependencies[$className] = $this
-                ->getDependencyResolver()
-                ->resolveDependencies($className);
-        }
-
-        return $this->cachedDependencies[$className];
-    }
-
-    /**
-     * Resolve dependencies for a callable with a specific cache key.
-     *
      * @return list<mixed>
      */
     public function resolveCallableDependencies(string $callableKey, Closure $callable): array
     {
-        if (!isset($this->cachedDependencies[$callableKey])) {
-            $this->cachedDependencies[$callableKey] = $this
-                ->getDependencyResolver()
-                ->resolveDependencies($callable);
-        }
-
-        return $this->cachedDependencies[$callableKey];
+        return $this->resolveCachedDependencies($callableKey, $callable);
     }
 
     /**
-     * Pre-warm the dependency cache for multiple classes.
-     *
      * @param list<class-string> $classNames
      */
     public function warmUp(array $classNames): void
@@ -84,27 +59,15 @@ final class DependencyCacheManager
                 continue;
             }
 
-            // Pre-resolve dependencies to populate cache
-            if (!isset($this->cachedDependencies[$className])) {
-                $this->cachedDependencies[$className] = $this
-                    ->getDependencyResolver()
-                    ->resolveDependencies($className);
-            }
+            $this->resolveCachedDependencies($className, $className);
         }
     }
 
     /**
-     * Instantiate a class using cached dependencies.
-     *
      * @param class-string $class
      */
-    public function instantiate(string $class): ?object
+    public function instantiate(string $class): object
     {
-        if (!class_exists($class)) {
-            return null;
-        }
-
-        // Check for #[Singleton] attribute (cached)
         if ($this->hasAttribute($class, Singleton::class)) {
             if (isset($this->singletonInstances[$class])) {
                 return $this->singletonInstances[$class];
@@ -115,7 +78,6 @@ final class DependencyCacheManager
             return $instance;
         }
 
-        // Check for #[Factory] attribute (cached) - always create new instance
         if ($this->hasAttribute($class, Factory::class)) {
             // Don't cache dependencies for factory classes to ensure fresh instances
             $dependencies = $this
@@ -126,43 +88,37 @@ final class DependencyCacheManager
             return new $class(...$dependencies);
         }
 
-        // Default behavior - create new instance
         return $this->createInstance($class);
     }
 
-    /**
-     * Get the number of cached dependency resolutions.
-     */
     public function getCacheSize(): int
     {
         return count($this->cachedDependencies);
     }
 
     /**
-     * Get all cached class names.
-     *
-     * @return list<string>
-     */
-    public function getCachedClasses(): array
-    {
-        return array_keys($this->cachedDependencies);
-    }
-
-    /**
-     * Create a new instance of a class using cached dependencies.
-     *
      * @param class-string $class
      */
     private function createInstance(string $class): object
     {
-        if (!isset($this->cachedDependencies[$class])) {
-            $this->cachedDependencies[$class] = $this
+        /** @psalm-suppress MixedMethodCall */
+        return new $class(...$this->resolveCachedDependencies($class, $class));
+    }
+
+    /**
+     * @param class-string|Closure $toResolve
+     *
+     * @return list<mixed>
+     */
+    private function resolveCachedDependencies(string $cacheKey, string|Closure $toResolve): array
+    {
+        if (!isset($this->cachedDependencies[$cacheKey])) {
+            $this->cachedDependencies[$cacheKey] = $this
                 ->getDependencyResolver()
-                ->resolveDependencies($class);
+                ->resolveDependencies($toResolve);
         }
 
-        /** @psalm-suppress MixedMethodCall */
-        return new $class(...$this->cachedDependencies[$class]);
+        return $this->cachedDependencies[$cacheKey];
     }
 
     private function getDependencyResolver(): DependencyResolver
@@ -178,8 +134,6 @@ final class DependencyCacheManager
     }
 
     /**
-     * Check if a class has a specific attribute, with caching.
-     *
      * @param class-string $class
      * @param class-string $attributeClass
      */

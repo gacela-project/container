@@ -7,6 +7,11 @@ namespace Gacela\Container;
 use Closure;
 use Psr\Container\ContainerInterface as PsrContainerInterface;
 
+/**
+ * @psalm-type Binding = class-string|callable|object
+ * @psalm-type BindingsMap = array<class-string, Binding>
+ * @psalm-type ContextualBindingsMap = array<string, BindingsMap>
+ */
 interface ContainerInterface extends PsrContainerInterface
 {
     /**
@@ -20,9 +25,6 @@ interface ContainerInterface extends PsrContainerInterface
      */
     public function resolve(callable $callable): mixed;
 
-    /**
-     * Check if an instance exists.
-     */
     public function has(string $id): bool;
 
     /**
@@ -30,15 +32,12 @@ interface ContainerInterface extends PsrContainerInterface
      */
     public function set(string $id, mixed $instance): void;
 
-    /**
-     * Remove a known instance.
-     */
     public function remove(string $id): void;
 
     /**
      * Ensure the instance is returning a new instance everytime.
      */
-    public function factory(Closure $instance): object;
+    public function factory(Closure $instance): Closure;
 
     /**
      * Extend the functionality of an instance, even before it is defined.
@@ -48,18 +47,13 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Protect an instance to be resolved. A protected instance cannot be extended.
      */
-    public function protect(Closure $instance): object;
+    public function protect(Closure $instance): Closure;
 
     /**
-     * Get all registered service identifiers.
-     *
      * @return list<string>
      */
     public function getRegisteredServices(): array;
 
-    /**
-     * Check if a service is marked as a factory.
-     */
     public function isFactory(string $id): bool;
 
     /**
@@ -68,29 +62,24 @@ interface ContainerInterface extends PsrContainerInterface
     public function isFrozen(string $id): bool;
 
     /**
-     * Get all bindings.
-     *
-     * @return array<class-string, class-string|callable|object>
+     * @return BindingsMap
      */
     public function getBindings(): array;
 
     /**
      * Pre-resolve and cache dependencies for the given class names.
-     * This can improve performance by avoiding cold-start resolution overhead.
      *
      * @param list<class-string> $classNames
      */
     public function warmUp(array $classNames): void;
 
     /**
-     * Create an alias for a service.
-     * Allows accessing the same service with multiple identifiers.
+     * Allow accessing the service registered as $id also under the name $alias.
      */
     public function alias(string $alias, string $id): void;
 
     /**
-     * Get the dependency tree for a given class.
-     * Returns a list of all classes/interfaces that this class depends on.
+     * List all classes/interfaces that the given class depends on, recursively.
      *
      * @param class-string $className
      *

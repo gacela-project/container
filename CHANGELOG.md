@@ -29,7 +29,7 @@
 - Add `warmUp()` method to pre-resolve dependencies for improved performance
 
 ### Performance Improvements
-- Optimize attribute reflection with caching (15-20% improvement for attributed classes)
+- Optimize attribute reflection with caching
 - Add alias resolution caching
 - Optimize `callableKey()` to use `spl_object_id()` instead of `md5+var_export`
 - Add constructor method caching to avoid redundant reflection lookups

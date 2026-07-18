@@ -20,6 +20,11 @@ use function is_callable;
 use function is_object;
 use function is_string;
 
+/**
+ * @psalm-import-type Binding from ContainerInterface
+ * @psalm-import-type BindingsMap from ContainerInterface
+ * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ */
 final class DependencyResolver
 {
     /** @var array<class-string, ReflectionClass<object>> */
@@ -31,18 +36,15 @@ final class DependencyResolver
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
-    /** @var array<string, bool> */
-    private array $classExistsCache = [];
-
-    /** @var array<string, bool> */
-    private array $interfaceExistsCache = [];
+    /** @var array<string, bool> Memoized class_exists()/interface_exists() checks */
+    private array $typeExistsCache = [];
 
     /** @var list<class-string> */
     private array $buildStack = [];
 
     /**
-     * @param array<class-string,class-string|callable|object> $bindings
-     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
+     * @param BindingsMap $bindings
+     * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
         private array $bindings = [],
@@ -117,7 +119,6 @@ final class DependencyResolver
     {
         $this->checkInvalidArgumentParam($parameter);
 
-        // Check for #[Inject] attribute
         $attributes = $parameter->getAttributes(Inject::class);
         if (count($attributes) > 0) {
             /** @var Inject $inject */
@@ -168,26 +169,10 @@ final class DependencyResolver
 
     private function isScalar(string $paramTypeName): bool
     {
-        return !$this->classExists($paramTypeName)
-            && !$this->interfaceExists($paramTypeName);
-    }
+        $this->typeExistsCache[$paramTypeName] ??= class_exists($paramTypeName)
+            || interface_exists($paramTypeName);
 
-    private function classExists(string $className): bool
-    {
-        if (!isset($this->classExistsCache[$className])) {
-            $this->classExistsCache[$className] = class_exists($className);
-        }
-
-        return $this->classExistsCache[$className];
-    }
-
-    private function interfaceExists(string $interfaceName): bool
-    {
-        if (!isset($this->interfaceExistsCache[$interfaceName])) {
-            $this->interfaceExistsCache[$interfaceName] = interface_exists($interfaceName);
-        }
-
-        return $this->interfaceExistsCache[$interfaceName];
+        return !$this->typeExistsCache[$paramTypeName];
     }
 
     /**
@@ -195,7 +180,6 @@ final class DependencyResolver
      */
     private function resolveClass(string $paramTypeName): mixed
     {
-        // Check for contextual binding first
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
             if (is_callable($contextualBinding)) {
@@ -212,7 +196,6 @@ final class DependencyResolver
             $paramTypeName = $contextualBinding;
         }
 
-        /** @var mixed $bindClass */
         $bindClass = $this->bindings[$paramTypeName] ?? null;
         if (is_callable($bindClass)) {
             return $bindClass();
@@ -257,7 +240,6 @@ final class DependencyResolver
             $reflection = new ReflectionClass($paramTypeName);
 
             if (!$reflection->isInstantiable()) {
-                /** @var mixed $concreteClass */
                 $concreteClass = $this->bindings[$reflection->getName()] ?? null;
 
                 if ($concreteClass !== null) {
@@ -308,16 +290,13 @@ final class DependencyResolver
     }
 
     /**
-     * Get contextual binding for the current build context.
-     *
      * @param class-string $abstract
      *
-     * @return class-string|callable|object|null
+     * @return Binding|null
      */
     private function getContextualBinding(string $abstract): mixed
     {
-        // Check the build stack for contextual bindings
-        // Start from the end (most specific context) to the beginning
+        // Walk the build stack from the end (most specific context) outward
         for ($i = count($this->buildStack) - 1; $i >= 0; --$i) {
             $concrete = $this->buildStack[$i];
             if (isset($this->contextualBindings[$concrete][$abstract])) {

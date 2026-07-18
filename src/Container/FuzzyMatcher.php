@@ -10,7 +10,6 @@ use function array_slice;
 use function count;
 use function levenshtein;
 use function max;
-use function min;
 use function strlen;
 use function usort;
 
@@ -23,8 +22,6 @@ final class FuzzyMatcher
     private const SIMILARITY_THRESHOLD = 0.6;
 
     /**
-     * Find similar strings from a list of candidates.
-     *
      * @param list<string> $candidates
      *
      * @return list<string>
@@ -43,10 +40,8 @@ final class FuzzyMatcher
             $candidates,
         );
 
-        // Sort by score descending
         usort($scores, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
 
-        // Filter by threshold and limit results
         $filtered = array_filter(
             $scores,
             static fn (array $item): bool => $item['score'] >= self::SIMILARITY_THRESHOLD,
@@ -71,27 +66,7 @@ final class FuzzyMatcher
         }
 
         $distance = levenshtein($a, $b);
-        if ($distance === -1) {
-            // Strings too long for levenshtein, use simple approach
-            return self::simpleSimilarity($a, $b);
-        }
 
         return 1.0 - ($distance / $maxLength);
-    }
-
-    /**
-     * Fallback similarity calculation for very long strings.
-     */
-    private static function simpleSimilarity(string $a, string $b): float
-    {
-        $maxLength = max(strlen($a), strlen($b));
-        $minLength = min(strlen($a), strlen($b));
-
-        if ($maxLength === 0) {
-            return 1.0;
-        }
-
-        // Simple length-based similarity
-        return $minLength / $maxLength;
     }
 }

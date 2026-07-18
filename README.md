@@ -139,7 +139,7 @@ $ctx2 = $container->get(RequestContext::class);
 // $ctx1 !== $ctx2 (different instances)
 ```
 
-**Performance Note:** Attribute checks are cached internally, so repeated instantiations of the same class avoid expensive reflection operations, providing 15-20% performance improvement.
+**Note:** Attribute checks are cached internally, so repeated instantiations of the same class avoid repeated reflection.
 
 ## How It Works
 
@@ -244,7 +244,7 @@ if ($container->isFrozen('logger')) {
 // Get all bindings
 $bindings = $container->getBindings();
 
-// Get comprehensive statistics
+// Get container statistics
 $stats = $container->getStats();
 /*
 [
@@ -270,8 +270,8 @@ $container->warmUp([
     PaymentProcessor::class,
 ]);
 
-// Later requests benefit from cached dependency resolution
-$service = $container->get(UserService::class); // Faster!
+// Later requests reuse the cached dependency resolution
+$service = $container->get(UserService::class);
 ```
 
 ### Service Aliasing
@@ -285,8 +285,6 @@ $container->alias('db', PDO::class);
 // Access via alias or original name
 $db1 = $container->get('db');        // Same instance
 $db2 = $container->get(PDO::class);  // Same instance
-
-// Alias resolution is cached for optimal performance
 ```
 
 ## API Reference
@@ -308,8 +306,8 @@ $db2 = $container->get(PDO::class);  // Same instance
 | `isFrozen(string $id): bool` | Check if service is frozen |
 | `getBindings(): array` | Get all bindings |
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
-| `alias(string $alias, string $id): void` | Create an alias for a service (with caching) |
-| `getStats(): array` | Get container statistics for debugging and performance monitoring |
+| `alias(string $alias, string $id): void` | Create an alias for a service |
+| `getStats(): array` | Get container statistics |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes |
 
 ### Static Methods
@@ -383,7 +381,7 @@ $container->warmUp([
 
 ## Error Handling
 
-The container provides clear, actionable error messages with helpful suggestions:
+Error messages include context and suggestions:
 
 ### Missing Type Hint
 ```

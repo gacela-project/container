@@ -11,6 +11,9 @@ use function is_array;
 /**
  * Builder for creating contextual bindings.
  * Allows different concrete implementations based on the requesting class.
+ *
+ * @psalm-import-type Binding from ContainerInterface
+ * @psalm-import-type ContextualBindingsMap from ContainerInterface
  */
 final class ContextualBindingBuilder
 {
@@ -20,7 +23,7 @@ final class ContextualBindingBuilder
     private ?string $needs = null;
 
     /**
-     * @param array<string, array<class-string, class-string|callable|object>> $contextualBindings
+     * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
         private array &$contextualBindings,
@@ -54,7 +57,7 @@ final class ContextualBindingBuilder
     /**
      * Define what to give when the dependency is needed.
      *
-     * @param class-string|callable|object $implementation
+     * @param Binding $implementation
      */
     public function give(mixed $implementation): void
     {
