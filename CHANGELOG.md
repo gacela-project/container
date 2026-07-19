@@ -8,6 +8,7 @@
 - Add typed `make()` and non-null `getOrFail()` resolution methods
 - Support runtime parameters in `make()` and `resolve()` to override constructor arguments by name
 - Support named/scalar contextual bindings: `when(X)->needs('$paramName')->give(...)`
+- Pass the container into binding closures (constructor, `singleton()`, and contextual `give()`) so factories can compose from other services
 - Add compiled constructor plans (`compile()`, `writeCompiledCache()`, `loadCompiledCache()`) to skip reflection per request
 
 ### Fixed

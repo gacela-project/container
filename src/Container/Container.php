@@ -59,8 +59,8 @@ class Container implements ContainerInterface
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
-        $this->bindingResolver = new BindingResolver($this->bindings);
-        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings, $compiledPlans);
+        $this->bindingResolver = new BindingResolver($this->bindings, $this);
+        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings, $compiledPlans, $this);
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
@@ -419,13 +419,14 @@ class Container implements ContainerInterface
      */
     private function memoizeCallable(callable $factory): Closure
     {
+        $container = $this;
         $resolved = null;
         $hasResolved = false;
 
-        return static function () use ($factory, &$resolved, &$hasResolved): mixed {
+        return static function () use ($factory, $container, &$resolved, &$hasResolved): mixed {
             if (!$hasResolved) {
                 /** @var mixed $resolved */
-                $resolved = $factory();
+                $resolved = $factory($container);
                 $hasResolved = true;
             }
 

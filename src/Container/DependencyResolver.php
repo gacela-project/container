@@ -57,6 +57,7 @@ final class DependencyResolver
         private array $bindings = [],
         private array &$contextualBindings = [],
         array $compiledPlans = [],
+        private ?ContainerInterface $container = null,
     ) {
         $this->planCache = $compiledPlans;
     }
@@ -186,7 +187,7 @@ final class DependencyResolver
         $value = $this->contextualBindings[$declaringClass][$key];
         if (is_callable($value)) {
             /** @psalm-suppress MixedFunctionCall */
-            return [true, $value()];
+            return [true, $value($this->container)];
         }
 
         return [true, $value];
@@ -202,7 +203,7 @@ final class DependencyResolver
         if ($contextualBinding !== null) {
             if (is_callable($contextualBinding)) {
                 /** @psalm-suppress MixedFunctionCall */
-                return $contextualBinding();
+                return $contextualBinding($this->container);
             }
 
             if (is_object($contextualBinding)) {
@@ -216,7 +217,7 @@ final class DependencyResolver
 
         $bindClass = $this->bindings[$paramTypeName] ?? null;
         if (is_callable($bindClass)) {
-            return $bindClass();
+            return $bindClass($this->container);
         }
 
         if (is_object($bindClass)) {
