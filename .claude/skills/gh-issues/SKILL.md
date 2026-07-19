@@ -113,10 +113,11 @@ For each issue in the queue:
 
 ## Phase 4 — CI & merge
 
-11. **Wait for green CI** and fix any red check on the branch before merging
-    (all jobs must pass, including the `Type Checker` = Psalm):
+11. **Wait for green CI** and fix any red check on the branch before merging.
+    Every job must pass (including `Type Checker` = Psalm) **except Scrutinizer**,
+    which is slow/external — do NOT wait for it:
     ```bash
-    gh pr checks <pr> --watch
+    gh pr checks <pr>
     ```
 
 12. **Merge** (skip if `--no-merge`):
@@ -140,7 +141,7 @@ branch protection, `--limit` is reached, or the queue is empty.
   PHPUnit + PHPStan + CS-Fixer locally; rely on the CI `Type Checker` job for
   Psalm. `composer quality`/`composer test-all` include Psalm, so avoid them
   locally — run the individual tools above.
-- **Fix all CI jobs before merging** any PR.
+- **Fix all CI jobs before merging** any PR — every job green except Scrutinizer (don't wait for Scrutinizer).
 - **Never** mention Claude/AI/LLM in commits or PR descriptions.
 - **Never** add `Co-Authored-By` or attribution trailers.
 - Use `Closes #<num>` in the PR body to auto-close the issue on merge.

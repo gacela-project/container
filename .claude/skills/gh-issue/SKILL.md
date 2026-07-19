@@ -82,9 +82,10 @@ loop, use `/gh-issues` instead.
     ```
 
 12. **Wait for green CI** before considering it done; fix any red check on the
-    branch (all jobs must pass, including `Type Checker` = Psalm):
+    branch. Every job must pass (including `Type Checker` = Psalm) **except
+    Scrutinizer**, which is slow/external — do NOT wait for it:
     ```bash
-    gh pr checks <pr> --watch
+    gh pr checks <pr>
     ```
 
 ## Checklist
@@ -104,7 +105,7 @@ loop, use `/gh-issues` instead.
   PHPStan + CS-Fixer locally; rely on the CI `Type Checker` job for Psalm. Avoid
   `composer quality`/`composer test-all` locally (they include Psalm) — run the
   individual tools above.
-- **Fix all CI jobs before merging.**
+- **Fix all CI jobs before merging** — every job green except Scrutinizer (don't wait for Scrutinizer).
 - **Never** mention Claude/AI/LLM in commits or PR descriptions, and never add
   attribution trailers.
 - Use `Closes #<num>` so the issue auto-closes on merge.
