@@ -10,7 +10,7 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
 /**
  * @psalm-type Binding = class-string|callable|object
  * @psalm-type BindingsMap = array<class-string, Binding>
- * @psalm-type ContextualBindingsMap = array<string, BindingsMap>
+ * @psalm-type ContextualBindingsMap = array<string, array<string, mixed>>
  */
 interface ContainerInterface extends PsrContainerInterface
 {

@@ -22,7 +22,6 @@ use function is_object;
 use function is_string;
 
 /**
- * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  *
@@ -127,6 +126,11 @@ final class DependencyResolver
      */
     private function resolveParameter(array $param): mixed
     {
+        [$hasNamedBinding, $namedValue] = $this->resolveNamedContextualBinding($param);
+        if ($hasNamedBinding) {
+            return $namedValue;
+        }
+
         if (!$param['hasType']) {
             throw DependencyInvalidArgumentException::noParameterTypeFor($param['name'], $this->getResolutionChain());
         }
@@ -151,6 +155,40 @@ final class DependencyResolver
         $type = $param['type'];
 
         return $this->resolveClass($type);
+    }
+
+    /**
+     * Resolve a contextual binding matched by the parameter name (e.g. `'$apiKey'`)
+     * scoped to the parameter's declaring class.
+     *
+     * @param ParamPlan $param
+     *
+     * @return array{bool, mixed} [matched, value]
+     */
+    private function resolveNamedContextualBinding(array $param): array
+    {
+        if ($this->contextualBindings === []) {
+            return [false, null];
+        }
+
+        $declaringClass = $param['declaringClass'];
+        if ($declaringClass === null) {
+            return [false, null];
+        }
+
+        $key = '$' . $param['name'];
+        if (!isset($this->contextualBindings[$declaringClass][$key])) {
+            return [false, null];
+        }
+
+        /** @var mixed $value */
+        $value = $this->contextualBindings[$declaringClass][$key];
+        if (is_callable($value)) {
+            /** @psalm-suppress MixedFunctionCall */
+            return [true, $value()];
+        }
+
+        return [true, $value];
     }
 
     /**
@@ -358,8 +396,6 @@ final class DependencyResolver
 
     /**
      * @param class-string $abstract
-     *
-     * @return Binding|null
      */
     private function getContextualBinding(string $abstract): mixed
     {

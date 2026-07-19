@@ -43,9 +43,8 @@ final class ContextualBindingBuilder
     }
 
     /**
-     * Define which dependency to bind.
-     *
-     * @param class-string $abstract
+     * Define which dependency to bind. Accepts a class-string (bind by type) or
+     * a `$`-prefixed constructor parameter name (bind by name, e.g. `'$apiKey'`).
      */
     public function needs(string $abstract): self
     {
@@ -71,11 +70,7 @@ final class ContextualBindingBuilder
                 $this->contextualBindings[$concreteClass] = [];
             }
 
-            /**
-             * @psalm-suppress PropertyTypeCoercion
-             *
-             * @phpstan-ignore assign.propertyType
-             */
+            /** @psalm-suppress PropertyTypeCoercion */
             $this->contextualBindings[$concreteClass][$this->needs] = $implementation;
         }
     }
