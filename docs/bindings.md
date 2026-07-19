@@ -99,6 +99,25 @@ $container->when(ReportService::class)
 The binding is scoped to the class named in `when()`; the same parameter name on
 another class is unaffected.
 
+## Service tagging
+
+Group services under a tag and resolve them together — ideal for collecting
+handlers, plugins, or strategies:
+
+```php
+$container->tag([JsonExport::class, CsvExport::class], 'exporters');
+$container->tag(XmlExport::class, 'exporters'); // append a single id
+
+foreach ($container->tagged('exporters') as $exporter) {
+    $exporter->export($data);
+}
+```
+
+- `tag()` accepts a single id or a list; repeated calls accumulate and dedupe.
+- `tagged()` resolves ids **lazily** in insertion order (a generator), so
+  instances are built only as you iterate.
+- An unknown tag yields nothing.
+
 ## Service aliasing
 
 Create multiple names for the same service:

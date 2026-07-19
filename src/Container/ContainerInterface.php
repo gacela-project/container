@@ -115,6 +115,20 @@ interface ContainerInterface extends PsrContainerInterface
     public function alias(string $alias, string $id): void;
 
     /**
+     * Group one or more service ids under a tag. Calls accumulate and dedupe.
+     *
+     * @param string|list<string> $ids
+     */
+    public function tag(string|array $ids, string $tag): void;
+
+    /**
+     * Lazily resolve every service registered under a tag, in insertion order.
+     *
+     * @return iterable<mixed>
+     */
+    public function tagged(string $tag): iterable;
+
+    /**
      * List all classes/interfaces that the given class depends on, recursively.
      *
      * @param class-string $className
