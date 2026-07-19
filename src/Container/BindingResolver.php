@@ -21,6 +21,7 @@ final class BindingResolver
      */
     public function __construct(
         private array &$bindings = [],
+        private ?ContainerInterface $container = null,
     ) {
     }
 
@@ -31,7 +32,7 @@ final class BindingResolver
 
             if (is_callable($binding)) {
                 /** @var mixed $binding */
-                $binding = $binding();
+                $binding = $binding($this->container);
             }
 
             if (is_object($binding)) {

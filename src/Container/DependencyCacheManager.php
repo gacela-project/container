@@ -52,6 +52,7 @@ final class DependencyCacheManager
         private array &$bindings = [],
         private array &$contextualBindings = [],
         private array $compiledPlans = [],
+        private ?ContainerInterface $container = null,
     ) {
     }
 
@@ -171,6 +172,7 @@ final class DependencyCacheManager
                 $this->bindings,
                 $this->contextualBindings,
                 $this->compiledPlans,
+                $this->container,
             );
         }
 

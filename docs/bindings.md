@@ -43,6 +43,23 @@ $container->get(CacheInterface::class); // same instance every time
 - a **closure** — memoized, so it runs only on the first resolution
 - **omitted** — the `$abstract` itself is treated as the concrete class
 
+### Container-aware closures
+
+Binding closures receive the container as their first argument, so a factory can
+compose from other services. Existing zero-argument closures keep working:
+
+```php
+$container->bind(Mailer::class, fn(Container $c) => new SmtpMailer($c->get(Config::class)));
+
+$container->singleton(Report::class, fn(Container $c) => new Report($c->make(Clock::class)));
+
+// Still valid — the extra argument is simply ignored
+$container->bind(Greeter::class, fn() => new Greeter('hi'));
+```
+
+This applies to constructor bindings, `singleton()` closures, and both type- and
+name-based contextual `give()` closures.
+
 ## Contextual bindings
 
 Provide different implementations depending on which class needs them:
