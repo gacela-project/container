@@ -44,6 +44,20 @@ interface ContainerInterface extends PsrContainerInterface
     public function has(string $id): bool;
 
     /**
+     * Register a binding from an abstract type to a concrete implementation.
+     *
+     * @param Binding $concrete
+     */
+    public function bind(string $abstract, string|callable|object $concrete): void;
+
+    /**
+     * Register a binding whose resolved instance is created once and reused.
+     *
+     * @param Binding|null $concrete when null, $abstract is the concrete class
+     */
+    public function singleton(string $abstract, string|callable|object|null $concrete = null): void;
+
+    /**
      * Set a new instance. You cannot override an existing instance, but you can extend it.
      */
     public function set(string $id, mixed $instance): void;

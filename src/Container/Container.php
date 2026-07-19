@@ -11,10 +11,12 @@ use Gacela\Container\Exception\DependencyNotFoundException;
 use function count;
 use function get_class;
 use function is_array;
+use function is_callable;
 use function is_object;
 use function is_string;
 
 /**
+ * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  */
@@ -32,6 +34,9 @@ class Container implements ContainerInterface
 
     private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
 
+    /** @var BindingsMap */
+    private array $bindings;
+
     /** @var ContextualBindingsMap */
     private array $contextualBindings = [];
 
@@ -43,12 +48,53 @@ class Container implements ContainerInterface
         array $bindings = [],
         array $instancesToExtend = [],
     ) {
+        $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
-        $this->bindingResolver = new BindingResolver($bindings);
-        $this->cacheManager = new DependencyCacheManager($bindings, $this->contextualBindings);
+        $this->bindingResolver = new BindingResolver($this->bindings);
+        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings);
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
+    }
+
+    /**
+     * Register a binding from an abstract type to a concrete implementation.
+     *
+     * @param Binding $concrete
+     */
+    public function bind(string $abstract, string|callable|object $concrete): void
+    {
+        /**
+         * @psalm-suppress PropertyTypeCoercion
+         *
+         * @phpstan-ignore assign.propertyType
+         */
+        $this->bindings[$abstract] = $concrete;
+    }
+
+    /**
+     * Register a binding whose resolved instance is created once and reused.
+     *
+     * @param Binding|null $concrete when null, $abstract is the concrete class
+     */
+    public function singleton(string $abstract, string|callable|object|null $concrete = null): void
+    {
+        $concrete ??= $abstract;
+
+        if (is_object($concrete) && !$concrete instanceof Closure) {
+            // Already a single shared instance.
+            $this->bind($abstract, $concrete);
+            return;
+        }
+
+        if (is_callable($concrete)) {
+            $this->bind($abstract, $this->memoizeCallable($concrete));
+            return;
+        }
+
+        /** @var class-string $concrete */
+        $this->bind($abstract, $concrete);
+        $this->cacheManager->markAsSingleton($concrete);
     }
 
     /**
@@ -289,6 +335,27 @@ class Container implements ContainerInterface
             'cached_dependencies' => $this->cacheManager->getCacheSize(),
             'memory_usage' => $this->formatBytes(memory_get_usage(true)),
         ];
+    }
+
+    /**
+     * @param callable(): mixed $factory
+     *
+     * @return Closure(): mixed
+     */
+    private function memoizeCallable(callable $factory): Closure
+    {
+        $resolved = null;
+        $hasResolved = false;
+
+        return static function () use ($factory, &$resolved, &$hasResolved): mixed {
+            if (!$hasResolved) {
+                /** @var mixed $resolved */
+                $resolved = $factory();
+                $hasResolved = true;
+            }
+
+            return $resolved;
+        };
     }
 
     private function createInstance(string $class): ?object

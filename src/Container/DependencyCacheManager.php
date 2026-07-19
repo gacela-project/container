@@ -29,6 +29,9 @@ final class DependencyCacheManager
     /** @var array<string, bool> Cache for attribute existence checks */
     private array $attributeCache = [];
 
+    /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
+    private array $forcedSingletons = [];
+
     private ?DependencyResolver $dependencyResolver = null;
 
     /**
@@ -36,9 +39,17 @@ final class DependencyCacheManager
      * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
-        private array $bindings = [],
+        private array &$bindings = [],
         private array &$contextualBindings = [],
     ) {
+    }
+
+    /**
+     * @param class-string $class
+     */
+    public function markAsSingleton(string $class): void
+    {
+        $this->forcedSingletons[$class] = true;
     }
 
     /**
@@ -68,7 +79,7 @@ final class DependencyCacheManager
      */
     public function instantiate(string $class): object
     {
-        if ($this->hasAttribute($class, Singleton::class)) {
+        if (isset($this->forcedSingletons[$class]) || $this->hasAttribute($class, Singleton::class)) {
             if (isset($this->singletonInstances[$class])) {
                 return $this->singletonInstances[$class];
             }
