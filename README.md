@@ -25,10 +25,12 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 🚀 **Zero Configuration**: Automatic constructor injection without verbose setup
 - 🔄 **Circular Dependency Detection**: Clear error messages when dependencies form a loop
 - 📦 **PSR-11 Compliant**: Standard container interface for interoperability
-- ⚡ **Performance Optimized**: Built-in caching and warmup capabilities
+- ⚡ **Performance Optimized**: Built-in caching, warmup, and a compiled cache that skips reflection
+- 🧩 **Fluent Registration**: Register bindings after construction with `bind()` and `singleton()`
+- 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
-- 🏷️ **PHP 8 Attributes**: Declarative configuration with #[Inject], #[Singleton], and #[Factory]
+- 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, and `#[Factory]`
 
 ## Installation
 
@@ -36,396 +38,53 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 composer require gacela-project/container
 ```
 
-## Quick Start
+Requires PHP >= 8.1.
 
-### Basic Usage
+## Hello World
 
 ```php
 use Gacela\Container\Container;
 
-// Simple auto-wiring
+class Greeter {
+    public function __construct(private Clock $clock) {}
+
+    public function greet(): string {
+        return 'Hello World at ' . $this->clock->now();
+    }
+}
+
+class Clock {
+    public function now(): string {
+        return date('H:i:s');
+    }
+}
+
+// Zero configuration — dependencies are auto-wired from type hints
 $container = new Container();
-$instance = $container->get(YourClass::class);
+$greeter = $container->make(Greeter::class);
+
+echo $greeter->greet();
 ```
 
-### With Bindings
-
-Map interfaces to concrete implementations:
-
-```php
-$bindings = [
-    LoggerInterface::class => FileLogger::class,
-    CacheInterface::class => new RedisCache('localhost'),
-    ConfigInterface::class => fn() => loadConfig(),
-];
-
-$container = new Container($bindings);
-$logger = $container->get(LoggerInterface::class); // Returns FileLogger
-```
-
-### Contextual Bindings
-
-Different implementations based on which class needs them:
-
-```php
-// UserController gets FileLogger, AdminController gets DatabaseLogger
-$container->when(UserController::class)
-    ->needs(LoggerInterface::class)
-    ->give(FileLogger::class);
-
-$container->when(AdminController::class)
-    ->needs(LoggerInterface::class)
-    ->give(DatabaseLogger::class);
-
-// Multiple classes can share the same contextual binding
-$container->when([ServiceA::class, ServiceB::class])
-    ->needs(CacheInterface::class)
-    ->give(RedisCache::class);
-```
-
-### PHP 8 Attributes
-
-Use attributes for declarative dependency configuration:
-
-#### #[Inject] - Specify Implementation
-
-Override type hints to inject specific implementations:
-
-```php
-use Gacela\Container\Attribute\Inject;
-
-class NotificationService {
-    public function __construct(
-        #[Inject(EmailLogger::class)]
-        private LoggerInterface $logger,
-    ) {}
-}
-
-// EmailLogger will be injected even if LoggerInterface is bound to FileLogger
-$service = $container->get(NotificationService::class);
-```
-
-#### #[Singleton] - Single Instance
-
-Mark a class to be instantiated only once:
-
-```php
-use Gacela\Container\Attribute\Singleton;
-
-#[Singleton]
-class DatabaseConnection {
-    public function __construct(private string $dsn) {}
-}
-
-$conn1 = $container->get(DatabaseConnection::class);
-$conn2 = $container->get(DatabaseConnection::class);
-// $conn1 === $conn2 (same instance)
-```
-
-#### #[Factory] - New Instances
-
-Always create fresh instances:
-
-```php
-use Gacela\Container\Attribute\Factory;
-
-#[Factory]
-class RequestContext {
-    public function __construct(private LoggerInterface $logger) {}
-}
-
-$ctx1 = $container->get(RequestContext::class);
-$ctx2 = $container->get(RequestContext::class);
-// $ctx1 !== $ctx2 (different instances)
-```
-
-**Note:** Attribute checks are cached internally, so repeated instantiations of the same class avoid repeated reflection.
-
-## How It Works
-
-The container automatically resolves dependencies based on type hints:
-
-- **Primitive types**: Uses default values (must be provided)
-- **Classes**: Instantiates and resolves dependencies recursively
-- **Interfaces**: Resolves using bindings defined in the container
-
-### Example
-
-```php
-class UserService {
-    public function __construct(
-        private UserRepository $repository,
-        private LoggerInterface $logger,
-    ) {}
-}
-
-class UserRepository {
-    public function __construct(private PDO $pdo) {}
-}
-
-// Setup
-$bindings = [
-    LoggerInterface::class => FileLogger::class,
-    PDO::class => new PDO('mysql:host=localhost;dbname=app', 'user', 'pass'),
-];
-
-$container = new Container($bindings);
-
-// Auto-resolves UserService -> UserRepository -> PDO
-$service = $container->get(UserService::class);
-```
-
-## Advanced Features
-
-### Factory Services
-
-Create new instances on every call:
-
-```php
-$factory = $container->factory(fn() => new TempFile());
-$container->set('temp_file', $factory);
-
-$file1 = $container->get('temp_file'); // New instance
-$file2 = $container->get('temp_file'); // Different instance
-```
-
-### Extending Services
-
-Wrap or modify services (even before they're created):
-
-```php
-$container->set('logger', fn() => new FileLogger('/var/log/app.log'));
-
-$container->extend('logger', function ($logger, $container) {
-    return new LoggerDecorator($logger);
-});
-```
-
-### Protecting Closures
-
-Prevent closures from being executed:
-
-```php
-$closure = fn() => 'Hello World';
-$container->set('greeting', $container->protect($closure));
-
-$result = $container->get('greeting'); // Returns the closure itself
-```
-
-### Resolving Callables
-
-Automatically inject dependencies into any callable:
-
-```php
-$result = $container->resolve(function (LoggerInterface $logger, CacheInterface $cache) {
-    $logger->info('Cache cleared');
-    return $cache->clear();
-});
-```
-
-### Service Introspection
-
-Debug and inspect container state:
-
-```php
-// Get all registered service IDs
-$services = $container->getRegisteredServices();
-
-// Check if service is a factory
-if ($container->isFactory('temp_file')) {
-    // Returns new instance each time
-}
-
-// Check if service is frozen (accessed)
-if ($container->isFrozen('logger')) {
-    // Cannot be modified anymore
-}
-
-// Get all bindings
-$bindings = $container->getBindings();
-
-// Get container statistics
-$stats = $container->getStats();
-/*
-[
-    'registered_services' => 42,
-    'frozen_services' => 15,
-    'factory_services' => 3,
-    'bindings' => 8,
-    'cached_dependencies' => 25,
-    'memory_usage' => '2.34 MB'
-]
-*/
-```
-
-### Performance Optimization
-
-Pre-resolve dependencies for faster runtime:
-
-```php
-// During application bootstrap
-$container->warmUp([
-    UserService::class,
-    OrderService::class,
-    PaymentProcessor::class,
-]);
-
-// Later requests reuse the cached dependency resolution
-$service = $container->get(UserService::class);
-```
-
-### Service Aliasing
-
-Create multiple names for the same service:
-
-```php
-// Create an alias
-$container->alias('db', PDO::class);
-
-// Access via alias or original name
-$db1 = $container->get('db');        // Same instance
-$db2 = $container->get(PDO::class);  // Same instance
-```
-
-## API Reference
-
-### Container Methods
-
-| Method | Description |
-|--------|-------------|
-| `get(string $id): mixed` | Retrieve or create a service |
-| `has(string $id): bool` | Check if service exists |
-| `set(string $id, mixed $instance): void` | Register a service |
-| `remove(string $id): void` | Remove a service |
-| `resolve(callable $callable): mixed` | Execute callable with dependency injection |
-| `factory(Closure $instance): Closure` | Mark service as factory (new instance each time) |
-| `extend(string $id, Closure $instance): Closure` | Wrap/modify a service |
-| `protect(Closure $instance): Closure` | Prevent closure execution |
-| `getRegisteredServices(): array` | Get all service IDs |
-| `isFactory(string $id): bool` | Check if service is a factory |
-| `isFrozen(string $id): bool` | Check if service is frozen |
-| `getBindings(): array` | Get all bindings |
-| `warmUp(array $classNames): void` | Pre-resolve dependencies |
-| `alias(string $alias, string $id): void` | Create an alias for a service |
-| `getStats(): array` | Get container statistics |
-| `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes |
-
-### Static Methods
-
-```php
-// Quick instantiation without container setup
-$instance = Container::create(YourClass::class);
-```
-
-## Best Practices
-
-### 1. Use Constructor Injection
-
-```php
-// Good
-class UserController {
-    public function __construct(
-        private UserService $userService,
-        private LoggerInterface $logger
-    ) {}
-}
-
-// Avoid setter injection (not supported)
-```
-
-### 2. Always Use Type Hints
-
-```php
-// Good - type hint required
-public function __construct(LoggerInterface $logger) {}
-
-// Bad - will throw exception
-public function __construct($logger) {}
-```
-
-### 3. Provide Default Values for Scalars
-
-```php
-// Good
-public function __construct(
-    UserRepository $repo,
-    int $maxRetries = 3,
-    string $env = 'production'
-) {}
-
-// Bad - scalars without defaults cannot be resolved
-public function __construct(string $apiKey) {} // Exception!
-```
-
-### 4. Use Bindings for Interfaces
-
-```php
-// Always bind interfaces to implementations
-$bindings = [
-    LoggerInterface::class => FileLogger::class,
-    CacheInterface::class => RedisCache::class,
-];
-```
-
-### 5. Warm Up in Production
-
-```php
-// In your bootstrap file
-$container->warmUp([
-    // List frequently used services
-    UserService::class,
-    AuthService::class,
-    Router::class,
-]);
-```
-
-## Error Handling
-
-Error messages include context and suggestions:
-
-### Missing Type Hint
-```
-No type hint found for parameter '$logger'.
-Type hints are required for dependency injection to work properly.
-
-Add a type hint to the parameter, for example:
-  public function __construct(YourClass $logger) { ... }
-```
-
-### Circular Dependency
-```
-Circular dependency detected: ClassA -> ClassB -> ClassC -> ClassA
-
-This happens when classes depend on each other in a loop.
-Consider using setter injection or the factory pattern to break the cycle.
-```
-
-### Unresolvable Scalar
-```
-Unable to resolve parameter of type 'string' in 'UserService'.
-Scalar types (string, int, float, bool, array) cannot be auto-resolved.
-
-Provide a default value for the parameter:
-  public function __construct(string $param = 'default') { ... }
-```
-
-### Service Not Found (with suggestions)
-```
-No concrete class was found that implements:
-"App\LogerInterface"
-Did you forget to bind this interface to a concrete class?
-
-Did you mean one of these?
-  - App\LoggerInterface
-  - App\Service\LoggerInterface
-
-You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings
-```
-
-## Requirements
-
-- PHP >= 8.1
-- PSR-11 Container Interface
+Need interfaces, singletons, attributes, or a compiled cache? See the docs below.
+
+## Documentation
+
+| Guide | What's inside |
+|-------|---------------|
+| [Getting Started](docs/getting-started.md) | Installation, basic usage, how resolution works |
+| [Bindings & Registration](docs/bindings.md) | Constructor bindings, `bind()`/`singleton()`, contextual bindings, aliasing |
+| [Resolving Services](docs/resolution.md) | `get()`, `make()`, `getOrFail()`, `resolve()`, transient vs. shared |
+| [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]` |
+| [Managing Services](docs/services.md) | Factories, extending, protecting closures, introspection |
+| [Performance & Compilation](docs/performance.md) | `warmUp()`, compiled container cache |
+| [Error Handling](docs/error-handling.md) | Error messages and what they mean |
+| [Best Practices](docs/best-practices.md) | Recommended patterns |
+| [API Reference](docs/api-reference.md) | Full method, static, and attribute reference |
+
+## Real-World Example
+
+See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L142).
 
 ## Testing
 
@@ -435,11 +94,6 @@ composer quality       # Run static analysis
 composer test-coverage # Generate coverage report
 ```
 
-## Real-World Example
-
-See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L142)
-
 ## License
 
 MIT License. See [LICENSE](LICENSE) file for details.
-
