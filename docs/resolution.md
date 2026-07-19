@@ -21,6 +21,22 @@ $service = $container->make(UserService::class); // returns UserService, not mix
 
 If the class cannot be resolved, `make()` throws `DependencyNotFoundException`.
 
+### Runtime parameters
+
+Pass constructor arguments by **parameter name** as a second argument. Supplied
+values override autowiring and defaults for the matching parameters (top level
+only), and the instance is always built fresh:
+
+```php
+$report = $container->make(Report::class, ['month' => 3, 'format' => 'pdf']);
+
+// Overrides an autowired dependency with an explicit instance
+$service = $container->make(UserService::class, ['logger' => $myLogger]);
+```
+
+This resolves parameters that could not be autowired otherwise (e.g. a scalar
+without a default). Overrides are per-call and never cached.
+
 ## getOrFail()
 
 Like `get()`, but throws `DependencyNotFoundException` instead of returning
@@ -40,6 +56,12 @@ $result = $container->resolve(function (LoggerInterface $logger, CacheInterface 
     $logger->info('Cache cleared');
     return $cache->clear();
 });
+```
+
+Runtime parameters work here too — override callable arguments by name:
+
+```php
+$container->resolve($handler, ['request' => $request]);
 ```
 
 ## Transient vs. shared instances

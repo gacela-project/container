@@ -224,24 +224,36 @@ class Container implements ContainerInterface
     /**
      * Resolve a class to a typed, non-null instance.
      *
+     * When $parameters are given, they override constructor arguments by
+     * parameter name (top level only) and the instance is always built fresh.
+     *
      * @template T of object
      *
      * @param class-string<T> $className
+     * @param array<string, mixed> $parameters
      *
      * @return T
      */
-    public function make(string $className): object
+    public function make(string $className, array $parameters = []): object
     {
+        if ($parameters === []) {
+            /** @var T */
+            return $this->getOrFail($className);
+        }
+
         /** @var T */
-        return $this->getOrFail($className);
+        return $this->cacheManager->instantiateWith($className, $parameters);
     }
 
-    public function resolve(callable $callable): mixed
+    /**
+     * @param array<string, mixed> $parameters override arguments by parameter name
+     */
+    public function resolve(callable $callable, array $parameters = []): mixed
     {
         $callableKey = $this->callableKey($callable);
         $closure = Closure::fromCallable($callable);
 
-        $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $closure);
+        $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $closure, $parameters);
 
         /** @psalm-suppress MixedMethodCall */
         return $closure(...$dependencies);
