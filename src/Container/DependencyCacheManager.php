@@ -18,6 +18,7 @@ use function count;
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type CompiledPlans from DependencyResolver
  */
 final class DependencyCacheManager
 {
@@ -45,11 +46,23 @@ final class DependencyCacheManager
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
+     * @param CompiledPlans $compiledPlans
      */
     public function __construct(
         private array &$bindings = [],
         private array &$contextualBindings = [],
+        private array $compiledPlans = [],
     ) {
+    }
+
+    /**
+     * Constructor plans gathered so far, for persisting to a compiled cache.
+     *
+     * @return CompiledPlans
+     */
+    public function exportCompiledPlans(): array
+    {
+        return $this->getDependencyResolver()->exportPlans();
     }
 
     /**
@@ -138,6 +151,7 @@ final class DependencyCacheManager
             $this->dependencyResolver = new DependencyResolver(
                 $this->bindings,
                 $this->contextualBindings,
+                $this->compiledPlans,
             );
         }
 

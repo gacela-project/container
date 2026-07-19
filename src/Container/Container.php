@@ -7,18 +7,23 @@ namespace Gacela\Container;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
+use Throwable;
 
 use function count;
+use function file_put_contents;
 use function get_class;
+use function implode;
 use function is_array;
 use function is_callable;
 use function is_object;
 use function is_string;
+use function var_export;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type CompiledPlans from DependencyResolver
  */
 class Container implements ContainerInterface
 {
@@ -43,18 +48,73 @@ class Container implements ContainerInterface
     /**
      * @param  BindingsMap  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
+     * @param  CompiledPlans  $compiledPlans  precompiled constructor plans (see writeCompiledCache())
      */
     public function __construct(
         array $bindings = [],
         array $instancesToExtend = [],
+        array $compiledPlans = [],
     ) {
         $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($this->bindings);
-        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings);
+        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings, $compiledPlans);
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
+    }
+
+    /**
+     * Load previously compiled constructor plans from a cache file.
+     *
+     * @return CompiledPlans
+     */
+    public static function loadCompiledCache(string $file): array
+    {
+        /** @var CompiledPlans $plans */
+        $plans = require $file;
+
+        return $plans;
+    }
+
+    /**
+     * Warm up the given classes and return their compiled constructor plans.
+     * Skips reflection at runtime when the plans are fed back via the
+     * constructor's $compiledPlans argument.
+     *
+     * @param list<class-string> $classNames
+     *
+     * @return CompiledPlans
+     */
+    public function compile(array $classNames): array
+    {
+        $this->warmUp($classNames);
+
+        return $this->cacheManager->exportCompiledPlans();
+    }
+
+    /**
+     * Compile the given classes and write their constructor plans to an
+     * opcache-friendly PHP file. Classes whose default values cannot be
+     * exported are skipped and fall back to reflection at runtime.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function writeCompiledCache(array $classNames, string $file): void
+    {
+        $entries = [];
+        foreach ($this->compile($classNames) as $class => $plan) {
+            try {
+                $exportedPlan = var_export($plan, true);
+            } catch (Throwable) {
+                // A default value is not statically exportable; skip this class.
+                continue;
+            }
+            $entries[] = var_export($class, true) . ' => ' . $exportedPlan . ',';
+        }
+
+        $code = "<?php\n\ndeclare(strict_types=1);\n\nreturn [\n" . implode("\n", $entries) . "\n];\n";
+        file_put_contents($file, $code);
     }
 
     /**
