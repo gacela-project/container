@@ -28,7 +28,7 @@
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `getStats(): array` | Get container statistics |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |
-| `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes |
+| `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
 
 ## Static methods
 

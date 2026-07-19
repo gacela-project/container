@@ -63,6 +63,25 @@ $container->when([ServiceA::class, ServiceB::class])
     ->give(RedisCache::class);
 ```
 
+### Named (scalar) contextual bindings
+
+`needs()` also accepts a `$`-prefixed **parameter name**, to inject a scalar,
+array, object, or closure into a specific class by name — no constructor default
+required:
+
+```php
+$container->when(ApiClient::class)
+    ->needs('$apiKey')
+    ->give(fn() => getenv('API_KEY'));   // closure is invoked per resolution
+
+$container->when(ReportService::class)
+    ->needs('$timeoutSeconds')
+    ->give(30);
+```
+
+The binding is scoped to the class named in `when()`; the same parameter name on
+another class is unaffected.
+
 ## Service aliasing
 
 Create multiple names for the same service:
