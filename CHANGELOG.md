@@ -10,6 +10,7 @@
 - Support named/scalar contextual bindings: `when(X)->needs('$paramName')->give(...)`
 - Pass the container into binding closures (constructor, `singleton()`, and contextual `give()`) so factories can compose from other services
 - Add service tagging: `tag()` groups service ids under a label, `tagged()` lazily resolves them together
+- Add conditional registration: `bound()` checks bindings + instances, `bindIf()`/`singletonIf()` register only when absent
 - Add compiled constructor plans (`compile()`, `writeCompiledCache()`, `loadCompiledCache()`) to skip reflection per request
 
 ### Fixed
