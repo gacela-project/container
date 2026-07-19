@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.10.0](https://github.com/gacela-project/container/compare/0.9.0...0.10.0) - 2026-07-20
+
 ### New Features
 
 - Add `bind()` and `singleton()` for fluent binding registration after construction
