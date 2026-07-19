@@ -6,16 +6,24 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\Exception\DependencyNotFoundException;
+use Throwable;
 
 use function count;
+use function file_put_contents;
 use function get_class;
+use function implode;
 use function is_array;
+use function is_callable;
 use function is_object;
 use function is_string;
+use function var_export;
 
 /**
+ * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type CompiledPlans from DependencyResolver
  */
 class Container implements ContainerInterface
 {
@@ -31,23 +39,126 @@ class Container implements ContainerInterface
 
     private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
 
+    /** @var BindingsMap */
+    private array $bindings;
+
     /** @var ContextualBindingsMap */
     private array $contextualBindings = [];
 
     /**
      * @param  BindingsMap  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
+     * @param  CompiledPlans  $compiledPlans  precompiled constructor plans (see writeCompiledCache())
      */
     public function __construct(
         array $bindings = [],
         array $instancesToExtend = [],
+        array $compiledPlans = [],
     ) {
+        $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
-        $this->bindingResolver = new BindingResolver($bindings);
-        $this->cacheManager = new DependencyCacheManager($bindings, $this->contextualBindings);
+        $this->bindingResolver = new BindingResolver($this->bindings);
+        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings, $compiledPlans);
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
+    }
+
+    /**
+     * Load previously compiled constructor plans from a cache file.
+     *
+     * @return CompiledPlans
+     */
+    public static function loadCompiledCache(string $file): array
+    {
+        /**
+         * @psalm-suppress UnresolvableInclude
+         *
+         * @var CompiledPlans $plans
+         */
+        $plans = require $file;
+
+        return $plans;
+    }
+
+    /**
+     * Warm up the given classes and return their compiled constructor plans.
+     * Skips reflection at runtime when the plans are fed back via the
+     * constructor's $compiledPlans argument.
+     *
+     * @param list<class-string> $classNames
+     *
+     * @return CompiledPlans
+     */
+    public function compile(array $classNames): array
+    {
+        $this->warmUp($classNames);
+
+        return $this->cacheManager->exportCompiledPlans();
+    }
+
+    /**
+     * Compile the given classes and write their constructor plans to an
+     * opcache-friendly PHP file. Classes whose default values cannot be
+     * exported are skipped and fall back to reflection at runtime.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function writeCompiledCache(array $classNames, string $file): void
+    {
+        $entries = [];
+        foreach ($this->compile($classNames) as $class => $plan) {
+            try {
+                $exportedPlan = var_export($plan, true);
+            } catch (Throwable) {
+                // A default value is not statically exportable; skip this class.
+                continue;
+            }
+            $entries[] = var_export($class, true) . ' => ' . $exportedPlan . ',';
+        }
+
+        $code = "<?php\n\ndeclare(strict_types=1);\n\nreturn [\n" . implode("\n", $entries) . "\n];\n";
+        file_put_contents($file, $code);
+    }
+
+    /**
+     * Register a binding from an abstract type to a concrete implementation.
+     *
+     * @param Binding $concrete
+     */
+    public function bind(string $abstract, string|callable|object $concrete): void
+    {
+        /**
+         * @psalm-suppress PropertyTypeCoercion
+         *
+         * @phpstan-ignore assign.propertyType
+         */
+        $this->bindings[$abstract] = $concrete;
+    }
+
+    /**
+     * Register a binding whose resolved instance is created once and reused.
+     *
+     * @param Binding|null $concrete when null, $abstract is the concrete class
+     */
+    public function singleton(string $abstract, string|callable|object|null $concrete = null): void
+    {
+        $concrete ??= $abstract;
+
+        if (is_object($concrete) && !$concrete instanceof Closure) {
+            // Already a single shared instance.
+            $this->bind($abstract, $concrete);
+            return;
+        }
+
+        if (is_callable($concrete)) {
+            $this->bind($abstract, $this->memoizeCallable($concrete));
+            return;
+        }
+
+        /** @var class-string $concrete */
+        $this->bind($abstract, $concrete);
+        $this->cacheManager->markAsSingleton($concrete);
     }
 
     /**
@@ -94,6 +205,35 @@ class Container implements ContainerInterface
         }
 
         return $this->createInstance($id);
+    }
+
+    /**
+     * Like get(), but throws when the id resolves to null instead of returning it.
+     */
+    public function getOrFail(string $id): mixed
+    {
+        /** @psalm-suppress MixedAssignment */
+        $instance = $this->get($id);
+        if ($instance === null) {
+            throw DependencyNotFoundException::unresolvableId($id);
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Resolve a class to a typed, non-null instance.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $className
+     *
+     * @return T
+     */
+    public function make(string $className): object
+    {
+        /** @var T */
+        return $this->getOrFail($className);
     }
 
     public function resolve(callable $callable): mixed
@@ -260,6 +400,25 @@ class Container implements ContainerInterface
             'cached_dependencies' => $this->cacheManager->getCacheSize(),
             'memory_usage' => $this->formatBytes(memory_get_usage(true)),
         ];
+    }
+
+    /**
+     * @return Closure(): mixed
+     */
+    private function memoizeCallable(callable $factory): Closure
+    {
+        $resolved = null;
+        $hasResolved = false;
+
+        return static function () use ($factory, &$resolved, &$hasResolved): mixed {
+            if (!$hasResolved) {
+                /** @var mixed $resolved */
+                $resolved = $factory();
+                $hasResolved = true;
+            }
+
+            return $resolved;
+        };
     }
 
     private function createInstance(string $class): ?object

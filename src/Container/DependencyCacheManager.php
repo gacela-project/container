@@ -13,15 +13,24 @@ use function class_exists;
 use function count;
 
 /**
- * Caches dependency resolutions, singleton instances, and attribute lookups.
+ * Resolves dependencies (delegating reflection caching to the resolver),
+ * keeps singleton instances, and caches attribute lookups.
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type CompiledPlans from DependencyResolver
  */
 final class DependencyCacheManager
 {
-    /** @var array<string, list<mixed>> */
-    private array $cachedDependencies = [];
+    /**
+     * Keys (class names / callable keys) resolved at least once.
+     * Dependencies are intentionally rebuilt per resolution so that transient
+     * services do not share their child instances; only reflection is cached
+     * (in the resolver).
+     *
+     * @var array<string, true>
+     */
+    private array $resolvedKeys = [];
 
     /** @var array<class-string, object> */
     private array $singletonInstances = [];
@@ -29,16 +38,39 @@ final class DependencyCacheManager
     /** @var array<string, bool> Cache for attribute existence checks */
     private array $attributeCache = [];
 
+    /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
+    private array $forcedSingletons = [];
+
     private ?DependencyResolver $dependencyResolver = null;
 
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
+     * @param CompiledPlans $compiledPlans
      */
     public function __construct(
-        private array $bindings = [],
+        private array &$bindings = [],
         private array &$contextualBindings = [],
+        private array $compiledPlans = [],
     ) {
+    }
+
+    /**
+     * Constructor plans gathered so far, for persisting to a compiled cache.
+     *
+     * @return CompiledPlans
+     */
+    public function exportCompiledPlans(): array
+    {
+        return $this->getDependencyResolver()->exportPlans();
+    }
+
+    /**
+     * @param class-string $class
+     */
+    public function markAsSingleton(string $class): void
+    {
+        $this->forcedSingletons[$class] = true;
     }
 
     /**
@@ -46,7 +78,9 @@ final class DependencyCacheManager
      */
     public function resolveCallableDependencies(string $callableKey, Closure $callable): array
     {
-        return $this->resolveCachedDependencies($callableKey, $callable);
+        $this->resolvedKeys[$callableKey] = true;
+
+        return $this->getDependencyResolver()->resolveDependencies($callable);
     }
 
     /**
@@ -59,7 +93,9 @@ final class DependencyCacheManager
                 continue;
             }
 
-            $this->resolveCachedDependencies($className, $className);
+            // Warm the resolver's reflection caches for this class.
+            $this->getDependencyResolver()->resolveDependencies($className);
+            $this->resolvedKeys[$className] = true;
         }
     }
 
@@ -68,7 +104,7 @@ final class DependencyCacheManager
      */
     public function instantiate(string $class): object
     {
-        if ($this->hasAttribute($class, Singleton::class)) {
+        if (isset($this->forcedSingletons[$class]) || $this->hasAttribute($class, Singleton::class)) {
             if (isset($this->singletonInstances[$class])) {
                 return $this->singletonInstances[$class];
             }
@@ -93,7 +129,7 @@ final class DependencyCacheManager
 
     public function getCacheSize(): int
     {
-        return count($this->cachedDependencies);
+        return count($this->resolvedKeys);
     }
 
     /**
@@ -101,24 +137,12 @@ final class DependencyCacheManager
      */
     private function createInstance(string $class): object
     {
+        $this->resolvedKeys[$class] = true;
+
+        $dependencies = $this->getDependencyResolver()->resolveDependencies($class);
+
         /** @psalm-suppress MixedMethodCall */
-        return new $class(...$this->resolveCachedDependencies($class, $class));
-    }
-
-    /**
-     * @param class-string|Closure $toResolve
-     *
-     * @return list<mixed>
-     */
-    private function resolveCachedDependencies(string $cacheKey, string|Closure $toResolve): array
-    {
-        if (!isset($this->cachedDependencies[$cacheKey])) {
-            $this->cachedDependencies[$cacheKey] = $this
-                ->getDependencyResolver()
-                ->resolveDependencies($toResolve);
-        }
-
-        return $this->cachedDependencies[$cacheKey];
+        return new $class(...$dependencies);
     }
 
     private function getDependencyResolver(): DependencyResolver
@@ -127,6 +151,7 @@ final class DependencyCacheManager
             $this->dependencyResolver = new DependencyResolver(
                 $this->bindings,
                 $this->contextualBindings,
+                $this->compiledPlans,
             );
         }
 

@@ -11,10 +11,10 @@ use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionClass;
 use ReflectionFunction;
-use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 
+use function array_keys;
 use function count;
 use function is_callable;
 use function is_object;
@@ -24,14 +24,20 @@ use function is_string;
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ *
+ * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
+ * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>}
+ * @psalm-type CompiledPlans = array<class-string, ClassPlan>
  */
 final class DependencyResolver
 {
-    /** @var array<class-string, ReflectionClass<object>> */
-    private array $reflectionCache = [];
-
-    /** @var array<class-string, ?ReflectionMethod> */
-    private array $constructorCache = [];
+    /**
+     * Plain-data constructor plans per class. Seeded from a compiled cache to
+     * skip reflection at runtime, and populated lazily otherwise.
+     *
+     * @var CompiledPlans
+     */
+    private array $planCache;
 
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
@@ -45,11 +51,14 @@ final class DependencyResolver
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
+     * @param CompiledPlans $compiledPlans
      */
     public function __construct(
         private array $bindings = [],
         private array &$contextualBindings = [],
+        array $compiledPlans = [],
     ) {
+        $this->planCache = $compiledPlans;
     }
 
     /**
@@ -59,120 +68,80 @@ final class DependencyResolver
      */
     public function resolveDependencies(string|Closure $toResolve): array
     {
-        // Track which class is being resolved for contextual bindings
-        if (is_string($toResolve)) {
-            $this->buildStack[] = $toResolve;
+        if (!is_string($toResolve)) {
+            return $this->resolveEntryParameters($this->describeFunction($toResolve));
         }
+
+        // Track which class is being resolved for contextual bindings.
+        $this->buildStack[] = $toResolve;
 
         try {
-            /** @var list<mixed> $dependencies */
-            $dependencies = [];
-
-            $parameters = $this->getParametersToResolve($toResolve);
-
-            foreach ($parameters as $parameter) {
-                /** @psalm-suppress MixedAssignment */
-                $dependencies[] = $this->resolveDependenciesRecursively($parameter);
-            }
-
-            return $dependencies;
+            return $this->resolveEntryParameters($this->describeClass($toResolve)['params']);
         } finally {
-            if (is_string($toResolve)) {
-                array_pop($this->buildStack);
-            }
+            array_pop($this->buildStack);
         }
     }
 
     /**
-     * @param class-string|Closure $toResolve
+     * The compiled constructor plans gathered so far, for persisting to a cache.
      *
-     * @return list<ReflectionParameter>
+     * @return CompiledPlans
      */
-    private function getParametersToResolve(Closure|string $toResolve): array
+    public function exportPlans(): array
     {
-        if (is_string($toResolve)) {
-            $constructor = $this->getConstructor($toResolve);
-            if (!$constructor) {
-                return [];
-            }
-            return $constructor->getParameters();
-        }
-
-        $reflection = new ReflectionFunction($toResolve);
-        return $reflection->getParameters();
+        return $this->planCache;
     }
 
     /**
-     * @param class-string $className
+     * Entry-point parameters (top-level class or callable) must all be
+     * resolvable; an untyped parameter is a hard error here.
+     *
+     * @param list<ParamPlan> $params
+     *
+     * @return list<mixed>
      */
-    private function getConstructor(string $className): ?ReflectionMethod
+    private function resolveEntryParameters(array $params): array
     {
-        if (!isset($this->constructorCache[$className])) {
-            $reflection = new ReflectionClass($className);
-            $this->constructorCache[$className] = $reflection->getConstructor();
+        /** @var list<mixed> $dependencies */
+        $dependencies = [];
+
+        foreach ($params as $param) {
+            /** @psalm-suppress MixedAssignment */
+            $dependencies[] = $this->resolveParameter($param);
         }
 
-        return $this->constructorCache[$className];
-    }
-
-    private function resolveDependenciesRecursively(ReflectionParameter $parameter): mixed
-    {
-        $this->checkInvalidArgumentParam($parameter);
-
-        $attributes = $parameter->getAttributes(Inject::class);
-        if (count($attributes) > 0) {
-            /** @var Inject $inject */
-            $inject = $attributes[0]->newInstance();
-            if ($inject->implementation !== null) {
-                return $this->resolveClass($inject->implementation);
-            }
-        }
-
-        /** @var ReflectionNamedType $paramType */
-        $paramType = $parameter->getType();
-
-        /** @var class-string $paramTypeName */
-        $paramTypeName = $paramType->getName();
-        if ($parameter->isDefaultValueAvailable()) {
-            return $parameter->getDefaultValue();
-        }
-
-        return $this->resolveClass($paramTypeName);
-    }
-
-    private function checkInvalidArgumentParam(ReflectionParameter $parameter): void
-    {
-        if (!$parameter->hasType()) {
-            $chain = $this->getResolutionChain();
-            throw DependencyInvalidArgumentException::noParameterTypeFor($parameter->getName(), $chain);
-        }
-
-        /** @var ReflectionNamedType $paramType */
-        $paramType = $parameter->getType();
-        $paramTypeName = $paramType->getName();
-
-        if ($this->isScalar($paramTypeName) && !$parameter->isDefaultValueAvailable()) {
-            /** @var ReflectionClass<object> $reflectionClass */
-            $reflectionClass = $parameter->getDeclaringClass();
-            $chain = $this->getResolutionChain();
-            throw DependencyInvalidArgumentException::unableToResolve($paramTypeName, $reflectionClass->getName(), $chain);
-        }
+        return $dependencies;
     }
 
     /**
-     * @return list<string>
+     * @param ParamPlan $param
      */
-    private function getResolutionChain(): array
+    private function resolveParameter(array $param): mixed
     {
-        return array_keys($this->resolvingStack);
-    }
+        if (!$param['hasType']) {
+            throw DependencyInvalidArgumentException::noParameterTypeFor($param['name'], $this->getResolutionChain());
+        }
 
-    private function isScalar(string $paramTypeName): bool
-    {
-        $this->typeExistsCache[$paramTypeName] ??= class_exists($paramTypeName)
-            || interface_exists($paramTypeName);
+        if ($param['isScalar'] && !$param['hasDefault']) {
+            throw DependencyInvalidArgumentException::unableToResolve(
+                $param['type'] ?? $param['name'],
+                $param['declaringClass'] ?? '',
+                $this->getResolutionChain(),
+            );
+        }
 
-        return !$this->typeExistsCache[$paramTypeName];
+        if ($param['inject'] !== null) {
+            return $this->resolveClass($param['inject']);
+        }
+
+        if ($param['hasDefault']) {
+            return $param['default'];
+        }
+
+        /** @var class-string $type */
+        $type = $param['type'];
+
+        return $this->resolveClass($type);
     }
 
     /**
@@ -207,14 +176,163 @@ final class DependencyResolver
 
         $this->checkCircularDependency($paramTypeName);
 
-        $reflection = $this->resolveReflectionClass($paramTypeName);
-        // Use the concrete class name for caching, not the original parameter type
-        $constructor = $this->getConstructor($reflection->getName());
-        if ($constructor === null) {
-            return $reflection->newInstance();
+        $plan = $this->describeClass($paramTypeName);
+        if (!$plan['instantiable']) {
+            $paramTypeName = $this->resolveConcreteForAbstract($paramTypeName);
+            $plan = $this->describeClass($paramTypeName);
         }
 
-        return $this->resolveInnerDependencies($constructor, $reflection);
+        return $this->instantiateFromPlan($paramTypeName, $plan['params']);
+    }
+
+    /**
+     * @param class-string $abstract
+     *
+     * @return class-string
+     */
+    private function resolveConcreteForAbstract(string $abstract): string
+    {
+        $concrete = $this->bindings[$abstract] ?? null;
+        if (is_string($concrete)) {
+            /** @var class-string $concrete */
+            return $concrete;
+        }
+
+        $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($this->bindings));
+
+        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
+    }
+
+    /**
+     * @param class-string $className
+     * @param list<ParamPlan> $params
+     */
+    private function instantiateFromPlan(string $className, array $params): object
+    {
+        $this->resolvingStack[$className] = true;
+
+        try {
+            /** @var list<mixed> $args */
+            $args = [];
+
+            foreach ($params as $param) {
+                // Nested constructors skip untyped parameters, relying on their defaults.
+                if (!$param['hasType']) {
+                    continue;
+                }
+
+                /** @psalm-suppress MixedAssignment */
+                $args[] = $this->resolveParameter($param);
+            }
+
+            /** @psalm-suppress MixedMethodCall */
+            return new $className(...$args);
+        } finally {
+            unset($this->resolvingStack[$className]);
+        }
+    }
+
+    /**
+     * @param class-string $className
+     *
+     * @return ClassPlan
+     */
+    private function describeClass(string $className): array
+    {
+        if (!isset($this->planCache[$className])) {
+            $reflection = new ReflectionClass($className);
+            $constructor = $reflection->getConstructor();
+
+            $params = [];
+            if ($constructor !== null) {
+                foreach ($constructor->getParameters() as $parameter) {
+                    $params[] = $this->describeParameter($parameter);
+                }
+            }
+
+            $this->planCache[$className] = [
+                'instantiable' => $reflection->isInstantiable(),
+                'params' => $params,
+            ];
+        }
+
+        return $this->planCache[$className];
+    }
+
+    /**
+     * @return list<ParamPlan>
+     */
+    private function describeFunction(Closure $closure): array
+    {
+        $params = [];
+        foreach ((new ReflectionFunction($closure))->getParameters() as $parameter) {
+            $params[] = $this->describeParameter($parameter);
+        }
+
+        return $params;
+    }
+
+    /**
+     * @return ParamPlan
+     */
+    private function describeParameter(ReflectionParameter $parameter): array
+    {
+        $type = $parameter->getType();
+
+        $typeName = null;
+        $isScalar = false;
+        if ($type instanceof ReflectionNamedType) {
+            $typeName = $type->getName();
+            $isScalar = $this->isScalar($typeName);
+        }
+
+        $hasDefault = $parameter->isDefaultValueAvailable();
+
+        return [
+            'name' => $parameter->getName(),
+            'hasType' => $parameter->hasType(),
+            'type' => $typeName,
+            'isScalar' => $isScalar,
+            'inject' => $this->readInjectImplementation($parameter),
+            'hasDefault' => $hasDefault,
+            'default' => $hasDefault ? $parameter->getDefaultValue() : null,
+            'declaringClass' => $parameter->getDeclaringClass()?->getName(),
+        ];
+    }
+
+    /**
+     * @return class-string|null
+     */
+    private function readInjectImplementation(ReflectionParameter $parameter): ?string
+    {
+        $attributes = $parameter->getAttributes(Inject::class);
+        if (count($attributes) === 0) {
+            return null;
+        }
+
+        /** @var Inject $inject */
+        $inject = $attributes[0]->newInstance();
+
+        /** @var class-string|null $implementation */
+        $implementation = $inject->implementation;
+
+        return $implementation;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getResolutionChain(): array
+    {
+        return array_keys($this->resolvingStack);
+    }
+
+    private function isScalar(string $paramTypeName): bool
+    {
+        $this->typeExistsCache[$paramTypeName] ??= class_exists($paramTypeName)
+            || interface_exists($paramTypeName);
+
+        return !$this->typeExistsCache[$paramTypeName];
     }
 
     /**
@@ -230,72 +348,16 @@ final class DependencyResolver
     }
 
     /**
-     * @param class-string $paramTypeName
-     *
-     * @return ReflectionClass<object>
-     */
-    private function resolveReflectionClass(string $paramTypeName): ReflectionClass
-    {
-        if (!isset($this->reflectionCache[$paramTypeName])) {
-            $reflection = new ReflectionClass($paramTypeName);
-
-            if (!$reflection->isInstantiable()) {
-                $concreteClass = $this->bindings[$reflection->getName()] ?? null;
-
-                if ($concreteClass !== null) {
-                    /** @var class-string $concreteClass */
-                    $reflection = new ReflectionClass($concreteClass);
-                } else {
-                    $suggestions = FuzzyMatcher::findSimilar(
-                        $reflection->getName(),
-                        array_keys($this->bindings),
-                    );
-                    throw DependencyNotFoundException::mapNotFoundForClassName(
-                        $reflection->getName(),
-                        $suggestions,
-                    );
-                }
-            }
-
-            $this->reflectionCache[$paramTypeName] = $reflection;
-        }
-
-        return $this->reflectionCache[$paramTypeName];
-    }
-
-    /**
-     * @param ReflectionClass<object> $reflection
-     */
-    private function resolveInnerDependencies(ReflectionMethod $constructor, ReflectionClass $reflection): object
-    {
-        $className = $reflection->getName();
-        $this->resolvingStack[$className] = true;
-
-        try {
-            /** @var list<mixed> $innerDependencies */
-            $innerDependencies = [];
-
-            foreach ($constructor->getParameters() as $constructorParameter) {
-                $paramType = $constructorParameter->getType();
-                if ($paramType) {
-                    /** @psalm-suppress MixedAssignment */
-                    $innerDependencies[] = $this->resolveDependenciesRecursively($constructorParameter);
-                }
-            }
-
-            return $reflection->newInstanceArgs($innerDependencies);
-        } finally {
-            unset($this->resolvingStack[$className]);
-        }
-    }
-
-    /**
      * @param class-string $abstract
      *
      * @return Binding|null
      */
     private function getContextualBinding(string $abstract): mixed
     {
+        if ($this->contextualBindings === []) {
+            return null;
+        }
+
         // Walk the build stack from the end (most specific context) outward
         for ($i = count($this->buildStack) - 1; $i >= 0; --$i) {
             $concrete = $this->buildStack[$i];

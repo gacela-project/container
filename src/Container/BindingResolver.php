@@ -20,7 +20,7 @@ final class BindingResolver
      * @param BindingsMap $bindings
      */
     public function __construct(
-        private array $bindings = [],
+        private array &$bindings = [],
     ) {
     }
 
