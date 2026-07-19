@@ -71,7 +71,11 @@ class Container implements ContainerInterface
      */
     public static function loadCompiledCache(string $file): array
     {
-        /** @var CompiledPlans $plans */
+        /**
+         * @psalm-suppress UnresolvableInclude
+         *
+         * @var CompiledPlans $plans
+         */
         $plans = require $file;
 
         return $plans;
@@ -208,6 +212,7 @@ class Container implements ContainerInterface
      */
     public function getOrFail(string $id): mixed
     {
+        /** @psalm-suppress MixedAssignment */
         $instance = $this->get($id);
         if ($instance === null) {
             throw DependencyNotFoundException::unresolvableId($id);
@@ -398,8 +403,6 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param callable(): mixed $factory
-     *
      * @return Closure(): mixed
      */
     private function memoizeCallable(callable $factory): Closure
