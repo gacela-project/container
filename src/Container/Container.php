@@ -227,12 +227,12 @@ class Container implements ContainerInterface, ArrayAccess
 
     public function offsetExists(mixed $offset): bool
     {
-        return $this->has((string) $offset);
+        return $this->has($offset);
     }
 
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->get((string) $offset);
+        return $this->get($offset);
     }
 
     public function offsetSet(mixed $offset, mixed $value): void
@@ -242,7 +242,7 @@ class Container implements ContainerInterface, ArrayAccess
 
     public function offsetUnset(mixed $offset): void
     {
-        $this->remove((string) $offset);
+        $this->remove($offset);
     }
 
     public function set(string $id, mixed $instance): void
