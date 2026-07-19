@@ -10,6 +10,7 @@
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
 | `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
 | `has(string $id): bool` | Check if a service exists (instance registry) |
+| `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`) |
 | `bound(string $id): bool` | Check if a binding or instance exists (alias-aware) |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |

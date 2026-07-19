@@ -47,6 +47,9 @@ class Container implements ContainerInterface
     /** @var ContextualBindingsMap */
     private array $contextualBindings = [];
 
+    /** @var array<string, list<Closure>> */
+    private array $afterResolvingCallbacks = [];
+
     /**
      * @param  BindingsMap  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
@@ -238,10 +241,26 @@ class Container implements ContainerInterface
         $id = $this->aliasRegistry->resolve($id);
 
         if ($this->has($id)) {
-            return $this->instanceRegistry->get($id, $this->factoryManager, $this);
+            /** @var mixed $instance */
+            $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this);
+        } else {
+            /** @var mixed $instance */
+            $instance = $this->createInstance($id);
         }
 
-        return $this->createInstance($id);
+        $this->fireAfterResolving($id, $instance);
+
+        return $instance;
+    }
+
+    /**
+     * Register a callback to run after the given id is resolved, receiving the
+     * resolved instance and the container. Callbacks run in registration order.
+     */
+    public function afterResolving(string $id, Closure $callback): void
+    {
+        $id = $this->aliasRegistry->resolve($id);
+        $this->afterResolvingCallbacks[$id][] = $callback;
     }
 
     /**
@@ -471,6 +490,13 @@ class Container implements ContainerInterface
             'cached_dependencies' => $this->cacheManager->getCacheSize(),
             'memory_usage' => $this->formatBytes(memory_get_usage(true)),
         ];
+    }
+
+    private function fireAfterResolving(string $id, mixed $instance): void
+    {
+        foreach ($this->afterResolvingCallbacks[$id] ?? [] as $callback) {
+            $callback($instance, $this);
+        }
     }
 
     /**

@@ -39,6 +39,21 @@ $container->set('greeting', $container->protect($closure));
 $result = $container->get('greeting'); // Returns the closure itself
 ```
 
+## Resolution hooks
+
+Run logic after a service is resolved — configure it, decorate it, or register
+handlers. Callbacks receive the resolved instance and the container, and run in
+registration order:
+
+```php
+$container->afterResolving(Logger::class, function (Logger $logger, Container $c): void {
+    $logger->pushHandler($c->get(StreamHandler::class));
+});
+```
+
+Only callbacks registered for the resolved id fire; unrelated resolutions are
+untouched.
+
 ## Introspection
 
 Debug and inspect container state:
