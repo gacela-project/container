@@ -8,13 +8,13 @@
 |--------|-------------|
 | `get(string $id): mixed` | Retrieve or create a service |
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
-| `make(string $className): object` | Resolve a class to a typed, non-null instance |
+| `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
 | `has(string $id): bool` | Check if a service exists |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
-| `resolve(callable $callable): mixed` | Execute a callable with dependency injection |
+| `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
 | `factory(Closure $instance): Closure` | Mark a service as a factory (new instance each time) |
 | `extend(string $id, Closure $instance): Closure` | Wrap/modify a service |
 | `protect(Closure $instance): Closure` | Prevent closure execution |

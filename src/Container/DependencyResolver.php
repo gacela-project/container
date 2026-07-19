@@ -14,6 +14,7 @@ use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 
+use function array_key_exists;
 use function array_keys;
 use function count;
 use function is_callable;
@@ -63,20 +64,21 @@ final class DependencyResolver
 
     /**
      * @param class-string|Closure $toResolve
+     * @param array<string, mixed> $overrides runtime values keyed by parameter name (top level only)
      *
      * @return list<mixed>
      */
-    public function resolveDependencies(string|Closure $toResolve): array
+    public function resolveDependencies(string|Closure $toResolve, array $overrides = []): array
     {
         if (!is_string($toResolve)) {
-            return $this->resolveEntryParameters($this->describeFunction($toResolve));
+            return $this->resolveEntryParameters($this->describeFunction($toResolve), $overrides);
         }
 
         // Track which class is being resolved for contextual bindings.
         $this->buildStack[] = $toResolve;
 
         try {
-            return $this->resolveEntryParameters($this->describeClass($toResolve)['params']);
+            return $this->resolveEntryParameters($this->describeClass($toResolve)['params'], $overrides);
         } finally {
             array_pop($this->buildStack);
         }
@@ -97,15 +99,22 @@ final class DependencyResolver
      * resolvable; an untyped parameter is a hard error here.
      *
      * @param list<ParamPlan> $params
+     * @param array<string, mixed> $overrides runtime values keyed by parameter name
      *
      * @return list<mixed>
      */
-    private function resolveEntryParameters(array $params): array
+    private function resolveEntryParameters(array $params, array $overrides = []): array
     {
         /** @var list<mixed> $dependencies */
         $dependencies = [];
 
         foreach ($params as $param) {
+            if (array_key_exists($param['name'], $overrides)) {
+                /** @psalm-suppress MixedAssignment */
+                $dependencies[] = $overrides[$param['name']];
+                continue;
+            }
+
             /** @psalm-suppress MixedAssignment */
             $dependencies[] = $this->resolveParameter($param);
         }

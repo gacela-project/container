@@ -74,13 +74,32 @@ final class DependencyCacheManager
     }
 
     /**
+     * @param array<string, mixed> $overrides
+     *
      * @return list<mixed>
      */
-    public function resolveCallableDependencies(string $callableKey, Closure $callable): array
+    public function resolveCallableDependencies(string $callableKey, Closure $callable, array $overrides = []): array
     {
         $this->resolvedKeys[$callableKey] = true;
 
-        return $this->getDependencyResolver()->resolveDependencies($callable);
+        return $this->getDependencyResolver()->resolveDependencies($callable, $overrides);
+    }
+
+    /**
+     * Build a fresh instance, overriding constructor arguments by parameter name.
+     * Overrides are never cached.
+     *
+     * @param class-string $class
+     * @param array<string, mixed> $overrides
+     */
+    public function instantiateWith(string $class, array $overrides): object
+    {
+        $this->resolvedKeys[$class] = true;
+
+        $dependencies = $this->getDependencyResolver()->resolveDependencies($class, $overrides);
+
+        /** @psalm-suppress MixedMethodCall */
+        return new $class(...$dependencies);
     }
 
     /**

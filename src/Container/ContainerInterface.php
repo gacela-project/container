@@ -28,18 +28,24 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Resolve a class to a typed, non-null instance.
      *
+     * When $parameters are given, they override constructor arguments by
+     * parameter name (top level only) and the instance is always built fresh.
+     *
      * @template T of object
      *
      * @param class-string<T> $className
+     * @param array<string, mixed> $parameters
      *
      * @return T
      */
-    public function make(string $className): object;
+    public function make(string $className, array $parameters = []): object;
 
     /**
      * Resolve the callable loading automatically all arguments based on current bindings.
+     *
+     * @param array<string, mixed> $parameters override arguments by parameter name
      */
-    public function resolve(callable $callable): mixed;
+    public function resolve(callable $callable, array $parameters = []): mixed;
 
     public function has(string $id): bool;
 
