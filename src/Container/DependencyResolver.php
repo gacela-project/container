@@ -15,6 +15,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 
+use function array_key_exists;
 use function count;
 use function is_callable;
 use function is_object;
@@ -38,6 +39,9 @@ final class DependencyResolver
 
     /** @var array<string, bool> Memoized class_exists()/interface_exists() checks */
     private array $typeExistsCache = [];
+
+    /** @var array<string, class-string|null> Memoized Inject implementation per declaring-class#position */
+    private array $injectCache = [];
 
     /** @var list<class-string> */
     private array $buildStack = [];
@@ -119,13 +123,9 @@ final class DependencyResolver
     {
         $this->checkInvalidArgumentParam($parameter);
 
-        $attributes = $parameter->getAttributes(Inject::class);
-        if (count($attributes) > 0) {
-            /** @var Inject $inject */
-            $inject = $attributes[0]->newInstance();
-            if ($inject->implementation !== null) {
-                return $this->resolveClass($inject->implementation);
-            }
+        $injectImplementation = $this->getInjectImplementation($parameter);
+        if ($injectImplementation !== null) {
+            return $this->resolveClass($injectImplementation);
         }
 
         /** @var ReflectionNamedType $paramType */
@@ -138,6 +138,45 @@ final class DependencyResolver
         }
 
         return $this->resolveClass($paramTypeName);
+    }
+
+    /**
+     * @return class-string|null
+     */
+    private function getInjectImplementation(ReflectionParameter $parameter): ?string
+    {
+        $declaringClass = $parameter->getDeclaringClass();
+
+        // Closures share the name "{closure}"; only memoize named declaring classes.
+        if ($declaringClass === null) {
+            return $this->readInjectImplementation($parameter);
+        }
+
+        $key = $declaringClass->getName() . '#' . $parameter->getPosition();
+        if (!array_key_exists($key, $this->injectCache)) {
+            $this->injectCache[$key] = $this->readInjectImplementation($parameter);
+        }
+
+        return $this->injectCache[$key];
+    }
+
+    /**
+     * @return class-string|null
+     */
+    private function readInjectImplementation(ReflectionParameter $parameter): ?string
+    {
+        $attributes = $parameter->getAttributes(Inject::class);
+        if (count($attributes) === 0) {
+            return null;
+        }
+
+        /** @var Inject $inject */
+        $inject = $attributes[0]->newInstance();
+
+        /** @var class-string|null $implementation */
+        $implementation = $inject->implementation;
+
+        return $implementation;
     }
 
     private function checkInvalidArgumentParam(ReflectionParameter $parameter): void
@@ -296,6 +335,10 @@ final class DependencyResolver
      */
     private function getContextualBinding(string $abstract): mixed
     {
+        if ($this->contextualBindings === []) {
+            return null;
+        }
+
         // Walk the build stack from the end (most specific context) outward
         for ($i = count($this->buildStack) - 1; $i >= 0; --$i) {
             $concrete = $this->buildStack[$i];
