@@ -6,6 +6,7 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\Exception\DependencyNotFoundException;
 
 use function count;
 use function get_class;
@@ -94,6 +95,34 @@ class Container implements ContainerInterface
         }
 
         return $this->createInstance($id);
+    }
+
+    /**
+     * Like get(), but throws when the id resolves to null instead of returning it.
+     */
+    public function getOrFail(string $id): mixed
+    {
+        $instance = $this->get($id);
+        if ($instance === null) {
+            throw DependencyNotFoundException::unresolvableId($id);
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Resolve a class to a typed, non-null instance.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $className
+     *
+     * @return T
+     */
+    public function make(string $className): object
+    {
+        /** @var T */
+        return $this->getOrFail($className);
     }
 
     public function resolve(callable $callable): mixed

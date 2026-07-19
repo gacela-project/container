@@ -8,6 +8,7 @@ use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
 use function count;
+use function sprintf;
 
 final class DependencyNotFoundException extends RuntimeException implements NotFoundExceptionInterface
 {
@@ -34,5 +35,10 @@ TXT;
         $message .= 'You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings';
 
         return new self($message);
+    }
+
+    public static function unresolvableId(string $id): self
+    {
+        return new self(sprintf('Could not resolve a non-null instance for "%s".', $id));
     }
 }

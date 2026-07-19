@@ -21,6 +21,22 @@ interface ContainerInterface extends PsrContainerInterface
     public function get(string $id): mixed;
 
     /**
+     * Like get(), but throws when the id resolves to null instead of returning it.
+     */
+    public function getOrFail(string $id): mixed;
+
+    /**
+     * Resolve a class to a typed, non-null instance.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $className
+     *
+     * @return T
+     */
+    public function make(string $className): object;
+
+    /**
      * Resolve the callable loading automatically all arguments based on current bindings.
      */
     public function resolve(callable $callable): mixed;
