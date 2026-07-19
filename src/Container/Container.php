@@ -432,7 +432,10 @@ class Container implements ContainerInterface
     private function callableKey(callable $callable): string
     {
         if (is_array($callable)) {
-            [$classOrObject, $method] = $callable;
+            /** @var array{0: object|class-string, 1: string} $arrayCallable */
+            $arrayCallable = $callable;
+            $classOrObject = $arrayCallable[0];
+            $method = $arrayCallable[1];
 
             $className = is_object($classOrObject)
                 ? get_class($classOrObject) . '#' . spl_object_id($classOrObject)
