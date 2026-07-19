@@ -50,6 +50,12 @@ interface ContainerInterface extends PsrContainerInterface
     public function has(string $id): bool;
 
     /**
+     * Register a callback to run after the given id is resolved, receiving the
+     * resolved instance and the container. Callbacks run in registration order.
+     */
+    public function afterResolving(string $id, Closure $callback): void;
+
+    /**
      * Register a binding from an abstract type to a concrete implementation.
      *
      * @param Binding $concrete
