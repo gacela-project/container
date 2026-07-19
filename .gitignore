@@ -4,10 +4,6 @@
 .phpbench/
 .cache/
 .DS_Store
-.claude/*
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/release/
 .release-state/
 coverage/
 data/
