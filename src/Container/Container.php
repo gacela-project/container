@@ -29,6 +29,8 @@ class Container implements ContainerInterface
 {
     private AliasRegistry $aliasRegistry;
 
+    private TagRegistry $tagRegistry;
+
     private FactoryManager $factoryManager;
 
     private InstanceRegistry $instanceRegistry;
@@ -57,6 +59,7 @@ class Container implements ContainerInterface
     ) {
         $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
+        $this->tagRegistry = new TagRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($this->bindings, $this);
@@ -275,6 +278,28 @@ class Container implements ContainerInterface
     public function alias(string $alias, string $id): void
     {
         $this->aliasRegistry->add($alias, $id);
+    }
+
+    /**
+     * Group one or more service ids under a tag. Calls accumulate and dedupe.
+     *
+     * @param string|list<string> $ids
+     */
+    public function tag(string|array $ids, string $tag): void
+    {
+        $this->tagRegistry->tag($ids, $tag);
+    }
+
+    /**
+     * Lazily resolve every service registered under a tag, in insertion order.
+     *
+     * @return iterable<mixed>
+     */
+    public function tagged(string $tag): iterable
+    {
+        foreach ($this->tagRegistry->idsFor($tag) as $id) {
+            yield $this->get($id);
+        }
     }
 
     /**
