@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### New Features
+
+- Add `bind()` and `singleton()` for fluent binding registration after construction
+- Add typed `make()` and non-null `getOrFail()` resolution methods
+- Add compiled constructor plans (`compile()`, `writeCompiledCache()`, `loadCompiledCache()`) to skip reflection per request
+
+### Fixed
+
+- Stop sharing child instances between transient resolutions (dependencies are rebuilt per resolution)
+
+### Performance Improvements
+
+- Memoize `#[Inject]` attribute lookups on the recursive resolve path
+- Short-circuit contextual-binding resolution when none are registered
+
 ## [0.9.0](https://github.com/gacela-project/container/compare/0.8.1...0.9.0) - 2026-07-19
 
 ### Changed
