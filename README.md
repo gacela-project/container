@@ -13,7 +13,7 @@
   <a href="https://shepherd.dev/github/gacela-project/container">
     <img src="https://shepherd.dev/github/gacela-project/container/coverage.svg" alt="Psalm Type-coverage Status">
   </a>
-  <a href="https://github.com/gacela-project/container/blob/master/LICENSE">
+  <a href="https://github.com/gacela-project/container/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT Software License">
   </a>
 </p>
@@ -84,7 +84,7 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 
 ## Real-World Example
 
-See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L142).
+See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L161).
 
 ## Testing
 
