@@ -12,6 +12,7 @@
 - Add service tagging: `tag()` groups service ids under a label, `tagged()` lazily resolves them together
 - Add conditional registration: `bound()` checks bindings + instances, `bindIf()`/`singletonIf()` register only when absent
 - Add `afterResolving()` hooks that run after a service id is resolved
+- Implement `ArrayAccess` on the container (`$c[Id::class]`, `isset`, assignment, `unset`)
 - Add compiled constructor plans (`compile()`, `writeCompiledCache()`, `loadCompiledCache()`) to skip reflection per request
 
 ### Fixed

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use ArrayAccess;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
@@ -24,8 +25,10 @@ use function var_export;
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  * @psalm-import-type CompiledPlans from DependencyResolver
+ *
+ * @implements ArrayAccess<string, mixed>
  */
-class Container implements ContainerInterface
+class Container implements ContainerInterface, ArrayAccess
 {
     private AliasRegistry $aliasRegistry;
 
@@ -220,6 +223,26 @@ class Container implements ContainerInterface
     {
         $id = $this->aliasRegistry->resolve($id);
         return $this->instanceRegistry->has($id);
+    }
+
+    public function offsetExists(mixed $offset): bool
+    {
+        return $this->has((string) $offset);
+    }
+
+    public function offsetGet(mixed $offset): mixed
+    {
+        return $this->get((string) $offset);
+    }
+
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        $this->set((string) $offset, $value);
+    }
+
+    public function offsetUnset(mixed $offset): void
+    {
+        $this->remove((string) $offset);
     }
 
     public function set(string $id, mixed $instance): void

@@ -64,6 +64,17 @@ Runtime parameters work here too — override callable arguments by name:
 $container->resolve($handler, ['request' => $request]);
 ```
 
+## Array access
+
+The container implements `ArrayAccess`, so array syntax maps to the core methods:
+
+```php
+$logger = $container[LoggerInterface::class];   // get()
+isset($container[LoggerInterface::class]);       // has()
+$container['db'] = new PDO(/* ... */);           // set()
+unset($container['temp']);                        // remove()
+```
+
 ## Transient vs. shared instances
 
 By default, autowired services are **transient**: each `get()` builds a fresh
