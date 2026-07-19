@@ -126,6 +126,7 @@ final class DependencyResolver
      */
     private function resolveParameter(array $param): mixed
     {
+        /** @psalm-suppress MixedAssignment */
         [$hasNamedBinding, $namedValue] = $this->resolveNamedContextualBinding($param);
         if ($hasNamedBinding) {
             return $namedValue;
@@ -196,6 +197,7 @@ final class DependencyResolver
      */
     private function resolveClass(string $paramTypeName): mixed
     {
+        /** @psalm-suppress MixedAssignment */
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
             if (is_callable($contextualBinding)) {
