@@ -9,7 +9,10 @@
 | `get(string $id): mixed` | Retrieve or create a service |
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
 | `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
-| `has(string $id): bool` | Check if a service exists |
+| `has(string $id): bool` | Check if a service exists (instance registry) |
+| `bound(string $id): bool` | Check if a binding or instance exists (alias-aware) |
+| `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
+| `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
 | `set(string $id, mixed $instance): void` | Register a service |

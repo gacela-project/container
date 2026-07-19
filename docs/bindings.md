@@ -60,6 +60,22 @@ $container->bind(Greeter::class, fn() => new Greeter('hi'));
 This applies to constructor bindings, `singleton()` closures, and both type- and
 name-based contextual `give()` closures.
 
+### Conditional registration
+
+Register defaults only when nothing is bound yet — useful for packages that
+provide overridable bindings:
+
+```php
+$container->bound(LoggerInterface::class);   // true if a binding OR instance exists (alias-aware)
+
+$container->bindIf(LoggerInterface::class, FileLogger::class);      // no-op if already bound
+$container->singletonIf(CacheInterface::class, ArrayCache::class);  // no-op if already bound
+```
+
+`bound()` differs from PSR-11 `has()`: `has()` reports whether an id can be
+retrieved from the instance registry, while `bound()` also accounts for
+bindings.
+
 ## Contextual bindings
 
 Provide different implementations depending on which class needs them:

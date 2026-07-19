@@ -165,6 +165,40 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Whether a binding or instance is registered for the given id (alias-aware).
+     */
+    public function bound(string $id): bool
+    {
+        $id = $this->aliasRegistry->resolve($id);
+
+        return isset($this->bindings[$id]) || $this->instanceRegistry->has($id);
+    }
+
+    /**
+     * Register a binding only if the abstract is not already bound.
+     *
+     * @param Binding $concrete
+     */
+    public function bindIf(string $abstract, string|callable|object $concrete): void
+    {
+        if (!$this->bound($abstract)) {
+            $this->bind($abstract, $concrete);
+        }
+    }
+
+    /**
+     * Register a singleton binding only if the abstract is not already bound.
+     *
+     * @param Binding|null $concrete when null, $abstract is the concrete class
+     */
+    public function singletonIf(string $abstract, string|callable|object|null $concrete = null): void
+    {
+        if (!$this->bound($abstract)) {
+            $this->singleton($abstract, $concrete);
+        }
+    }
+
+    /**
      * @template T of object
      *
      * @param class-string<T> $className
