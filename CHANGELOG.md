@@ -44,6 +44,8 @@
 
 ### Performance Improvements
 
+- Short-circuit alias resolution when no aliases are registered. Previously every distinct id resolved wrote an identity entry into the alias cache, growing it unboundedly; cold-container peak memory drops 4-7%
+- Short-circuit `afterResolving()` dispatch when no hooks are registered
 - Memoize `#[Inject]` attribute lookups on the recursive resolve path
 - Short-circuit contextual-binding resolution when none are registered
 

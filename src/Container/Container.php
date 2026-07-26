@@ -584,6 +584,10 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private function fireAfterResolving(string $id, mixed $instance): void
     {
+        if ($this->afterResolvingCallbacks === []) {
+            return;
+        }
+
         foreach ($this->afterResolvingCallbacks[$id] ?? [] as $callback) {
             $callback($instance, $this);
         }
