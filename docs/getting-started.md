@@ -10,7 +10,7 @@ composer require gacela-project/container
 
 Requirements:
 
-- PHP >= 8.1
+- PHP >= 8.3
 - PSR-11 Container Interface
 
 ## Basic Usage

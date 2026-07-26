@@ -38,7 +38,7 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 composer require gacela-project/container
 ```
 
-Requires PHP >= 8.1.
+Requires PHP >= 8.3.
 
 ## Hello World
 

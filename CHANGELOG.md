@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Raise the minimum PHP version to 8.3 (was 8.1)
+
+### Testing
+
+- Run the CI test matrix on PHP 8.3, 8.4 and 8.5
+
 ## [0.10.0](https://github.com/gacela-project/container/compare/0.9.0...0.10.0) - 2026-07-20
 
 ### New Features
