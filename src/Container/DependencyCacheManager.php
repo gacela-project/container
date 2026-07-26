@@ -6,11 +6,13 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Attribute\Factory;
+use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
 use ReflectionClass;
 
 use function class_exists;
 use function count;
+use function method_exists;
 
 /**
  * Resolves dependencies (delegating reflection caching to the resolver),
@@ -39,8 +41,15 @@ final class DependencyCacheManager
     /** @var array<class-string, object> */
     private array $singletonInstances = [];
 
-    /** @var array<string, bool> Cache for attribute existence checks */
+    /** @var array<class-string, array{singleton: bool, factory: bool, lazy: bool}> */
     private array $attributeCache = [];
+
+    /**
+     * Whether the runtime can build lazy ghosts (PHP 8.4+). On older runtimes
+     * #[Lazy] classes are constructed eagerly, which is unobservable apart
+     * from the timing.
+     */
+    private static ?bool $supportsLazyObjects = null;
 
     /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
     private array $forcedSingletons = [];
@@ -128,7 +137,9 @@ final class DependencyCacheManager
      */
     public function instantiate(string $class): object
     {
-        if (isset($this->forcedSingletons[$class]) || $this->hasAttribute($class, Singleton::class)) {
+        $attributes = $this->attributesOf($class);
+
+        if (isset($this->forcedSingletons[$class]) || $attributes['singleton']) {
             if (isset($this->singletonInstances[$class])) {
                 return $this->singletonInstances[$class];
             }
@@ -138,14 +149,9 @@ final class DependencyCacheManager
             return $instance;
         }
 
-        if ($this->hasAttribute($class, Factory::class)) {
+        if ($attributes['factory']) {
             // Don't cache dependencies for factory classes to ensure fresh instances
-            $dependencies = $this
-                ->getDependencyResolver()
-                ->resolveDependencies($class);
-
-            /** @psalm-suppress MixedMethodCall */
-            return new $class(...$dependencies);
+            return $this->construct($class);
         }
 
         return $this->createInstance($class);
@@ -163,10 +169,70 @@ final class DependencyCacheManager
     {
         $this->resolvedKeys[$class] = true;
 
+        return $this->construct($class);
+    }
+
+    /**
+     * Build the instance, deferring the constructor when the class is #[Lazy].
+     *
+     * @param class-string $class
+     */
+    private function construct(string $class): object
+    {
+        if ($this->isLazy($class)) {
+            return $this->newLazyGhost($class);
+        }
+
         $dependencies = $this->getDependencyResolver()->resolveDependencies($class);
 
         /** @psalm-suppress MixedMethodCall */
         return new $class(...$dependencies);
+    }
+
+    /**
+     * A real instance of $class whose constructor runs on first use.
+     *
+     * Dependencies are resolved inside the initializer, not before it, so a
+     * lazy service that is never touched costs nothing to build.
+     *
+     * @param class-string $class
+     */
+    private function newLazyGhost(string $class): object
+    {
+        $reflection = new ReflectionClass($class);
+
+        /**
+         * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
+         * so they cannot see it. isLazy() gates this behind a runtime
+         * capability check, which is exactly what they cannot model.
+         *
+         * Calling __construct() directly on the ghost is the documented way to
+         * initialize one, not an accident.
+         *
+         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
+         *
+         * @phpstan-ignore method.notFound, return.type
+         */
+        return $reflection->newLazyGhost(function (object $instance) use ($class): void {
+            $dependencies = $this->getDependencyResolver()->resolveDependencies($class);
+
+            /**
+             * @psalm-suppress MixedMethodCall, DirectConstructorCall
+             *
+             * @phpstan-ignore method.notFound
+             */
+            $instance->__construct(...$dependencies);
+        });
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function isLazy(string $class): bool
+    {
+        self::$supportsLazyObjects ??= method_exists(ReflectionClass::class, 'newLazyGhost');
+
+        return self::$supportsLazyObjects && $this->attributesOf($class)['lazy'];
     }
 
     private function getDependencyResolver(): DependencyResolver
@@ -184,18 +250,29 @@ final class DependencyCacheManager
     }
 
     /**
+     * Every class attribute the container cares about, read in one reflection
+     * pass and memoized per class.
+     *
+     * Looking each attribute up separately meant rebuilding a concatenated
+     * cache key on every instantiation, which is squarely on the hot path.
+     *
      * @param class-string $class
-     * @param class-string $attributeClass
+     *
+     * @return array{singleton: bool, factory: bool, lazy: bool}
      */
-    private function hasAttribute(string $class, string $attributeClass): bool
+    private function attributesOf(string $class): array
     {
-        $cacheKey = $class . '::' . $attributeClass;
-
-        if (!isset($this->attributeCache[$cacheKey])) {
-            $reflection = new ReflectionClass($class);
-            $this->attributeCache[$cacheKey] = count($reflection->getAttributes($attributeClass)) > 0;
+        $flags = $this->attributeCache[$class] ?? null;
+        if ($flags !== null) {
+            return $flags;
         }
 
-        return $this->attributeCache[$cacheKey];
+        $reflection = new ReflectionClass($class);
+
+        return $this->attributeCache[$class] = [
+            'singleton' => $reflection->getAttributes(Singleton::class) !== [],
+            'factory' => $reflection->getAttributes(Factory::class) !== [],
+            'lazy' => $reflection->getAttributes(Lazy::class) !== [],
+        ];
     }
 }

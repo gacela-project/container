@@ -83,6 +83,19 @@ So: reach for the compiled cache when you are optimising per-request bootstrap.
 It is not a hot-loop optimisation, and it will not show up in a benchmark that
 reuses one container.
 
+### Skipping work entirely
+
+The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether
+for services a request never reaches — usually the bigger win:
+
+| | mode | peak memory |
+|---|---|---|
+| Untouched expensive branch, eager | 6.317μs | 12.30mb |
+| Untouched expensive branch, `#[Lazy]` | **1.513μs** | **6.45mb** |
+
+Roughly **4x faster and half the memory**, because neither the service nor its
+subtree is ever built. See [attributes](attributes.md#lazy).
+
 Reproduce any of this with `composer bench`.
 
 ## Related

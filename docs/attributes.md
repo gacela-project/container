@@ -61,3 +61,51 @@ $ctx2 = $container->get(RequestContext::class);
 
 **Note:** Attribute checks are cached internally, so repeated instantiations of
 the same class avoid repeated reflection.
+
+## `#[Lazy]`
+
+Defers construction until the instance is first used.
+
+```php
+use Gacela\Container\Attribute\Lazy;
+
+#[Lazy]
+final class ReportGenerator
+{
+    public function __construct(private Database $db) {}
+}
+
+$report = $container->get(ReportGenerator::class);
+// Nothing built yet — not the generator, not the Database behind it.
+
+$report->run();  // constructed now, on first property access
+```
+
+What you get back is a **real instance** of the class, not a proxy subclass:
+`$report::class` is `ReportGenerator` and `instanceof` behaves normally. There is
+no generated proxy class and no extra dependency — this uses PHP's native lazy
+objects.
+
+Dependencies are resolved *inside* the initializer, so a lazy service that is
+never touched costs nothing to build, and neither does its subtree.
+
+### What triggers initialization
+
+Property access. A method that reads no properties never needs the constructor,
+so it will not trigger one:
+
+```php
+$service->staticGreeting();   // returns a constant: still uninitialized
+$service->db;                 // touches state: constructs now
+```
+
+### Combining with other attributes
+
+- `#[Singleton] #[Lazy]` — one shared instance, constructed on first touch
+- `#[Factory] #[Lazy]` — a fresh lazy instance per resolution
+
+### PHP version
+
+Native lazy objects require **PHP 8.4**. On 8.3 a `#[Lazy]` class is constructed
+eagerly instead. That is unobservable apart from the timing, so the attribute is
+safe to use across both.
