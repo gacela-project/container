@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a capability the container does not have
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a deliberately minimalistic container. Proposals that keep the
+        core small — or that can live in userland on top of the existing API —
+        have the best chance.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving?
+      description: Describe the situation, not the solution. What are you trying to do that is awkward today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: How would it look in use?
+      render: php
+      placeholder: |
+        $container->newThing(Foo::class, ...);
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What did you try instead?
+      description: >
+        Existing options worth ruling out first: bind()/singleton(), contextual
+        bindings via when(), tags, extend(), afterResolving(), or wrapping
+        ContainerInterface.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Compatibility
+      options:
+        - label: This would require a backward-incompatible change
+          required: false

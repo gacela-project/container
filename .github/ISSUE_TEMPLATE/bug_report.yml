@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in the container does not behave as documented
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A runnable reproduction is the single most useful
+        thing you can include — it usually turns a week of guessing into an hour.
+
+  - type: input
+    id: container-version
+    attributes:
+      label: Container version
+      description: Output of `composer show gacela-project/container | grep versions`
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP version
+      description: Output of `php -v` (first line)
+      placeholder: "8.3.16"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest snippet that shows the problem. Include the classes involved.
+      render: php
+      placeholder: |
+        $container = new Container();
+        $container->bind(RepositoryInterface::class, DatabaseRepository::class);
+
+        $service = $container->get(MyService::class);
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the full exception message and stack trace if there is one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Why you think it happens, things you already tried, related issues.
+    validations:
+      required: false
