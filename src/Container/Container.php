@@ -29,7 +29,7 @@ use function var_export;
  *
  * @implements ArrayAccess<string, mixed>
  */
-class Container implements ContainerInterface, ArrayAccess
+final class Container implements ContainerInterface, ArrayAccess
 {
     private AliasRegistry $aliasRegistry;
 
