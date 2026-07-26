@@ -10,42 +10,28 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+Upgrading from 1.0.0? Nothing to do — this release is additive plus one bug fix.
+
 ### Added
 
-- `writeCompiledFactories()` and `useCompiledFactories()` generate plain `new` expressions for classes whose construction is knowable ahead of time, taking the resolver off the path. About 5x faster than reflection on a cold container. Deliberately conservative: bindings, scalars, attributes and cycles are left out and resolve normally
-
-### Internal
-
-- Add a cookbook of verified recipes, and expand the error-handling guide to cover every exception type with its real message text
-
-### Internal
-
-- Adopt PHP 8.3 idioms where they add type safety: typed class constants, and `readonly` on the one internal class that qualifies
-
-### Internal
-
-- Gate three benchmark subjects at 20% over baseline and run them in CI, advisory for now
-
-### Internal
-
-- Move code generation and callable-key building out of `Container` into `CompiledCacheWriter` and `CallableKey`. No public API or behaviour change
+- `#[Lazy]` defers construction until an instance is first used. You get a real instance of the class, not a proxy subclass, via PHP 8.4 native lazy objects. On 8.3 it is constructed eagerly, which is unobservable apart from the timing
+- `writeCompiledFactories()` / `useCompiledFactories()` generate plain `new` expressions for classes whose construction is knowable ahead of time, taking the resolver off the path — roughly 5x faster than reflection on a cold container. Deliberately conservative: bindings, scalars, attributes and cycles are left out and resolve normally
 
 ### Fixed
 
-- `extend()` threw `ContainerException` instead of scheduling the extension when the id named a class the container could autowire. Regression from the `has()` change in 1.0.0, which widened the meaning of "does this exist" that `extend()` relied on. `isFactory()` had the same confusion, though it returned the right answer by accident
-
-### Added
-
-- `#[Lazy]` defers construction until an instance is first used, via PHP 8.4 native lazy objects. Returns a real instance of the class rather than a proxy subclass. On PHP 8.3 the class is constructed eagerly instead, which is unobservable apart from the timing
+- `extend()` threw instead of scheduling when the id named a class the container could autowire, breaking the documented ability to extend a service before it is defined. Regression from the `has()` change in 1.0.0. `isFactory()` shared the confusion but returned the right answer by accident
 
 ### Performance
 
-- Read `#[Singleton]`, `#[Factory]` and `#[Lazy]` in a single memoized reflection pass per class instead of one concatenated cache key per attribute. Resolution is measurably faster than before `#[Lazy]` existed
+- Read `#[Singleton]`, `#[Factory]` and `#[Lazy]` in one memoized reflection pass per class rather than a concatenated cache key per attribute. Resolution is faster than before `#[Lazy]` existed
 
 ### Internal
 
-- Extract byte formatting out of `Container` so it can be tested directly; raises the Infection gate to 87
-- Audit the escaped mutants in `DependencyResolver`, `DependencyCacheManager`, `FuzzyMatcher` and `DependencyTreeAnalyzer`; add 16 tests for the killable ones and raise the Infection gate from 80 to 83
+- Move code generation and callable-key building out of `Container` into `CompiledCacheWriter` and `CallableKey`
+- Extract byte formatting so it can be tested directly, and cover the resolution core's untested branches: 248 tests, Infection gate raised 80 to 87
+- Gate three benchmark subjects at 20% over baseline in CI, advisory for now
+- Add a cookbook of verified recipes; document every exception with its real message text
+- Adopt PHP 8.3 typed class constants and `readonly` where they add type safety
 
 ## [1.0.0](https://github.com/gacela-project/container/compare/0.10.0...1.0.0) - 2026-07-26
 
