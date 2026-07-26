@@ -4,11 +4,11 @@
   <a href="https://github.com/gacela-project/container/actions">
     <img src="https://github.com/gacela-project/container/workflows/CI/badge.svg" alt="GitHub Build Status">
   </a>
-  <a href="https://scrutinizer-ci.com/g/gacela-project/container/?branch=main">
-    <img src="https://scrutinizer-ci.com/g/gacela-project/container/badges/quality-score.png?b=main" alt="Scrutinizer Code Quality">
+  <a href="https://packagist.org/packages/gacela-project/container">
+    <img src="https://img.shields.io/packagist/v/gacela-project/container.svg" alt="Latest Version">
   </a>
-  <a href="https://scrutinizer-ci.com/g/gacela-project/container/?branch=main">
-    <img src="https://scrutinizer-ci.com/g/gacela-project/container/badges/coverage.png?b=main" alt="Scrutinizer Code Coverage">
+  <a href="https://packagist.org/packages/gacela-project/container">
+    <img src="https://img.shields.io/packagist/php-v/gacela-project/container.svg" alt="PHP Version Require">
   </a>
   <a href="https://shepherd.dev/github/gacela-project/container">
     <img src="https://shepherd.dev/github/gacela-project/container/coverage.svg" alt="Psalm Type-coverage Status">

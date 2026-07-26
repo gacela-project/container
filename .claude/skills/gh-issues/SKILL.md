@@ -114,8 +114,8 @@ For each issue in the queue:
 ## Phase 4 — CI & merge
 
 11. **Wait for green CI** and fix any red check on the branch before merging.
-    Every job must pass (including `Type Checker` = Psalm) **except Scrutinizer**,
-    which is slow/external — do NOT wait for it:
+    Every job must pass, including `Type Checker` (Psalm) and `Code Coverage`
+    (fails below 95% line coverage). Note `Type Checker` can take ~3 minutes:
     ```bash
     gh pr checks <pr>
     ```
@@ -137,11 +137,15 @@ branch protection, `--limit` is reached, or the queue is empty.
 
 ## Rules
 
-- **Psalm can't run locally** (Psalm 5.26 crashes on PHP 8.5). Validate with
-  PHPUnit + PHPStan + CS-Fixer locally; rely on the CI `Type Checker` job for
-  Psalm. `composer quality`/`composer test-all` include Psalm, so avoid them
-  locally — run the individual tools above.
-- **Fix all CI jobs before merging** any PR — every job green except Scrutinizer (don't wait for Scrutinizer).
+- **Psalm runs locally** since the upgrade to Psalm 6. Verify with all four:
+  ```bash
+  XDEBUG_MODE=off ./vendor/bin/phpunit
+  XDEBUG_MODE=off ./vendor/bin/phpstan analyze --no-progress
+  XDEBUG_MODE=off ./vendor/bin/psalm --no-progress
+  XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix
+  ```
+  Psalm 6 can auto-fix some issues: `psalm --alter --issues=MissingOverrideAttribute`.
+- **Fix all CI jobs before merging** any PR — every job must be green.
 - **Never** mention Claude/AI/LLM in commits or PR descriptions.
 - **Never** add `Co-Authored-By` or attribution trailers.
 - Use `Closes #<num>` in the PR body to auto-close the issue on merge.
