@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.1.0](https://github.com/gacela-project/container/compare/1.0.0...1.1.0) - 2026-07-26
+
 Upgrading from 1.0.0? Nothing to do — this release is additive plus one bug fix.
 
 ### Added
