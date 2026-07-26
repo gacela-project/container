@@ -1,9 +1,13 @@
-/.github                export-ignore
-/tests                  export-ignore
+/.claude                export-ignore
 /.editorconfig          export-ignore
 /.gitattributes         export-ignore
+/.github                export-ignore
 /.gitignore             export-ignore
 /.php-cs-fixer.dist.php export-ignore
+/.scrutinizer.yml       export-ignore
+/docs                   export-ignore
 /phpstan.neon           export-ignore
 /phpunit.xml            export-ignore
 /psalm.xml              export-ignore
+/release.sh             export-ignore
+/tests                  export-ignore
