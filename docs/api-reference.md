@@ -72,6 +72,8 @@ returns is not covered by backward compatibility**. Treat it as debug output.
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file |
+| `writeCompiledFactories(array $classNames, string $file): array` | Generate `new` expressions for statically-decidable classes; returns those compiled |
+| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order |

@@ -83,6 +83,53 @@ So: reach for the compiled cache when you are optimising per-request bootstrap.
 It is not a hot-loop optimisation, and it will not show up in a benchmark that
 reuses one container.
 
+## Generated constructor code
+
+The compiled cache above still walks the resolver, just with the reflection
+already done. `writeCompiledFactories()` goes further and emits plain `new`
+expressions, taking the resolver off the path entirely:
+
+```php
+// build step
+$container = new Container($bindings);
+$compiled = $container->writeCompiledFactories(
+    [UserService::class, OrderService::class],
+    __DIR__ . '/cache/factories.php',
+);
+
+// runtime
+$container = new Container($bindings);
+$container->useCompiledFactories(require __DIR__ . '/cache/factories.php');
+```
+
+Resolving the same four-level chain on a fresh container:
+
+| | mode | peak memory |
+|---|---|---|
+| Reflection | 4.530μs | 11.44mb |
+| Compiled plans | 2.655μs | 7.41mb |
+| **Generated code** | **0.806μs** | **5.51mb** |
+
+About **5.6x faster than reflection** and 3x faster than plans.
+
+### What it will not compile
+
+The generator is deliberately conservative and simply leaves out anything it
+cannot decide statically:
+
+- classes behind a **binding** — the binding could change after compilation
+- **scalar** or untyped parameters — the value may come from a contextual binding
+- `#[Inject]`, `#[Singleton]`, `#[Factory]`, `#[Lazy]` — lifetime and
+  construction belong to the runtime
+- abstract classes and interfaces, and anything in a dependency cycle
+
+Everything omitted resolves normally, so the file is only ever an optimisation.
+`writeCompiledFactories()` returns the list of classes it actually compiled, so
+you can assert on it in your build.
+
+**Regenerate the file whenever a compiled constructor changes.** A stale file
+will happily build the old shape.
+
 ### Skipping work entirely
 
 The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether

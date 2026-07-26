@@ -45,6 +45,9 @@ final class ContainerBench
     /** @var array<class-string, mixed> */
     private array $plans = [];
 
+    /** @var array<class-string, callable(): object> */
+    private array $factories = [];
+
     public function setUpColdPlans(): void
     {
         $this->plans = (new Container())->compile([Level1::class]);
@@ -134,6 +137,26 @@ final class ContainerBench
     // Gated in CI: catches a cliff like the +17-41% regression in #45,
     // not 3% drift. Only subjects with rstdev under ~1.5% are gated.
     #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    public function setUpColdFactories(): void
+    {
+        $file = sys_get_temp_dir() . '/phpbench-compiled-factories.php';
+        (new Container())->writeCompiledFactories([Level1::class], $file);
+        /** @var array<class-string, callable(): object> $factories */
+        $factories = require $file;
+        $this->factories = $factories;
+    }
+
+    /**
+     * Generated `new` expressions: no resolver on the path at all.
+     */
+    #[BeforeMethods('setUpColdFactories')]
+    public function benchColdResolveDeepChainGenerated(): void
+    {
+        $container = new Container();
+        $container->useCompiledFactories($this->factories);
+        $container->get(Level1::class);
+    }
+
     #[BeforeMethods('setUpColdPlans')]
     public function benchColdResolveDeepChainCompiled(): void
     {
