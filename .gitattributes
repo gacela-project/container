@@ -11,3 +11,4 @@
 /psalm.xml              export-ignore
 /release.sh             export-ignore
 /tests                  export-ignore
+/tools                  export-ignore

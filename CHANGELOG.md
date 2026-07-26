@@ -17,6 +17,8 @@
 
 ### Fixed
 
+- Point the Scrutinizer build at PHP 8.3; it was pinned to 8.1, which no longer satisfies the package requirements
+- Drop the non-existent `feature` test suite from the `test-coverage` script
 - Use float division in `FuzzyMatcher` similarity and container stat byte formatting, which relied on implicit int/float coercion
 
 ## [0.10.0](https://github.com/gacela-project/container/compare/0.9.0...0.10.0) - 2026-07-20
