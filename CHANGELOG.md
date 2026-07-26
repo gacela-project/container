@@ -1,151 +1,166 @@
 # Changelog
 
+Notable changes to `gacela-project/container`.
+
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
+[BC policy](docs/backward-compatibility.md).
+
+**Breaking changes are marked ⚠.**
+
 ## Unreleased
+
+Upgrading from 0.10.0? See [UPGRADE.md](UPGRADE.md).
 
 ### Changed
 
-- Raise the minimum PHP version to 8.3 (was 8.1)
-- Make `Container` final. Decorate it by composition against `ContainerInterface`, or use `extend()`/`afterResolving()` for per-service changes
-- Mark every class in `src/` as `@api` or `@internal`. Only `@api` classes are covered by semantic versioning; the nine resolver internals may change in any release
-- `has()` now answers the PSR-11 question "will `get()` resolve this?", so it returns `true` for autowirable classes that were never explicitly registered. It previously only reported stored instances. `bound()` is unchanged and remains the check for explicit registration. `isset($container[$id])` follows `has()`
-- Declare `when()`, `compile()`, `writeCompiledCache()` and `getStats()` on `ContainerInterface`, and extend it from `ArrayAccess`. Every public instance method of `Container` is now part of the interface contract. The array returned by `getStats()` is explicitly excluded from backward compatibility
-
-### Testing
-
-- Run the CI test matrix on PHP 8.3, 8.4 and 8.5
-- Add a `Code Coverage` CI job that fails below 95% line coverage
-- Add a `phpbench` suite covering the resolution hot paths
-- Add Infection mutation testing, gated at 80% MSI in CI
-- Drop Scrutinizer; code quality is covered by PHPStan, Psalm and the coverage gate in CI
-- Upgrade to PHPStan 2, Psalm 6, PHPUnit 12 and Symfony var-dumper 7
+- ⚠ Require PHP >= 8.3 (was 8.1)
+- ⚠ `Container` is now `final` — decorate by composition against `ContainerInterface`, or use `extend()`/`afterResolving()` per service
+- ⚠ `has()` answers the PSR-11 question "will `get()` resolve this?", so it is now `true` for autowirable classes. `bound()` is unchanged and remains the check for explicit registration
+- ⚠ `ContainerInterface` gained `when()`, `compile()`, `writeCompiledCache()`, `getStats()`, and extends `ArrayAccess`. Affects implementers only
+- Every class is marked `@api` or `@internal`; only `@api` is covered by semver. The `getStats()` return shape is excluded
 
 ### Fixed
 
-- Drop the non-existent `feature` test suite from the `test-coverage` script
-- Use float division in `FuzzyMatcher` similarity and container stat byte formatting, which relied on implicit int/float coercion
+- Use float division in `FuzzyMatcher::calculateSimilarity()` and the stats byte formatter, which relied on implicit int/float coercion
+
+### Performance
+
+- Short-circuit alias resolution when no aliases are registered; it previously cached an identity entry per id, growing unboundedly. Cold-container peak memory drops 4-7%
+- Short-circuit `afterResolving()` dispatch when no hooks are registered
+
+### Internal
+
+- CI: test on PHP 8.3/8.4/8.5; add coverage gate (95% lines) and Infection (80% MSI)
+- Add a `phpbench` suite covering the resolution hot paths
+- Upgrade to PHPStan 2, Psalm 6, PHPUnit 12, var-dumper 7
+- Remove Scrutinizer; PHPStan, Psalm and the coverage gate cover it
+- Bound `psr/container` to `^1.1 || ^2.0`, set `minimum-stability: stable`, and trim the published archive to `src/` plus metadata
 
 ## [0.10.0](https://github.com/gacela-project/container/compare/0.9.0...0.10.0) - 2026-07-20
 
-### New Features
+### Added
 
-- Add `bind()` and `singleton()` for fluent binding registration after construction
-- Add typed `make()` and non-null `getOrFail()` resolution methods
-- Support runtime parameters in `make()` and `resolve()` to override constructor arguments by name
-- Support named/scalar contextual bindings: `when(X)->needs('$paramName')->give(...)`
-- Pass the container into binding closures (constructor, `singleton()`, and contextual `give()`) so factories can compose from other services
-- Add service tagging: `tag()` groups service ids under a label, `tagged()` lazily resolves them together
-- Add conditional registration: `bound()` checks bindings + instances, `bindIf()`/`singletonIf()` register only when absent
-- Add `afterResolving()` hooks that run after a service id is resolved
-- Implement `ArrayAccess` on the container (`$c[Id::class]`, `isset`, assignment, `unset`)
-- Add compiled constructor plans (`compile()`, `writeCompiledCache()`, `loadCompiledCache()`) to skip reflection per request
+- `bind()` and `singleton()` for fluent registration after construction
+- Typed `make()` and non-null `getOrFail()`
+- Runtime parameters in `make()` and `resolve()`, overriding constructor arguments by name
+- Named/scalar contextual bindings: `when(X)->needs('$paramName')->give(...)`
+- The container is passed into binding closures, so factories can compose from other services
+- Service tagging: `tag()` groups ids under a label, `tagged()` resolves them lazily
+- Conditional registration: `bound()`, `bindIf()`, `singletonIf()`
+- `afterResolving()` hooks
+- `ArrayAccess` on the container
+- Compiled constructor plans: `compile()`, `writeCompiledCache()`, `loadCompiledCache()`
 
 ### Fixed
 
-- Stop sharing child instances between transient resolutions (dependencies are rebuilt per resolution)
+- Stop sharing child instances between transient resolutions; dependencies are rebuilt per resolution
 
-### Performance Improvements
+### Performance
 
-- Short-circuit alias resolution when no aliases are registered. Previously every distinct id resolved wrote an identity entry into the alias cache, growing it unboundedly; cold-container peak memory drops 4-7%
-- Short-circuit `afterResolving()` dispatch when no hooks are registered
-- Memoize `#[Inject]` attribute lookups on the recursive resolve path
+- Memoize `#[Inject]` lookups on the recursive resolve path
 - Short-circuit contextual-binding resolution when none are registered
 
 ## [0.9.0](https://github.com/gacela-project/container/compare/0.8.1...0.9.0) - 2026-07-19
 
 ### Changed
 
-- Narrow the return type of `ContainerInterface::factory()` and `ContainerInterface::protect()` from `object` to `Closure`
+- Narrow the return type of `ContainerInterface::factory()` and `protect()` from `object` to `Closure`
 
 ## [0.8.1](https://github.com/gacela-project/container/compare/0.8.0...0.8.1) - 2026-06-05
 
 ### Fixed
 
-- PHP 8.5 compatibility: replace deprecated `SplObjectStorage::attach()`/`detach()` with `offsetSet()`/`offsetUnset()` in `FactoryManager`
+- PHP 8.5 compatibility: use `SplObjectStorage::offsetSet()`/`offsetUnset()` instead of the deprecated `attach()`/`detach()`
 
 ## [0.8.0](https://github.com/gacela-project/container/compare/0.7.0...0.8.0) - 2025-11-08
 
-### New Features
+### Added
 
-#### PHP 8 Attributes
-- Add `#[Inject]` attribute to override dependency injection for specific implementations
-- Add `#[Singleton]` attribute to mark classes as single-instance services
-- Add `#[Factory]` attribute to always create new instances
+- Attributes: `#[Inject]`, `#[Singleton]`, `#[Factory]`
+- Contextual bindings via `when()->needs()->give()`, so the same interface can resolve differently per requesting class
+- `alias()` for alternative service names
+- Introspection: `getStats()`, `getRegisteredServices()`, `isFactory()`, `isFrozen()`, `getBindings()`, `getDependencyTree()`
+- `warmUp()` to pre-resolve dependencies
 
-#### Contextual Bindings
-- Add `when()->needs()->give()` fluent API for class-specific dependency injection
-- Support binding different implementations of the same interface based on requesting class
+### Fixed
 
-#### Service Aliasing
-- Add `alias()` method to create alternative names for services
+- Constructor caching keyed on the concrete class name instead of the interface name
 
-#### Introspection & Debugging
-- Add `getStats()` method for container performance monitoring and debugging
-- Add `getRegisteredServices()`, `isFactory()`, `isFrozen()`, `getBindings()` methods
-- Add `getDependencyTree()` method to inspect class dependency hierarchies
-- Add `warmUp()` method to pre-resolve dependencies for improved performance
+### Performance
 
-### Performance Improvements
-- Optimize attribute reflection with caching
-- Add alias resolution caching
-- Optimize `callableKey()` to use `spl_object_id()` instead of `md5+var_export`
-- Add constructor method caching to avoid redundant reflection lookups
-- Cache `class_exists()` and `interface_exists()` calls
-- Cache `ReflectionClass` instances to prevent redundant reflection
+- Cache attribute reflection, alias resolution, constructor lookups, `class_exists()`/`interface_exists()`, and `ReflectionClass` instances
+- `callableKey()` uses `spl_object_id()` instead of `md5` + `var_export`
 
-### Developer Experience
-- Add fuzzy service name suggestions to error messages for better typo detection
-- Improve error messages with actionable suggestions
-- Add circular dependency detection with helpful error messages
-- Include resolution chain in error messages for better debugging context
-- Improve README with comprehensive examples and best practices
+### Changed
 
-### Bug Fixes
-- Fix: Constructor caching now uses concrete class name instead of interface name
-
-### Code Quality
-- Add generic type annotations for better static analysis support
-- Extract specialized classes to reduce Container complexity:
-  - `AliasRegistry` for alias management
-  - `FactoryManager` for factory service handling
-  - `InstanceRegistry` for instance storage
-  - `DependencyCacheManager` for dependency caching
-  - `BindingResolver` for binding resolution
-  - `DependencyTreeAnalyzer` for dependency analysis
+- Error messages include the resolution chain and fuzzy-matched name suggestions for typos
+- Circular dependencies are detected and reported explicitly
+- Extract `AliasRegistry`, `FactoryManager`, `InstanceRegistry`, `DependencyCacheManager`, `BindingResolver` and `DependencyTreeAnalyzer` out of `Container`
+- Add generic type annotations for static analysis
 
 ## [0.7.0](https://github.com/gacela-project/container/compare/0.6.1...0.7.0) - 2025-08-02
 
-- Container performance avoid reflection
-- Fix factory services
-- Cache `ReflectionClass` instances to prevent redundant reflection
+### Fixed
+
+- Factory services
+
+### Performance
+
+- Avoid reflection on the resolve path; cache `ReflectionClass` instances
 
 ## [0.6.1](https://github.com/gacela-project/container/compare/0.6.0...0.6.1) - 2024-07-06
 
-- Support `"psr/container": ">=1.1"`
+### Changed
+
+- Support `psr/container` `>=1.1`
 
 ## [0.6.0](https://github.com/gacela-project/container/compare/0.5.1...0.6.0) - 2023-12-21
 
-- Change min PHP support for `PHP>=8.1`
+### Changed
+
+- ⚠ Require PHP >= 8.1
 
 ## [0.5.1](https://github.com/gacela-project/container/compare/0.5.0...0.5.1) - 2023-06-24
 
-- Improved error message when no concrete binded class was found
+### Changed
+
+- Improve the error message when no concrete bound class is found
 
 ## [0.5.0](https://github.com/gacela-project/container/compare/0.4.0...0.5.0) - 2023-05-19
 
+### Added
+
+- `resolve(callable)` on `ContainerInterface`
+
+### Changed
+
 - Accept `Closure|string` in `getParametersToResolve()`
-- Added `resolve(callable)` to `ContainerInterface`
 
 ## [0.4.0](https://github.com/gacela-project/container/compare/0.3.0...0.4.0) - 2023-04-27
 
-- Add Container methods: set, factory, extend, remove, protect
-- Remove final from `Container` to allow decorating it using extend
+### Added
+
+- `set()`, `factory()`, `extend()`, `remove()`, `protect()`
+
+### Changed
+
+- Remove `final` from `Container` to allow decorating it
 
 ## [0.3.0](https://github.com/gacela-project/container/compare/0.1.0...0.3.0) - 2023-04-24
 
-- Rename InstanceCreator to Container
-- Add [PSR-11](https://www.php-fig.org/psr/psr-11/) support
-- Remove `createByClassName()`, use `get()` instead
+### Added
+
+- [PSR-11](https://www.php-fig.org/psr/psr-11/) support
+
+### Changed
+
+- ⚠ Rename `InstanceCreator` to `Container`
+
+### Removed
+
+- ⚠ `createByClassName()` — use `get()`
 
 ## [0.1.0](https://github.com/gacela-project/container/releases/tag/0.1.0) - 2023-03-11
 
-- Initial release: Code extracted originally from `gacela-project/gacela`
+Initial release, extracted from `gacela-project/gacela`.
