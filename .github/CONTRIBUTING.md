@@ -97,3 +97,14 @@ vendor/bin/phpbench run --ref=baseline --report=aggregate
 Report the **mode**, not the mean, and state the PHP version and whether
 opcache/JIT was enabled. Shared CI runners are too noisy for a hard gate, so
 these numbers are advisory — but a regression should be explained.
+
+## Mutation testing
+
+```bash
+composer infection
+```
+
+CI fails below **80% MSI**. If a change drops the score, add a test — do not
+lower the threshold. If a surviving mutant is genuinely equivalent (common in
+short-circuit optimizations, where removing the early return falls through to
+the same result), say so in the PR rather than contorting a test to kill it.

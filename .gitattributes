@@ -6,6 +6,7 @@
 /.php-cs-fixer.dist.php export-ignore
 /benchmarks             export-ignore
 /docs                   export-ignore
+/infection.json5        export-ignore
 /phpbench.json          export-ignore
 /phpstan.neon           export-ignore
 /phpunit.xml            export-ignore

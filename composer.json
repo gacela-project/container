@@ -38,7 +38,8 @@
         "psalm/plugin-phpunit": "^0.19",
         "symfony/var-dumper": "^6.4 || ^7.0",
         "vimeo/psalm": "^6.16",
-        "phpbench/phpbench": "^1.4"
+        "phpbench/phpbench": "^1.4",
+        "infection/infection": "^0.31"
     },
     "autoload": {
         "psr-4": {
@@ -81,6 +82,7 @@
             "XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-clover=coverage.xml",
             "php tools/check-coverage.php coverage.xml 95"
         ],
+        "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection --threads=max --no-interaction",
         "bench": "vendor/bin/phpbench run --report=aggregate",
         "bench-baseline": "vendor/bin/phpbench run --tag=baseline --store --progress=none",
         "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
@@ -94,7 +96,8 @@
             "php": "8.3.16"
         },
         "allow-plugins": {
-            "composer/package-versions-deprecated": true
+            "composer/package-versions-deprecated": true,
+            "infection/extension-installer": true
         }
     }
 }
