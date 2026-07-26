@@ -12,6 +12,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Internal
 
+- Add a cookbook of verified recipes, and expand the error-handling guide to cover every exception type with its real message text
+
+### Internal
+
 - Adopt PHP 8.3 idioms where they add type safety: typed class constants, and `readonly` on the one internal class that qualifies
 
 ### Internal

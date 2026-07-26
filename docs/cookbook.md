@@ -1,0 +1,194 @@
+# Cookbook
+
+[← Back to index](../README.md#documentation)
+
+Short answers to "how do I do X". Every recipe here was executed against the
+current build before being written down.
+
+## Swap an implementation in tests
+
+Bind the fake over the real one. Nothing in production wiring changes.
+
+```php
+$container = new Container([
+    MailerInterface::class => InMemoryMailer::class,
+]);
+
+$service = $container->get(OrderService::class);
+```
+
+For a single test, `bind()` after construction reads better:
+
+```php
+$container = new Container();
+$container->bind(MailerInterface::class, InMemoryMailer::class);
+```
+
+## Pass configuration values to a service
+
+Scalars cannot be autowired. Bind them by parameter name, scoped to the class
+that needs them:
+
+```php
+$container->when(ApiClient::class)
+    ->needs('$timeout')
+    ->give(30);
+
+$container->when(ApiClient::class)
+    ->needs('$baseUrl')
+    ->give('https://api.example.com');
+```
+
+## Give two classes different implementations of one interface
+
+```php
+$container->when(OrderReport::class)
+    ->needs(StorageInterface::class)
+    ->give(S3Storage::class);
+
+$container->when(TempExport::class)
+    ->needs(StorageInterface::class)
+    ->give(LocalStorage::class);
+```
+
+## Build a plugin system
+
+Tag the implementations, then resolve them together. `tagged()` is lazy — it
+resolves each service as you iterate, in registration order.
+
+```php
+$container->bind(SlackNotifier::class, SlackNotifier::class);
+$container->bind(EmailNotifier::class, EmailNotifier::class);
+
+$container->tag([SlackNotifier::class, EmailNotifier::class], 'notifiers');
+
+foreach ($container->tagged('notifiers') as $notifier) {
+    $notifier->send($message);
+}
+```
+
+## Decorate a third-party service
+
+`extend()` wraps a single binding. It works even before the service is defined —
+the extension is scheduled and applied when the service is set.
+
+```php
+$container->set('http.client', new GuzzleClient());
+
+$container->extend('http.client', static function (object $client): object {
+    return new LoggingClient($client);
+});
+```
+
+## Run code after a service resolves
+
+When you want a hook rather than a wrapper:
+
+```php
+$container->afterResolving(Connection::class, static function (object $connection): void {
+    $connection->setTimezone('UTC');
+});
+```
+
+## Share one instance for the whole request
+
+```php
+$container->singleton(Connection::class);
+```
+
+Or declare it on the class, so every container shares the intent:
+
+```php
+use Gacela\Container\Attribute\Singleton;
+
+#[Singleton]
+final class Connection {}
+```
+
+The opposite — a fresh instance every time — is `#[Factory]`.
+
+## Build a service from other services
+
+Binding closures receive the container:
+
+```php
+$container->singleton(ReportBuilder::class, static function (ContainerInterface $c): ReportBuilder {
+    return new ReportBuilder(
+        $c->get(Database::class),
+        $c->get(TemplateEngine::class),
+    );
+});
+```
+
+## Skip building something expensive that may go unused
+
+```php
+use Gacela\Container\Attribute\Lazy;
+
+#[Lazy]
+final class ReportGenerator
+{
+    public function __construct(private Database $db) {}
+}
+```
+
+Resolving it costs nothing; the constructor runs on first property access. See
+[performance](performance.md).
+
+## Override a constructor argument for one call
+
+```php
+$service = $container->make(ReportService::class, ['format' => 'csv']);
+```
+
+Overrides apply to the top-level constructor only, and the instance is always
+built fresh.
+
+## Speed up per-request bootstrap
+
+Compile constructor plans in a build step, load them at runtime:
+
+```php
+// build step
+$container = new Container($bindings);
+$container->writeCompiledCache([UserService::class], __DIR__ . '/cache/container.php');
+
+// runtime
+$plans = Container::loadCompiledCache(__DIR__ . '/cache/container.php');
+$container = new Container($bindings, [], $plans);
+```
+
+Regenerate the file whenever constructors change. See
+[performance](performance.md).
+
+## Work out why something resolves to the wrong thing
+
+```php
+$container->getBindings();                           // every abstract => concrete
+$container->getDependencyTree(OrderService::class);  // what it pulls in, recursively
+$container->getRegisteredServices();                 // ids with a stored instance
+$container->getStats();                              // counters, for debugging only
+```
+
+`has()` and `bound()` answer different questions — see
+[resolving services](resolution.md).
+
+## Check whether something is registered
+
+```php
+$container->bound(MailerInterface::class);  // was it explicitly registered?
+$container->has(MailerInterface::class);    // will get() resolve it?
+```
+
+`bindIf()` and `singletonIf()` register only when absent, which is how you
+provide a default without stomping on a caller's choice:
+
+```php
+$container->bindIf(MailerInterface::class, SmtpMailer::class);
+```
+
+## Related
+
+- [Bindings & registration](bindings.md)
+- [Resolving services](resolution.md)
+- [Error handling](error-handling.md)

@@ -78,7 +78,8 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]` |
 | [Managing Services](docs/services.md) | Factories, extending, protecting closures, introspection |
 | [Performance & Compilation](docs/performance.md) | `warmUp()`, compiled container cache |
-| [Error Handling](docs/error-handling.md) | Error messages and what they mean |
+| [Cookbook](docs/cookbook.md) | Recipes: testing, config, plugins, decorating, debugging |
+| [Error Handling](docs/error-handling.md) | Every exception, what causes it, how to fix it |
 | [Best Practices](docs/best-practices.md) | Recommended patterns |
 | [API Reference](docs/api-reference.md) | Full method, static, and attribute reference |
 | [Backward Compatibility](docs/backward-compatibility.md) | What semver covers here, and what it does not |
