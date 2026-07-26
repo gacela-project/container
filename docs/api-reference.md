@@ -25,9 +25,9 @@ returns is not covered by backward compatibility**. Treat it as debug output.
 | `get(string $id): mixed` | Retrieve or create a service |
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
 | `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
-| `has(string $id): bool` | Check if a service exists (instance registry) |
+| `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
 | `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`) |
-| `bound(string $id): bool` | Check if a binding or instance exists (alias-aware) |
+| `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |

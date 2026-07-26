@@ -9,8 +9,10 @@ use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
+use ReflectionClass;
 use Throwable;
 
+use function class_exists;
 use function count;
 use function file_put_contents;
 use function get_class;
@@ -53,6 +55,9 @@ final class Container implements ContainerInterface, ArrayAccess
 
     /** @var array<string, list<Closure>> */
     private array $afterResolvingCallbacks = [];
+
+    /** @var array<string, bool> memoizes has()'s instantiability probe */
+    private array $instantiableCache = [];
 
     /**
      * @param  BindingsMap  $bindings
@@ -227,11 +232,23 @@ final class Container implements ContainerInterface, ArrayAccess
         return $instance;
     }
 
+    /**
+     * PSR-11: true when get($id) will resolve without throwing.
+     *
+     * Because this container autowires, that covers more than what was
+     * explicitly registered. Use bound() for the narrower question of whether
+     * an id has a binding or a stored instance.
+     */
     #[Override]
     public function has(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
-        return $this->instanceRegistry->has($id);
+
+        if ($this->instanceRegistry->has($id) || isset($this->bindings[$id])) {
+            return true;
+        }
+
+        return $this->isInstantiable($id);
     }
 
     #[Override]
@@ -278,7 +295,9 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         $id = $this->aliasRegistry->resolve($id);
 
-        if ($this->has($id)) {
+        // Deliberately not has(): that answers "is this resolvable at all?",
+        // which is true for autowirable classes that have no stored instance.
+        if ($this->instanceRegistry->has($id)) {
             /** @var mixed $instance */
             $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this);
         } else {
@@ -546,6 +565,19 @@ final class Container implements ContainerInterface, ArrayAccess
             'cached_dependencies' => $this->cacheManager->getCacheSize(),
             'memory_usage' => $this->formatBytes(memory_get_usage(true)),
         ];
+    }
+
+    private function isInstantiable(string $id): bool
+    {
+        if (isset($this->instantiableCache[$id])) {
+            return $this->instantiableCache[$id];
+        }
+
+        if (!class_exists($id)) {
+            return $this->instantiableCache[$id] = false;
+        }
+
+        return $this->instantiableCache[$id] = (new ReflectionClass($id))->isInstantiable();
     }
 
     private function fireAfterResolving(string $id, mixed $instance): void

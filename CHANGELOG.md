@@ -6,6 +6,7 @@
 
 - Raise the minimum PHP version to 8.3 (was 8.1)
 - Make `Container` final. Decorate it by composition against `ContainerInterface`, or use `extend()`/`afterResolving()` for per-service changes
+- `has()` now answers the PSR-11 question "will `get()` resolve this?", so it returns `true` for autowirable classes that were never explicitly registered. It previously only reported stored instances. `bound()` is unchanged and remains the check for explicit registration. `isset($container[$id])` follows `has()`
 - Declare `when()`, `compile()`, `writeCompiledCache()` and `getStats()` on `ContainerInterface`, and extend it from `ArrayAccess`. Every public instance method of `Container` is now part of the interface contract. The array returned by `getStats()` is explicitly excluded from backward compatibility
 
 ### Testing
