@@ -441,7 +441,10 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         $id = $this->aliasRegistry->resolve($id);
 
-        if (!$this->has($id)) {
+        // Deliberately not has(): that asks whether get() would resolve the id,
+        // which is true for any instantiable class. Here the question is
+        // narrower — is there something stored to extend right now?
+        if (!$this->instanceRegistry->has($id)) {
             $this->factoryManager->scheduleExtension($id, $instance);
 
             return $instance;
@@ -487,7 +490,8 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         $id = $this->aliasRegistry->resolve($id);
 
-        if (!$this->has($id)) {
+        // Same distinction as extend(): only a stored instance can be a factory.
+        if (!$this->instanceRegistry->has($id)) {
             return false;
         }
 

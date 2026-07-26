@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- `extend()` threw `ContainerException` instead of scheduling the extension when the id named a class the container could autowire. Regression from the `has()` change in 1.0.0, which widened the meaning of "does this exist" that `extend()` relied on. `isFactory()` had the same confusion, though it returned the right answer by accident
+
 ### Added
 
 - `#[Lazy]` defers construction until an instance is first used, via PHP 8.4 native lazy objects. Returns a real instance of the class rather than a proxy subclass. On PHP 8.3 the class is constructed eagerly instead, which is unobservable apart from the timing
