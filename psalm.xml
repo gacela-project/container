@@ -23,5 +23,7 @@
         <MoreSpecificReturnType errorLevel="suppress" />
         <LessSpecificReturnStatement errorLevel="suppress" />
         <UnsafeInstantiation errorLevel="suppress" />
+        <!-- Container's finality is a 1.0 API decision tracked in #50, not a tooling concern. -->
+        <ClassMustBeFinal errorLevel="suppress" />
     </issueHandlers>
 </psalm>

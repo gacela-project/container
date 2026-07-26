@@ -9,6 +9,11 @@
 ### Testing
 
 - Run the CI test matrix on PHP 8.3, 8.4 and 8.5
+- Upgrade to PHPStan 2, Psalm 6, PHPUnit 12 and Symfony var-dumper 7
+
+### Fixed
+
+- Use float division in `FuzzyMatcher` similarity and container stat byte formatting, which relied on implicit int/float coercion
 
 ## [0.10.0](https://github.com/gacela-project/container/compare/0.9.0...0.10.0) - 2026-07-20
 

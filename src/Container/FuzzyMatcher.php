@@ -67,6 +67,6 @@ final class FuzzyMatcher
 
         $distance = levenshtein($a, $b);
 
-        return 1.0 - ($distance / $maxLength);
+        return 1.0 - ((float) $distance / (float) $maxLength);
     }
 }
