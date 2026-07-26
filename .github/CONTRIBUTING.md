@@ -95,8 +95,22 @@ vendor/bin/phpbench run --ref=baseline --report=aggregate
 ```
 
 Report the **mode**, not the mean, and state the PHP version and whether
-opcache/JIT was enabled. Shared CI runners are too noisy for a hard gate, so
-these numbers are advisory — but a regression should be explained.
+opcache/JIT was enabled.
+
+Three subjects carry `#[Assert]` gates at **20% over baseline** — the cold and
+warm deep-chain resolutions. They are set to catch a cliff (the regression in
+\#45 was +17-41%), not 3% drift, and only subjects whose rstdev stays under
+~1.5% are gated. Noisier ones like `benchHasMiss` (±6%) deliberately are not.
+
+The CI job is `continue-on-error` for now. Watch its false-positive rate before
+making it required.
+
+If a change is a legitimate slowdown, say so in the PR and re-store the
+baseline:
+
+```bash
+composer bench-baseline
+```
 
 ## Mutation testing
 
