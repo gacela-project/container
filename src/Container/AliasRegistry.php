@@ -32,6 +32,13 @@ final class AliasRegistry
      */
     public function resolve(string $id): string
     {
+        // Most containers register no aliases at all. Without this, every
+        // distinct id resolved would write an identity entry into
+        // resolvedCache, growing it unboundedly to map ids onto themselves.
+        if ($this->aliases === []) {
+            return $id;
+        }
+
         if (isset($this->resolvedCache[$id])) {
             return $this->resolvedCache[$id];
         }
