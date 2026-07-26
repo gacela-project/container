@@ -7,6 +7,9 @@ namespace Gacela\Container\Exception;
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 
+/**
+ * @api
+ */
 final class DependencyInvalidArgumentException extends InvalidArgumentException implements ContainerExceptionInterface
 {
     /**

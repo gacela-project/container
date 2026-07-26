@@ -11,6 +11,9 @@ use Attribute;
  * The container will create a new instance every time it's requested.
  */
 #[Attribute(Attribute::TARGET_CLASS)]
+/**
+ * @api
+ */
 final class Factory
 {
 }

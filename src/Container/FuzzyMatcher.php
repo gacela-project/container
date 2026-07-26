@@ -15,6 +15,10 @@ use function usort;
 
 /**
  * Provides fuzzy matching for service names to suggest alternatives.
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class FuzzyMatcher
 {

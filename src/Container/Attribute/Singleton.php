@@ -11,6 +11,9 @@ use Attribute;
  * The container will cache and reuse a single instance.
  */
 #[Attribute(Attribute::TARGET_CLASS)]
+/**
+ * @api
+ */
 final class Singleton
 {
 }

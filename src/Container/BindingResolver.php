@@ -13,6 +13,10 @@ use function is_string;
  * Resolves abstract types to concrete implementations using bindings.
  *
  * @psalm-import-type BindingsMap from ContainerInterface
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class BindingResolver
 {

@@ -9,6 +9,10 @@ use function is_array;
 
 /**
  * Groups service identifiers under tags so they can be resolved together.
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class TagRegistry
 {

@@ -17,6 +17,10 @@ use function is_object;
  *
  * Note: SplObjectStorage is accessed via offsetSet()/offsetUnset() instead of
  * attach()/detach(), which are deprecated as of PHP 8.5. Behavior is identical.
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class FactoryManager
 {

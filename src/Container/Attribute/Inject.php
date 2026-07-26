@@ -11,6 +11,9 @@ use Attribute;
  * Optionally specifies which concrete implementation to inject.
  */
 #[Attribute(Attribute::TARGET_PARAMETER)]
+/**
+ * @api
+ */
 final class Inject
 {
     /**

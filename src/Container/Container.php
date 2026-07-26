@@ -30,6 +30,8 @@ use function var_export;
  * @psalm-import-type CompiledPlans from DependencyResolver
  *
  * @implements ArrayAccess<string, mixed>
+ *
+ * @api
  */
 final class Container implements ContainerInterface, ArrayAccess
 {

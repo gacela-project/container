@@ -11,6 +11,10 @@ use function class_exists;
 
 /**
  * Analyzes and reports dependency trees for classes.
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class DependencyTreeAnalyzer
 {
