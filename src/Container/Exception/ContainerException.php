@@ -12,6 +12,52 @@ use Psr\Container\ContainerExceptionInterface;
  */
 final class ContainerException extends Exception implements ContainerExceptionInterface
 {
+    public static function compiledCacheNotWritable(string $file): self
+    {
+        $message = <<<TXT
+The compiled cache '{$file}' could not be written.
+
+Check that the directory exists and is writable. Nothing was written, so any
+existing cache is unchanged.
+TXT;
+        return new self($message);
+    }
+
+    public static function compiledCacheNotReadable(string $file): self
+    {
+        $message = <<<TXT
+The compiled cache '{$file}' could not be read.
+
+Generate it first with writeCompiledCache(), and regenerate it whenever a
+compiled constructor changes.
+TXT;
+        return new self($message);
+    }
+
+    public static function compiledCacheInvalid(string $file): self
+    {
+        $message = <<<TXT
+The compiled cache '{$file}' did not return an array.
+
+The file is stale or corrupt. Delete it and regenerate it with
+writeCompiledCache().
+TXT;
+        return new self($message);
+    }
+
+    public static function classNotInstantiable(string $class): self
+    {
+        $message = <<<TXT
+'{$class}' cannot be instantiated.
+Abstract classes, interfaces, enums and classes with a non-public constructor
+cannot be built by the container.
+
+Bind it to a concrete implementation:
+  \$container->bind({$class}::class, YourConcreteClass::class);
+TXT;
+        return new self($message);
+    }
+
     public static function instanceNotExtendable(): self
     {
         $message = <<<TXT

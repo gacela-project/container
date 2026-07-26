@@ -10,6 +10,12 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- `writeCompiledCache()` and `writeCompiledFactories()` reported success while writing nothing when the target was unwritable. Both now throw `ContainerException`, and check writability before writing rather than relying on `@`-suppression, which an application's own error handler defeats
+- `loadCompiledCache()` emitted a raw PHP fatal for a missing or unreadable file, and a `TypeError` when the file returned something other than an array. Both are now `ContainerException` naming the file and how to regenerate it
+- `get()`/`make()` on an abstract class, interface or otherwise non-instantiable class threw a raw PHP `Error` from inside the container. Now a `ContainerException`, consistent with `has()`, which already reported them as unresolvable
+
 ## [1.1.0](https://github.com/gacela-project/container/compare/1.0.0...1.1.0) - 2026-07-26
 
 Upgrading from 1.0.0? Nothing to do — this release is additive plus one bug fix.

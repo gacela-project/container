@@ -13,7 +13,6 @@ use ReflectionClass;
 
 use function class_exists;
 use function count;
-use function file_put_contents;
 use function is_callable;
 use function is_object;
 
@@ -138,7 +137,7 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         $compiler = new ContainerCompiler($this->compile($classNames), $this->bindings);
 
-        file_put_contents($file, $compiler->render());
+        CompiledCacheWriter::put($file, $compiler->render());
 
         return $compiler->compilable();
     }

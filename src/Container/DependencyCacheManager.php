@@ -8,6 +8,7 @@ use Closure;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
+use Gacela\Container\Exception\ContainerException;
 use ReflectionClass;
 
 use function class_exists;
@@ -50,6 +51,9 @@ final class DependencyCacheManager
      * from the timing.
      */
     private static ?bool $supportsLazyObjects = null;
+
+    /** @var array<class-string, bool> */
+    private array $instantiableCache = [];
 
     /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
     private array $forcedSingletons = [];
@@ -179,6 +183,12 @@ final class DependencyCacheManager
      */
     private function construct(string $class): object
     {
+        // has() already reports these as unresolvable; without this guard get()
+        // disagreed by emitting a raw PHP Error from inside the container.
+        if (!$this->isInstantiable($class)) {
+            throw ContainerException::classNotInstantiable($class);
+        }
+
         if ($this->isLazy($class)) {
             return $this->newLazyGhost($class);
         }
@@ -187,6 +197,15 @@ final class DependencyCacheManager
 
         /** @psalm-suppress MixedMethodCall */
         return new $class(...$dependencies);
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function isInstantiable(string $class): bool
+    {
+        return $this->instantiableCache[$class] ??= class_exists($class)
+            && (new ReflectionClass($class))->isInstantiable();
     }
 
     /**
