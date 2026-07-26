@@ -10,18 +10,11 @@ use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
 use ReflectionClass;
-use Throwable;
 
 use function class_exists;
 use function count;
-use function file_put_contents;
-use function get_class;
-use function implode;
-use function is_array;
 use function is_callable;
 use function is_object;
-use function is_string;
-use function var_export;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
@@ -88,14 +81,7 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     public static function loadCompiledCache(string $file): array
     {
-        /**
-         * @psalm-suppress UnresolvableInclude
-         *
-         * @var CompiledPlans $plans
-         */
-        $plans = require $file;
-
-        return $plans;
+        return CompiledCacheWriter::read($file);
     }
 
     /**
@@ -125,19 +111,7 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function writeCompiledCache(array $classNames, string $file): void
     {
-        $entries = [];
-        foreach ($this->compile($classNames) as $class => $plan) {
-            try {
-                $exportedPlan = var_export($plan, true);
-            } catch (Throwable) {
-                // A default value is not statically exportable; skip this class.
-                continue;
-            }
-            $entries[] = var_export($class, true) . ' => ' . $exportedPlan . ',';
-        }
-
-        $code = "<?php\n\ndeclare(strict_types=1);\n\nreturn [\n" . implode("\n", $entries) . "\n];\n";
-        file_put_contents($file, $code);
+        CompiledCacheWriter::write($this->compile($classNames), $file);
     }
 
     /**
@@ -368,7 +342,7 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function resolve(callable $callable, array $parameters = []): mixed
     {
-        $callableKey = $this->callableKey($callable);
+        $callableKey = CallableKey::for($callable);
         $closure = Closure::fromCallable($callable);
 
         $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $closure, $parameters);
@@ -625,28 +599,6 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * @psalm-suppress MixedReturnTypeCoercion
      */
-    private function callableKey(callable $callable): string
-    {
-        if (is_array($callable)) {
-            $classOrObject = $callable[0];
-            $method = $callable[1];
-
-            $className = is_object($classOrObject)
-                ? get_class($classOrObject) . '#' . spl_object_id($classOrObject)
-                : $classOrObject;
-
-            return $className . '::' . $method;
-        }
-
-        if (is_string($callable)) {
-            return $callable;
-        }
-
-        // Only closures and invokable objects remain once array and string are ruled out
-        /** @var callable&object $callable */
-        return get_class($callable) . '#' . spl_object_id($callable);
-    }
-
     private function extendService(string $id): void
     {
         if (!$this->factoryManager->hasPendingExtensions($id)) {
