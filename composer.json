@@ -28,7 +28,7 @@
     "prefer-stable": true,
     "minimum-stability": "dev",
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.3",
         "psr/container": ">=1.1"
     },
     "require-dev": {
@@ -77,7 +77,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.1"
+            "php": "8.3"
         },
         "allow-plugins": {
             "composer/package-versions-deprecated": true
