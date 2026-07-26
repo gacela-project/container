@@ -64,6 +64,30 @@ Runtime parameters work here too — override callable arguments by name:
 $container->resolve($handler, ['request' => $request]);
 ```
 
+## `has()` vs. `bound()`
+
+Two similar-looking questions with different answers:
+
+- **`has($id)`** — will `get($id)` resolve? This is the PSR-11 contract. Because
+  the container autowires, it is `true` for any instantiable class, whether or
+  not you registered it.
+- **`bound($id)`** — was this id *explicitly* registered, as a binding or a
+  stored instance?
+
+```php
+$container = new Container();
+
+$container->has(Greeter::class);    // true  — autowirable
+$container->bound(Greeter::class);  // false — never registered
+
+$container->has(LoggerInterface::class);   // false — no binding, cannot autowire an interface
+$container->has(AbstractThing::class);     // false — not instantiable
+$container->has('nonsense');               // false — not a class
+```
+
+Use `has()` before `get()`. Use `bound()` when you care about registration
+itself — that is what `bindIf()` and `singletonIf()` check.
+
 ## Array access
 
 The container implements `ArrayAccess`, so array syntax maps to the core methods:
