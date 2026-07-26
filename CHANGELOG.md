@@ -6,6 +6,7 @@
 
 - Raise the minimum PHP version to 8.3 (was 8.1)
 - Make `Container` final. Decorate it by composition against `ContainerInterface`, or use `extend()`/`afterResolving()` for per-service changes
+- Declare `when()`, `compile()`, `writeCompiledCache()` and `getStats()` on `ContainerInterface`, and extend it from `ArrayAccess`. Every public instance method of `Container` is now part of the interface contract. The array returned by `getStats()` is explicitly excluded from backward compatibility
 
 ### Testing
 

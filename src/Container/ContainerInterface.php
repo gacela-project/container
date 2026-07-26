@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use ArrayAccess;
 use Closure;
 use Override;
 use Psr\Container\ContainerInterface as PsrContainerInterface;
@@ -12,8 +13,18 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  * @psalm-type Binding = class-string|callable|object
  * @psalm-type BindingsMap = array<class-string, Binding>
  * @psalm-type ContextualBindingsMap = array<string, array<string, mixed>>
+ * @psalm-type ContainerStats = array{
+ *     registered_services: int,
+ *     frozen_services: int,
+ *     factory_services: int,
+ *     bindings: int,
+ *     cached_dependencies: int,
+ *     memory_usage: string
+ * }
+ *
+ * @extends ArrayAccess<string, mixed>
  */
-interface ContainerInterface extends PsrContainerInterface
+interface ContainerInterface extends PsrContainerInterface, ArrayAccess
 {
     /**
      * Get the resolved value of the instance.
@@ -164,4 +175,39 @@ interface ContainerInterface extends PsrContainerInterface
      * @return list<string>
      */
     public function getDependencyTree(string $className): array;
+
+    /**
+     * Define a contextual binding, scoping a dependency to the classes that ask for it.
+     *
+     * @param class-string|list<class-string> $concrete
+     */
+    public function when(string|array $concrete): ContextualBindingBuilder;
+
+    /**
+     * Warm up the given classes and return their compiled constructor plans,
+     * which can be fed back through the constructor to skip reflection.
+     *
+     * @param list<class-string> $classNames
+     *
+     * @return array<class-string, mixed>
+     */
+    public function compile(array $classNames): array;
+
+    /**
+     * Compile the given classes and write their constructor plans to an
+     * opcache-friendly PHP file.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function writeCompiledCache(array $classNames, string $file): void;
+
+    /**
+     * Snapshot of container counters, for debugging and monitoring.
+     *
+     * The shape of the returned array is NOT covered by backward compatibility
+     * and may change in any release. Do not build logic on it.
+     *
+     * @return ContainerStats
+     */
+    public function getStats(): array;
 }

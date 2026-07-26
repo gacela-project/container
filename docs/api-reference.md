@@ -2,6 +2,22 @@
 
 [← Back to index](../README.md#documentation)
 
+## What the interface guarantees
+
+Every instance method below is declared on `ContainerInterface`. Type-hint the
+interface, never the concrete class — you lose nothing by doing so.
+
+`ContainerInterface` also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`,
+assignment, and `unset()` are part of the contract rather than a concrete-class
+convenience.
+
+Only three members live on `Container` alone, and none of them *can* be on an
+interface: the constructor, and the two static methods `create()` and
+`loadCompiledCache()`.
+
+One caveat: `getStats()` is on the interface, but the **shape of the array it
+returns is not covered by backward compatibility**. Treat it as debug output.
+
 ## Container methods
 
 | Method | Description |
@@ -32,9 +48,10 @@
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order |
-| `getStats(): array` | Get container statistics |
+| `getStats(): array` | Get container statistics (return shape is not covered by BC) |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
+| `offsetGet` / `offsetSet` / `offsetExists` / `offsetUnset` | `ArrayAccess`: `$c[Id::class]`, assignment, `isset()`, `unset()` |
 
 ## Static methods
 
