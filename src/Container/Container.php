@@ -565,7 +565,7 @@ final class Container implements ContainerInterface, ArrayAccess
             'factory_services' => $factoryCount,
             'bindings' => count($this->getBindings()),
             'cached_dependencies' => $this->cacheManager->getCacheSize(),
-            'memory_usage' => $this->formatBytes(memory_get_usage(true)),
+            'memory_usage' => ByteFormatter::format(memory_get_usage(true)),
         ];
     }
 
@@ -657,18 +657,5 @@ final class Container implements ContainerInterface, ArrayAccess
 
         $this->factoryManager->clearPendingExtensions($id);
         $this->factoryManager->setCurrentlyExtending(null);
-    }
-
-    private function formatBytes(int $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $bytes = max($bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0.0) / log(1024));
-        $pow = min($pow, count($units) - 1);
-
-        $powInt = (int) $pow;
-        $scaled = $bytes / (1 << (10 * $powInt));
-
-        return (string) round($scaled, 2) . ' ' . $units[$powInt];
     }
 }
