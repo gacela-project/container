@@ -57,6 +57,34 @@ $plans = $container->compile([UserService::class, OrderService::class]);
 - A compiled cache seeds the plans on construction, so warmed classes resolve
   with no `ReflectionClass` calls at runtime.
 
+## What this actually buys you
+
+The container memoizes reflection per instance. Once a class has been resolved
+on a given container, later resolutions of that class are already cache hits —
+so **a compiled cache does nothing for a long-lived, already-warm container.**
+
+Where it pays off is a *cold* container: the typical PHP request, which builds a
+container, resolves a handful of services, and exits.
+
+Resolving a four-level dependency chain on a freshly constructed container
+(PHP 8.4, no JIT, `phpbench`, mode of 5×1000 revolutions):
+
+| | mode | peak memory |
+|---|---|---|
+| Cold container, reflection | 4.687μs | 9.56mb |
+| Cold container, compiled plans | **2.716μs** | **5.54mb** |
+
+Roughly **1.7× faster and 40% less memory** per request.
+
+For comparison, the same chain on an already-warm container resolves in ~1.6μs
+whether or not plans were supplied — the caches have already absorbed the cost.
+
+So: reach for the compiled cache when you are optimising per-request bootstrap.
+It is not a hot-loop optimisation, and it will not show up in a benchmark that
+reuses one container.
+
+Reproduce any of this with `composer bench`.
+
 ## Related
 
 - [Resolving services](resolution.md)

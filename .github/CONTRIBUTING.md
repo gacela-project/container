@@ -78,3 +78,22 @@ You can add the git hook running the following bash script:
 ```bash
 $ ./.github/git-hooks/init.sh
 ```
+
+## Benchmarks
+
+Resolution is a hot path, so performance-sensitive changes should come with numbers.
+
+```bash
+composer bench           # run the suite, aggregate report
+composer bench-baseline  # store results under the "baseline" tag
+```
+
+To compare a branch against a stored baseline:
+
+```bash
+vendor/bin/phpbench run --ref=baseline --report=aggregate
+```
+
+Report the **mode**, not the mean, and state the PHP version and whether
+opcache/JIT was enabled. Shared CI runners are too noisy for a hard gate, so
+these numbers are advisory — but a regression should be explained.
