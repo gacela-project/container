@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.1.1](https://github.com/gacela-project/container/compare/1.1.0...1.1.1) - 2026-07-26
+
 ### Fixed
 
 - `writeCompiledCache()` and `writeCompiledFactories()` reported success while writing nothing when the target was unwritable. Both now throw `ContainerException`, and check writability before writing rather than relying on `@`-suppression, which an application's own error handler defeats
