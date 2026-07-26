@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Internal
 
+- Extract byte formatting out of `Container` so it can be tested directly; raises the Infection gate to 87
 - Audit the escaped mutants in `DependencyResolver`, `DependencyCacheManager`, `FuzzyMatcher` and `DependencyTreeAnalyzer`; add 16 tests for the killable ones and raise the Infection gate from 80 to 83
 
 ## [1.0.0](https://github.com/gacela-project/container/compare/0.10.0...1.0.0) - 2026-07-26
