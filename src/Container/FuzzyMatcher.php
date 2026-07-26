@@ -22,8 +22,8 @@ use function usort;
  */
 final class FuzzyMatcher
 {
-    private const MAX_SUGGESTIONS = 3;
-    private const SIMILARITY_THRESHOLD = 0.6;
+    private const int MAX_SUGGESTIONS = 3;
+    private const float SIMILARITY_THRESHOLD = 0.6;
 
     /**
      * @param list<string> $candidates

@@ -12,6 +12,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Internal
 
+- Adopt PHP 8.3 idioms where they add type safety: typed class constants, and `readonly` on the one internal class that qualifies
+
+### Internal
+
 - Gate three benchmark subjects at 20% over baseline and run them in CI, advisory for now
 
 ### Internal

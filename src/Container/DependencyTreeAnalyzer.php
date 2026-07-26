@@ -16,7 +16,7 @@ use function class_exists;
  * Not covered by backward compatibility: this class is an implementation
  * detail of Container and may change or disappear in any release
  */
-final class DependencyTreeAnalyzer
+final readonly class DependencyTreeAnalyzer
 {
     public function __construct(
         private BindingResolver $bindingResolver,
