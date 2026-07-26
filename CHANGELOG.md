@@ -5,6 +5,7 @@
 ### Changed
 
 - Raise the minimum PHP version to 8.3 (was 8.1)
+- Make `Container` final. Decorate it by composition against `ContainerInterface`, or use `extend()`/`afterResolving()` for per-service changes
 
 ### Testing
 

@@ -47,6 +47,47 @@ $plans = Container::loadCompiledCache(__DIR__ . '/cache/container.php');
 $container = new Container($bindings, [], $plans);
 ```
 
+## The constructor
+
+```php
+public function __construct(
+    array $bindings = [],        // abstract => concrete map
+    array $instancesToExtend = [],  // id => list of extension closures
+    array $compiledPlans = [],   // from writeCompiledCache() / loadCompiledCache()
+)
+```
+
+All three parameters are optional and part of the stable API — their names, order,
+types, and defaults do not change within a major version. Named arguments are safe.
+
+## `Container` is final
+
+`Container` cannot be subclassed. Extend behaviour by composition instead of
+inheritance: type-hint `ContainerInterface` and wrap.
+
+```php
+final class LoggingContainer implements ContainerInterface
+{
+    public function __construct(
+        private ContainerInterface $inner,
+        private LoggerInterface $logger,
+    ) {}
+
+    public function get(string $id): mixed
+    {
+        $this->logger->debug('resolving', ['id' => $id]);
+
+        return $this->inner->get($id);
+    }
+
+    // delegate the rest to $this->inner
+}
+```
+
+For per-service changes you usually do not need a wrapper at all — prefer
+[`extend()`](services.md) to decorate a single binding, or
+[`afterResolving()`](resolution.md) to run code after an id resolves.
+
 ## Attributes
 
 | Attribute | Target | Description |
