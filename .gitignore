@@ -14,3 +14,4 @@ composer.lock
 mutation-report.html
 gacela-custom-services.php
 gacela-class-names.php
+coverage.xml
