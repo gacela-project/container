@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/gacela-project/container/security/advisories/new
+    about: Report privately. Please do not open a public issue.
+  - name: Gacela framework
+    url: https://github.com/gacela-project/gacela/issues
+    about: For issues with the framework rather than the standalone container.
+  - name: Documentation
+    url: https://github.com/gacela-project/container/tree/main/docs
+    about: Guides for bindings, resolution, attributes, and performance.
