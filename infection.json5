@@ -13,7 +13,7 @@
     },
     // Set to the measured baseline, not an aspirational number.
     // If a change drops these, add a test — do not lower the threshold.
-    "minMsi": 80,
-    "minCoveredMsi": 80,
+    "minMsi": 83,
+    "minCoveredMsi": 83,
     "timeout": 30
 }
