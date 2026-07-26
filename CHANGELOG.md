@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Internal
+
+- Move code generation and callable-key building out of `Container` into `CompiledCacheWriter` and `CallableKey`. No public API or behaviour change
+
 ### Fixed
 
 - `extend()` threw `ContainerException` instead of scheduling the extension when the id named a class the container could autowire. Regression from the `has()` change in 1.0.0, which widened the meaning of "does this exist" that `extend()` relied on. `isFactory()` had the same confusion, though it returned the right answer by accident
