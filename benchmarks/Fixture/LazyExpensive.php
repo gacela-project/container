@@ -6,7 +6,9 @@ namespace GacelaBench\Fixture;
 
 use Gacela\Container\Attribute\Lazy;
 
-/** An expensive branch of the graph that a request may never touch. */
+/**
+ * An expensive branch of the graph that a request may never touch.
+ */
 #[Lazy]
 final class LazyExpensive
 {

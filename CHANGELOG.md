@@ -12,6 +12,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Internal
 
+- Gate three benchmark subjects at 20% over baseline and run them in CI, advisory for now
+
+### Internal
+
 - Move code generation and callable-key building out of `Container` into `CompiledCacheWriter` and `CallableKey`. No public API or behaviour change
 
 ### Fixed

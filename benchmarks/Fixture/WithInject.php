@@ -6,7 +6,9 @@ namespace GacelaBench\Fixture;
 
 use Gacela\Container\Attribute\Inject;
 
-/** Resolved through the #[Inject] attribute path. */
+/**
+ * Resolved through the #[Inject] attribute path.
+ */
 final class WithInject
 {
     public function __construct(

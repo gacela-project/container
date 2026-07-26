@@ -16,6 +16,7 @@ use GacelaBench\Fixture\NoDependencies;
 use GacelaBench\Fixture\SingletonService;
 use GacelaBench\Fixture\WithBinding;
 use GacelaBench\Fixture\WithInject;
+use PhpBench\Attributes\Assert;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\Revs;
@@ -93,6 +94,9 @@ final class ContainerBench
         $this->boundContainer->get(WithBinding::class);
     }
 
+    // Gated in CI: catches a cliff like the +17-41% regression in #45,
+    // not 3% drift. Only subjects with rstdev under ~1.5% are gated.
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
     #[BeforeMethods('setUpPlain')]
     public function benchResolveDeepChain(): void
     {
@@ -119,11 +123,17 @@ final class ContainerBench
      * the remaining revolutions measure cache hits either way. Compare the three
      * cold subjects against each other, not against the warm ones.
      */
+    // Gated in CI: catches a cliff like the +17-41% regression in #45,
+    // not 3% drift. Only subjects with rstdev under ~1.5% are gated.
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
     public function benchColdResolveDeepChain(): void
     {
         (new Container())->get(Level1::class);
     }
 
+    // Gated in CI: catches a cliff like the +17-41% regression in #45,
+    // not 3% drift. Only subjects with rstdev under ~1.5% are gated.
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
     #[BeforeMethods('setUpColdPlans')]
     public function benchColdResolveDeepChainCompiled(): void
     {

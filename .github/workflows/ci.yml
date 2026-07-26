@@ -150,6 +150,36 @@ jobs:
           name: coverage-clover
           path: coverage.xml
 
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    # Advisory for now. Shared runners are noisy, so watch the false-positive
+    # rate for a few weeks before making this required.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-ansi --no-progress
+
+      - name: Store a baseline from the merge base
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref || 'main' }} --depth=1
+          git stash push --include-untracked || true
+          git checkout FETCH_HEAD -- src benchmarks || true
+          vendor/bin/phpbench run --tag=baseline --store --progress=none
+          git checkout HEAD -- src benchmarks
+          git stash pop || true
+
+      - name: Compare against the baseline
+        run: vendor/bin/phpbench run --ref=baseline --report=aggregate
+
   mutation-testing:
     name: Mutation Testing
     runs-on: ubuntu-latest
