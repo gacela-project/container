@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Internal
+
+- Audit the escaped mutants in `DependencyResolver`, `DependencyCacheManager`, `FuzzyMatcher` and `DependencyTreeAnalyzer`; add 16 tests for the killable ones and raise the Infection gate from 80 to 83
+
 ## [1.0.0](https://github.com/gacela-project/container/compare/0.10.0...1.0.0) - 2026-07-26
 
 Upgrading from 0.10.0? See [UPGRADE.md](UPGRADE.md).
