@@ -13,11 +13,13 @@
 ### Testing
 
 - Run the CI test matrix on PHP 8.3, 8.4 and 8.5
+- Add a `Code Coverage` CI job that fails below 95% line coverage
+- Add a `phpbench` suite covering the resolution hot paths
+- Drop Scrutinizer; code quality is covered by PHPStan, Psalm and the coverage gate in CI
 - Upgrade to PHPStan 2, Psalm 6, PHPUnit 12 and Symfony var-dumper 7
 
 ### Fixed
 
-- Point the Scrutinizer build at PHP 8.3; it was pinned to 8.1, which no longer satisfies the package requirements
 - Drop the non-existent `feature` test suite from the `test-coverage` script
 - Use float division in `FuzzyMatcher` similarity and container stat byte formatting, which relied on implicit int/float coercion
 
