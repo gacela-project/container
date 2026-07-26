@@ -100,6 +100,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *
      * @return CompiledPlans
      */
+    #[Override]
     public function compile(array $classNames): array
     {
         $this->warmUp($classNames);
@@ -114,6 +115,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *
      * @param list<class-string> $classNames
      */
+    #[Override]
     public function writeCompiledCache(array $classNames, string $file): void
     {
         $entries = [];
@@ -501,6 +503,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *
      * @param class-string|list<class-string> $concrete
      */
+    #[Override]
     public function when(string|array $concrete): ContextualBindingBuilder
     {
         $builder = new ContextualBindingBuilder($this->contextualBindings);
@@ -519,6 +522,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *     memory_usage: string
      * }
      */
+    #[Override]
     public function getStats(): array
     {
         $services = $this->getRegisteredServices();
