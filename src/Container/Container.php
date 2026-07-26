@@ -8,6 +8,7 @@ use ArrayAccess;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
+use Override;
 use Throwable;
 
 use function count;
@@ -135,6 +136,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @param Binding $concrete
      */
+    #[Override]
     public function bind(string $abstract, string|callable|object $concrete): void
     {
         /**
@@ -150,6 +152,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @param Binding|null $concrete when null, $abstract is the concrete class
      */
+    #[Override]
     public function singleton(string $abstract, string|callable|object|null $concrete = null): void
     {
         $concrete ??= $abstract;
@@ -173,6 +176,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * Whether a binding or instance is registered for the given id (alias-aware).
      */
+    #[Override]
     public function bound(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -185,6 +189,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @param Binding $concrete
      */
+    #[Override]
     public function bindIf(string $abstract, string|callable|object $concrete): void
     {
         if (!$this->bound($abstract)) {
@@ -197,6 +202,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @param Binding|null $concrete when null, $abstract is the concrete class
      */
+    #[Override]
     public function singletonIf(string $abstract, string|callable|object|null $concrete = null): void
     {
         if (!$this->bound($abstract)) {
@@ -219,32 +225,38 @@ class Container implements ContainerInterface, ArrayAccess
         return $instance;
     }
 
+    #[Override]
     public function has(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
         return $this->instanceRegistry->has($id);
     }
 
+    #[Override]
     public function offsetExists(mixed $offset): bool
     {
         return $this->has($offset);
     }
 
+    #[Override]
     public function offsetGet(mixed $offset): mixed
     {
         return $this->get($offset);
     }
 
+    #[Override]
     public function offsetSet(mixed $offset, mixed $value): void
     {
         $this->set((string) $offset, $value);
     }
 
+    #[Override]
     public function offsetUnset(mixed $offset): void
     {
         $this->remove($offset);
     }
 
+    #[Override]
     public function set(string $id, mixed $instance): void
     {
         $this->instanceRegistry->set($id, $instance);
@@ -259,6 +271,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @param  class-string|string  $id
      */
+    #[Override]
     public function get(string $id): mixed
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -267,7 +280,6 @@ class Container implements ContainerInterface, ArrayAccess
             /** @var mixed $instance */
             $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this);
         } else {
-            /** @var mixed $instance */
             $instance = $this->createInstance($id);
         }
 
@@ -280,6 +292,7 @@ class Container implements ContainerInterface, ArrayAccess
      * Register a callback to run after the given id is resolved, receiving the
      * resolved instance and the container. Callbacks run in registration order.
      */
+    #[Override]
     public function afterResolving(string $id, Closure $callback): void
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -289,6 +302,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * Like get(), but throws when the id resolves to null instead of returning it.
      */
+    #[Override]
     public function getOrFail(string $id): mixed
     {
         /** @psalm-suppress MixedAssignment */
@@ -313,6 +327,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @return T
      */
+    #[Override]
     public function make(string $className, array $parameters = []): object
     {
         if ($parameters === []) {
@@ -327,6 +342,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @param array<string, mixed> $parameters override arguments by parameter name
      */
+    #[Override]
     public function resolve(callable $callable, array $parameters = []): mixed
     {
         $callableKey = $this->callableKey($callable);
@@ -338,6 +354,7 @@ class Container implements ContainerInterface, ArrayAccess
         return $closure(...$dependencies);
     }
 
+    #[Override]
     public function factory(Closure $instance): Closure
     {
         $this->factoryManager->markAsFactory($instance);
@@ -345,12 +362,14 @@ class Container implements ContainerInterface, ArrayAccess
         return $instance;
     }
 
+    #[Override]
     public function remove(string $id): void
     {
         $id = $this->aliasRegistry->resolve($id);
         $this->instanceRegistry->remove($id);
     }
 
+    #[Override]
     public function alias(string $alias, string $id): void
     {
         $this->aliasRegistry->add($alias, $id);
@@ -361,6 +380,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @param string|list<string> $ids
      */
+    #[Override]
     public function tag(string|array $ids, string $tag): void
     {
         $this->tagRegistry->tag($ids, $tag);
@@ -371,6 +391,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @return iterable<mixed>
      */
+    #[Override]
     public function tagged(string $tag): iterable
     {
         foreach ($this->tagRegistry->idsFor($tag) as $id) {
@@ -383,6 +404,7 @@ class Container implements ContainerInterface, ArrayAccess
      *
      * @return list<string>
      */
+    #[Override]
     public function getDependencyTree(string $className): array
     {
         return $this->dependencyTreeAnalyzer->analyze($className);
@@ -391,6 +413,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @psalm-suppress MixedAssignment
      */
+    #[Override]
     public function extend(string $id, Closure $instance): Closure
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -419,6 +442,7 @@ class Container implements ContainerInterface, ArrayAccess
         return $extended;
     }
 
+    #[Override]
     public function protect(Closure $instance): Closure
     {
         $this->factoryManager->markAsProtected($instance);
@@ -429,11 +453,13 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @return list<string>
      */
+    #[Override]
     public function getRegisteredServices(): array
     {
         return $this->instanceRegistry->getAll();
     }
 
+    #[Override]
     public function isFactory(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -445,6 +471,7 @@ class Container implements ContainerInterface, ArrayAccess
         return $this->factoryManager->isFactory($this->instanceRegistry->getRaw($id));
     }
 
+    #[Override]
     public function isFrozen(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -454,6 +481,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @return BindingsMap
      */
+    #[Override]
     public function getBindings(): array
     {
         return $this->bindingResolver->getBindings();
@@ -462,6 +490,7 @@ class Container implements ContainerInterface, ArrayAccess
     /**
      * @param list<class-string> $classNames
      */
+    #[Override]
     public function warmUp(array $classNames): void
     {
         $this->cacheManager->warmUp($classNames);
@@ -553,10 +582,8 @@ class Container implements ContainerInterface, ArrayAccess
     private function callableKey(callable $callable): string
     {
         if (is_array($callable)) {
-            /** @var array{0: object|class-string, 1: string} $arrayCallable */
-            $arrayCallable = $callable;
-            $classOrObject = $arrayCallable[0];
-            $method = $arrayCallable[1];
+            $classOrObject = $callable[0];
+            $method = $callable[1];
 
             $className = is_object($classOrObject)
                 ? get_class($classOrObject) . '#' . spl_object_id($classOrObject)
@@ -594,13 +621,12 @@ class Container implements ContainerInterface, ArrayAccess
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $bytes = max($bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = floor(($bytes ? log($bytes) : 0.0) / log(1024));
         $pow = min($pow, count($units) - 1);
 
-        /** @var int $powInt */
         $powInt = (int) $pow;
-        $bytes /= (1 << (10 * $powInt));
+        $scaled = $bytes / (1 << (10 * $powInt));
 
-        return round($bytes, 2) . ' ' . $units[$powInt];
+        return (string) round($scaled, 2) . ' ' . $units[$powInt];
     }
 }

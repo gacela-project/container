@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Override;
 use Psr\Container\ContainerInterface as PsrContainerInterface;
 
 /**
@@ -18,6 +19,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Get the resolved value of the instance.
      * Unless it is protected, in such a case it will get the raw instance as it was set.
      */
+    #[Override]
     public function get(string $id): mixed;
 
     /**
@@ -47,6 +49,7 @@ interface ContainerInterface extends PsrContainerInterface
      */
     public function resolve(callable $callable, array $parameters = []): mixed;
 
+    #[Override]
     public function has(string $id): bool;
 
     /**
