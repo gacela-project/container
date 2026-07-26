@@ -10,6 +10,14 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `#[Lazy]` defers construction until an instance is first used, via PHP 8.4 native lazy objects. Returns a real instance of the class rather than a proxy subclass. On PHP 8.3 the class is constructed eagerly instead, which is unobservable apart from the timing
+
+### Performance
+
+- Read `#[Singleton]`, `#[Factory]` and `#[Lazy]` in a single memoized reflection pass per class instead of one concatenated cache key per attribute. Resolution is measurably faster than before `#[Lazy]` existed
+
 ### Internal
 
 - Extract byte formatting out of `Container` so it can be tested directly; raises the Infection gate to 87

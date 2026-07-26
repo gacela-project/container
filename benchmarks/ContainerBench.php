@@ -6,6 +6,8 @@ namespace GacelaBench;
 
 use Gacela\Container\Container;
 use GacelaBench\Fixture\ConsoleLogger;
+use GacelaBench\Fixture\EagerExpensive;
+use GacelaBench\Fixture\LazyExpensive;
 use GacelaBench\Fixture\Level1;
 use GacelaBench\Fixture\Level3;
 use GacelaBench\Fixture\Level4;
@@ -126,6 +128,20 @@ final class ContainerBench
     public function benchColdResolveDeepChainCompiled(): void
     {
         (new Container([], [], $this->plans))->get(Level1::class);
+    }
+
+    /**
+     * A graph whose expensive branch is never touched. The lazy variant should
+     * not pay for constructing it.
+     */
+    public function benchColdResolveUntouchedEager(): void
+    {
+        (new Container())->get(EagerExpensive::class);
+    }
+
+    public function benchColdResolveUntouchedLazy(): void
+    {
+        (new Container())->get(LazyExpensive::class);
     }
 
     #[BeforeMethods('setUpPlain')]

@@ -14,7 +14,7 @@ version:
 | `Container` | the container itself (`final`) |
 | `ContainerInterface` | the contract to type-hint against |
 | `ContextualBindingBuilder` | returned by `when()` |
-| `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory` | the PHP 8 attributes |
+| `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
 | `Exception\ContainerException` | |
 | `Exception\CircularDependencyException` | |
 | `Exception\DependencyNotFoundException` | |
@@ -139,5 +139,6 @@ For per-service changes you usually do not need a wrapper at all — prefer
 | `#[Inject(class-string)]` | parameter | Inject a specific implementation |
 | `#[Singleton]` | class | Instantiate once and reuse |
 | `#[Factory]` | class | Create a fresh instance every time |
+| `#[Lazy]` | class | Defer construction until first use (PHP 8.4+; eager on 8.3) |
 
 See [attributes](attributes.md) for examples.
