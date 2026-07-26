@@ -13,6 +13,7 @@ use ReflectionClass;
 
 use function class_exists;
 use function count;
+use function file_put_contents;
 use function is_callable;
 use function is_object;
 
@@ -53,6 +54,9 @@ final class Container implements ContainerInterface, ArrayAccess
 
     /** @var array<string, bool> memoizes has()'s instantiability probe */
     private array $instantiableCache = [];
+
+    /** @var array<class-string, callable(): object> */
+    private array $compiledFactories = [];
 
     /**
      * @param  BindingsMap  $bindings
@@ -112,6 +116,41 @@ final class Container implements ContainerInterface, ArrayAccess
     public function writeCompiledCache(array $classNames, string $file): void
     {
         CompiledCacheWriter::write($this->compile($classNames), $file);
+    }
+
+    /**
+     * Write plain `new` expressions for the classes whose construction is
+     * fully knowable ahead of time, as a `class-string => Closure(): object`
+     * map.
+     *
+     * Deliberately conservative: anything depending on a binding, a scalar, an
+     * attribute or a contextual binding is left out and keeps resolving
+     * normally. The file is an optimisation, never a second resolver.
+     *
+     * Feed it back with `useCompiledFactories()`, and regenerate it whenever a
+     * compiled constructor changes.
+     *
+     * @param list<class-string> $classNames
+     *
+     * @return list<class-string> the classes that were compiled
+     */
+    public function writeCompiledFactories(array $classNames, string $file): array
+    {
+        $compiler = new ContainerCompiler($this->compile($classNames), $this->bindings);
+
+        file_put_contents($file, $compiler->render());
+
+        return $compiler->compilable();
+    }
+
+    /**
+     * Use previously generated factories as a fast path for `get()`/`make()`.
+     *
+     * @param array<class-string, callable(): object> $factories
+     */
+    public function useCompiledFactories(array $factories): void
+    {
+        $this->compiledFactories = $factories;
     }
 
     /**
@@ -593,6 +632,14 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private function createInstance(string $class): ?object
     {
+        if ($this->compiledFactories !== []) {
+            $factory = $this->compiledFactories[$class] ?? null;
+
+            if ($factory !== null) {
+                return $factory();
+            }
+        }
+
         return $this->bindingResolver->resolve($class, $this->cacheManager);
     }
 

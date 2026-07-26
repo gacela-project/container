@@ -120,7 +120,9 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.3
+          # 8.4, not the 8.3 floor: native lazy objects only exist from 8.4, so
+          # on 8.3 the #[Lazy] path is unreachable and reads as uncovered.
+          php-version: 8.4
           coverage: pcov
           tools: composer
 
