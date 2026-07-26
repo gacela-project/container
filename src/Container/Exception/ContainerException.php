@@ -7,6 +7,9 @@ namespace Gacela\Container\Exception;
 use Exception;
 use Psr\Container\ContainerExceptionInterface;
 
+/**
+ * @api
+ */
 final class ContainerException extends Exception implements ContainerExceptionInterface
 {
     public static function instanceNotExtendable(): self

@@ -10,6 +10,9 @@ use RuntimeException;
 use function count;
 use function sprintf;
 
+/**
+ * @api
+ */
 final class DependencyNotFoundException extends RuntimeException implements NotFoundExceptionInterface
 {
     /**

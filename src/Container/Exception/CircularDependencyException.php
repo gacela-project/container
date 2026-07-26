@@ -7,6 +7,9 @@ namespace Gacela\Container\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use RuntimeException;
 
+/**
+ * @api
+ */
 final class CircularDependencyException extends RuntimeException implements ContainerExceptionInterface
 {
     /**

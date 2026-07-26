@@ -28,6 +28,10 @@ use function is_string;
  * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
  * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>}
  * @psalm-type CompiledPlans = array<class-string, ClassPlan>
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class DependencyResolver
 {

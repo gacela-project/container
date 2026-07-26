@@ -23,6 +23,8 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  * }
  *
  * @extends ArrayAccess<string, mixed>
+ *
+ * @api
  */
 interface ContainerInterface extends PsrContainerInterface, ArrayAccess
 {

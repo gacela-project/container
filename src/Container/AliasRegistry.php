@@ -7,6 +7,10 @@ namespace Gacela\Container;
 /**
  * Manages service name aliases with resolution caching.
  * Allows accessing the same service with multiple identifiers.
+ *
+ * @internal
+ * Not covered by backward compatibility: this class is an implementation
+ * detail of Container and may change or disappear in any release
  */
 final class AliasRegistry
 {

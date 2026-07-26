@@ -14,6 +14,8 @@ use function is_array;
  *
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ *
+ * @api
  */
 final class ContextualBindingBuilder
 {

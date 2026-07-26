@@ -2,6 +2,33 @@
 
 [← Back to index](../README.md#documentation)
 
+## Public API
+
+Every class in `src/` is marked either `@api` or `@internal`.
+
+**`@api` — covered by semantic versioning.** These will not break within a major
+version:
+
+| Class | |
+|---|---|
+| `Container` | the container itself (`final`) |
+| `ContainerInterface` | the contract to type-hint against |
+| `ContextualBindingBuilder` | returned by `when()` |
+| `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory` | the PHP 8 attributes |
+| `Exception\ContainerException` | |
+| `Exception\CircularDependencyException` | |
+| `Exception\DependencyNotFoundException` | |
+| `Exception\DependencyInvalidArgumentException` | |
+
+For the exceptions, the **class and its PSR-11 interface** are stable. Exception
+*messages* are not — do not parse or assert on them.
+
+**`@internal` — not covered.** `AliasRegistry`, `BindingResolver`,
+`DependencyCacheManager`, `DependencyResolver`, `DependencyTreeAnalyzer`,
+`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, and `TagRegistry` are
+implementation details of `Container`. They may change signature, behaviour, or
+disappear entirely in **any** release, including a patch. Do not import them.
+
 ## What the interface guarantees
 
 Every instance method below is declared on `ContainerInterface`. Type-hint the
