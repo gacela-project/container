@@ -108,3 +108,14 @@ CI fails below **80% MSI**. If a change drops the score, add a test — do not
 lower the threshold. If a surviving mutant is genuinely equivalent (common in
 short-circuit optimizations, where removing the early return falls through to
 the same result), say so in the PR rather than contorting a test to kill it.
+
+## Backward compatibility
+
+Before changing anything under `src/`, check whether the class is marked `@api`
+or `@internal` — see [the BC policy](../docs/backward-compatibility.md). Changes
+to `@api` classes are constrained within a major version; `@internal` classes are
+free to change.
+
+Any behavioural change that consumers must react to belongs in
+[UPGRADE.md](../UPGRADE.md), with a before/after snippet, as well as the
+CHANGELOG.

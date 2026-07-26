@@ -81,6 +81,8 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | [Error Handling](docs/error-handling.md) | Error messages and what they mean |
 | [Best Practices](docs/best-practices.md) | Recommended patterns |
 | [API Reference](docs/api-reference.md) | Full method, static, and attribute reference |
+| [Backward Compatibility](docs/backward-compatibility.md) | What semver covers here, and what it does not |
+| [Upgrade Guide](UPGRADE.md) | Migrating from 0.10.0 to 1.0.0 |
 
 ## Real-World Example
 
