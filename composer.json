@@ -37,7 +37,8 @@
         "phpstan/phpstan": "^2.2",
         "psalm/plugin-phpunit": "^0.19",
         "symfony/var-dumper": "^6.4 || ^7.0",
-        "vimeo/psalm": "^6.16"
+        "vimeo/psalm": "^6.16",
+        "phpbench/phpbench": "^1.4"
     },
     "autoload": {
         "psr-4": {
@@ -46,7 +47,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "GacelaTest\\": "tests/"
+            "GacelaTest\\": "tests/",
+            "GacelaBench\\": "benchmarks/"
         }
     },
     "scripts": {
@@ -61,8 +63,14 @@
             "@quality",
             "@phpunit"
         ],
-        "quality": ["@csrun", "@psalm", "@phpstan"],
-        "phpunit": ["@test-phpunit"],
+        "quality": [
+            "@csrun",
+            "@psalm",
+            "@phpstan"
+        ],
+        "phpunit": [
+            "@test-phpunit"
+        ],
         "static-clear-cache": [
             "XDEBUG_MODE=off vendor/bin/psalm --clear-cache",
             "XDEBUG_MODE=off vendor/bin/phpstan clear-result-cache"
@@ -73,6 +81,8 @@
             "XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-clover=coverage.xml",
             "php tools/check-coverage.php coverage.xml 95"
         ],
+        "bench": "vendor/bin/phpbench run --report=aggregate",
+        "bench-baseline": "vendor/bin/phpbench run --tag=baseline --store --progress=none",
         "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
         "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
         "fix": "@csfix",

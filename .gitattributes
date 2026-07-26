@@ -5,7 +5,9 @@
 /.gitignore             export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /.scrutinizer.yml       export-ignore
+/benchmarks             export-ignore
 /docs                   export-ignore
+/phpbench.json          export-ignore
 /phpstan.neon           export-ignore
 /phpunit.xml            export-ignore
 /psalm.xml              export-ignore
