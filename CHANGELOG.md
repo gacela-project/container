@@ -15,6 +15,7 @@
 - Run the CI test matrix on PHP 8.3, 8.4 and 8.5
 - Add a `Code Coverage` CI job that fails below 95% line coverage
 - Add a `phpbench` suite covering the resolution hot paths
+- Add Infection mutation testing, gated at 80% MSI in CI
 - Drop Scrutinizer; code quality is covered by PHPStan, Psalm and the coverage gate in CI
 - Upgrade to PHPStan 2, Psalm 6, PHPUnit 12 and Symfony var-dumper 7
 
