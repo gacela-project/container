@@ -15,7 +15,8 @@ use function count;
  */
 final class ByteFormatter
 {
-    private const UNITS = ['B', 'KB', 'MB', 'GB'];
+    /** @var list<string> */
+    private const array UNITS = ['B', 'KB', 'MB', 'GB'];
 
     public static function format(int $bytes): string
     {
