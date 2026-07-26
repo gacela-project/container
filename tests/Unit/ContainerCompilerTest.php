@@ -7,6 +7,9 @@ namespace GacelaTest\Unit;
 use Gacela\Container\Container;
 use Gacela\Container\ContainerCompiler;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
+use GacelaTest\Fake\AbstractService;
+use GacelaTest\Fake\CircularA;
+use GacelaTest\Fake\CircularB;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
@@ -142,6 +145,93 @@ final class ContainerCompilerTest extends TestCase
         $factory = $factories[ClassWithDependencyWithoutDependencies::class];
 
         self::assertNotSame($factory(), $factory());
+    }
+
+    public function test_it_refuses_a_class_that_is_not_instantiable(): void
+    {
+        $compiler = new ContainerCompiler([
+            AbstractService::class => ['instantiable' => false, 'params' => []],
+        ]);
+
+        self::assertSame([], $compiler->compilable());
+    }
+
+    public function test_it_refuses_a_class_with_no_plan(): void
+    {
+        // A dependency the planner never described cannot be generated.
+        $compiler = new ContainerCompiler([
+            ClassWithDependencyWithoutDependencies::class => [
+                'instantiable' => true,
+                'params' => [[
+                    'name' => 'classWithoutDependencies',
+                    'hasType' => true,
+                    'type' => ClassWithoutDependencies::class,
+                    'isScalar' => false,
+                    'inject' => null,
+                    'hasDefault' => false,
+                    'default' => null,
+                    'declaringClass' => ClassWithDependencyWithoutDependencies::class,
+                ]],
+            ],
+        ]);
+
+        self::assertSame([], $compiler->compilable());
+    }
+
+    public function test_it_refuses_an_inject_annotated_parameter(): void
+    {
+        $compiler = new ContainerCompiler([
+            ClassWithDependencyWithoutDependencies::class => [
+                'instantiable' => true,
+                'params' => [[
+                    'name' => 'classWithoutDependencies',
+                    'hasType' => true,
+                    'type' => ClassWithoutDependencies::class,
+                    'isScalar' => false,
+                    'inject' => ClassWithoutDependencies::class,
+                    'hasDefault' => false,
+                    'default' => null,
+                    'declaringClass' => ClassWithDependencyWithoutDependencies::class,
+                ]],
+            ],
+            ClassWithoutDependencies::class => ['instantiable' => true, 'params' => []],
+        ]);
+
+        self::assertNotContains(ClassWithDependencyWithoutDependencies::class, $compiler->compilable());
+    }
+
+    public function test_it_refuses_a_dependency_cycle(): void
+    {
+        $compiler = new ContainerCompiler([
+            CircularA::class => [
+                'instantiable' => true,
+                'params' => [[
+                    'name' => 'b',
+                    'hasType' => true,
+                    'type' => CircularB::class,
+                    'isScalar' => false,
+                    'inject' => null,
+                    'hasDefault' => false,
+                    'default' => null,
+                    'declaringClass' => CircularA::class,
+                ]],
+            ],
+            CircularB::class => [
+                'instantiable' => true,
+                'params' => [[
+                    'name' => 'a',
+                    'hasType' => true,
+                    'type' => CircularA::class,
+                    'isScalar' => false,
+                    'inject' => null,
+                    'hasDefault' => false,
+                    'default' => null,
+                    'declaringClass' => CircularB::class,
+                ]],
+            ],
+        ]);
+
+        self::assertSame([], $compiler->compilable());
     }
 
     public function test_rendering_is_deterministic(): void
