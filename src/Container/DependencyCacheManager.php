@@ -52,16 +52,29 @@ final class DependencyCacheManager
      */
     private static ?bool $supportsLazyObjects = null;
 
-    /** @var array<class-string, bool> */
-    private array $instantiableCache = [];
+    /**
+     * Classes already proven instantiable, shared across containers.
+     *
+     * A loaded class definition cannot change within a process, so a positive
+     * is permanent and safe to share. The negative is deliberately not stored:
+     * class_exists() can start answering true later, and the miss path throws
+     * anyway, so there is nothing to gain by making it fast.
+     *
+     * @var array<class-string, true>
+     */
+    private static array $instantiable = [];
 
     /**
      * Whether a class has #[Inject] properties, so the resolver is not asked
      * once per instantiation only to answer "no".
      *
+     * Shared across containers for the same reason the resolver shares its
+     * property plans: it is a memo of a class definition, which cannot change
+     * within a process.
+     *
      * @var array<class-string, bool>
      */
-    private array $hasInjectedProps = [];
+    private static array $hasInjectedProps = [];
 
     /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
     private array $forcedSingletons = [];
@@ -128,7 +141,7 @@ final class DependencyCacheManager
         /** @psalm-suppress MixedMethodCall */
         $instance = new $class(...$dependencies);
 
-        if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+        if (self::$hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
             $resolver->injectPropertiesOn($instance, $class);
         }
 
@@ -198,36 +211,32 @@ final class DependencyCacheManager
      */
     private function construct(string $class): object
     {
+        $resolver = $this->getDependencyResolver();
+
         // has() already reports these as unresolvable; without this guard get()
         // disagreed by emitting a raw PHP Error from inside the container.
-        if (!$this->isInstantiable($class)) {
-            throw ContainerException::classNotInstantiable($class);
+        if (!isset(self::$instantiable[$class])) {
+            if (!$resolver->isInstantiable($class)) {
+                throw ContainerException::classNotInstantiable($class);
+            }
+
+            self::$instantiable[$class] = true;
         }
 
         if ($this->isLazy($class)) {
             return $this->newLazyGhost($class);
         }
 
-        $resolver = $this->getDependencyResolver();
         $dependencies = $resolver->resolveDependencies($class);
 
         /** @psalm-suppress MixedMethodCall */
         $instance = new $class(...$dependencies);
 
-        if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+        if (self::$hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
             $resolver->injectPropertiesOn($instance, $class);
         }
 
         return $instance;
-    }
-
-    /**
-     * @param class-string $class
-     */
-    private function isInstantiable(string $class): bool
-    {
-        return $this->instantiableCache[$class] ??= class_exists($class)
-            && (new ReflectionClass($class))->isInstantiable();
     }
 
     /**
@@ -267,7 +276,7 @@ final class DependencyCacheManager
 
             // Deferred with the constructor, not run eagerly at ghost creation:
             // resolving them up front would defeat the point of #[Lazy].
-            if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+            if (self::$hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
                 $resolver->injectPropertiesOn($instance, $class);
             }
         });

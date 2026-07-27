@@ -17,6 +17,7 @@ use ReflectionProperty;
 
 use function array_key_exists;
 use function array_keys;
+use function class_exists;
 use function count;
 use function is_callable;
 use function is_object;
@@ -104,6 +105,20 @@ final class DependencyResolver
         } finally {
             array_pop($this->buildStack);
         }
+    }
+
+    /**
+     * Whether $className can be instantiated at all.
+     *
+     * Answered off the class plan, which resolveDependencies() builds a moment
+     * later anyway. Reflecting separately for this made every cold get() pay
+     * for two ReflectionClass instances where one already had the answer.
+     *
+     * @param class-string $className
+     */
+    public function isInstantiable(string $className): bool
+    {
+        return class_exists($className) && $this->describeClass($className)['instantiable'];
     }
 
     /**
