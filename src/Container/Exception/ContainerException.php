@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container\Exception;
 
 use Exception;
+use Gacela\Container\FuzzyMatcher;
 use Psr\Container\ContainerExceptionInterface;
 
 /**
@@ -42,6 +43,44 @@ The compiled cache '{$file}' did not return an array.
 The file is stale or corrupt. Delete it and regenerate it with
 writeCompiledCache().
 TXT;
+        return new self($message);
+    }
+
+    /**
+     * A router asking for a handler that was never registered is a
+     * misconfiguration, and the keys it *could* have asked for are the fastest
+     * way to see which half is wrong — the registration or the lookup.
+     *
+     * @param list<string> $knownKeys
+     */
+    public static function unknownTagKey(string $tag, string $key, array $knownKeys): self
+    {
+        $message = "The tag '{$tag}' has no entry keyed '{$key}'.\n";
+
+        if ($knownKeys === []) {
+            $message .= <<<TXT
+
+Nothing is registered under that tag with a key. Register one with a map:
+  \$container->tag(['{$key}' => YourHandler::class], '{$tag}');
+TXT;
+
+            return new self($message);
+        }
+
+        $suggestions = FuzzyMatcher::findSimilar($key, $knownKeys);
+
+        if ($suggestions !== []) {
+            $message .= "\nDid you mean one of these?\n";
+            foreach ($suggestions as $suggestion) {
+                $message .= "  - {$suggestion}\n";
+            }
+        }
+
+        $message .= "\nKeys registered under '{$tag}':\n";
+        foreach ($knownKeys as $knownKey) {
+            $message .= "  - {$knownKey}\n";
+        }
+
         return new self($message);
     }
 

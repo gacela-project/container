@@ -13,7 +13,9 @@ use ReflectionClass;
 
 use function class_exists;
 use function count;
+use function in_array;
 use function is_callable;
+use function is_int;
 use function is_object;
 use function is_string;
 
@@ -713,7 +715,19 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Group one or more service ids under a tag. Calls accumulate and dedupe.
      *
-     * @param string|list<string> $ids
+     * Pass a map to give the entries keys, which is what a command bus, a
+     * router or a strategy map actually asks a tag for:
+     *
+     * ```php
+     * $container->tag(['email' => EmailHandler::class, 'sms' => SmsHandler::class], 'handlers');
+     * ```
+     *
+     * A keyed entry is addressable with taggedByKey() and replaces whatever was
+     * under that key, so per-environment layering is a matter of registration
+     * order. An id passed without a key is appended and deduped, exactly as
+     * before. The two kinds live in one tag and iterate together.
+     *
+     * @param string|array<array-key, string> $ids
      */
     #[Override]
     public function tag(string|array $ids, string $tag): void
@@ -724,14 +738,60 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Lazily resolve every service registered under a tag, in insertion order.
      *
-     * @return iterable<mixed>
+     * Keyed entries are yielded under their key, unkeyed ones under their
+     * position — so `foreach` is unchanged, and `iterator_to_array()` on a tag
+     * registered as a map hands back the map, resolved.
+     *
+     * @return iterable<array-key, mixed>
      */
     #[Override]
     public function tagged(string $tag): iterable
     {
-        foreach ($this->taggedIds($tag) as $id) {
-            yield $this->get($id);
+        foreach ($this->taggedIds($tag) as $key => $id) {
+            yield $key => $this->get($id);
         }
+    }
+
+    /**
+     * Resolve the one service registered under $key in $tag.
+     *
+     * Resolution stays lazy in the way that matters: registering a hundred
+     * handlers builds none of them, and this builds exactly the one asked for.
+     * The instance comes from the container's own cache, so a singleton still
+     * lives in exactly one place — a keyed tag is a lookup table of ids, never
+     * a second place instances are kept.
+     *
+     * An unknown key throws rather than returning null: a router asking for a
+     * handler it has no entry for is a misconfiguration, and the exception
+     * names the keys the tag does have. Ask taggedKeys() when the key is
+     * genuinely optional.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     */
+    public function taggedByKey(string $tag, string $key): mixed
+    {
+        $ids = $this->taggedIds($tag);
+
+        if (!isset($ids[$key])) {
+            throw ContainerException::unknownTagKey($tag, $key, self::stringKeys($ids));
+        }
+
+        return $this->get($ids[$key]);
+    }
+
+    /**
+     * The keys $tag can be asked for, in insertion order. Entries registered
+     * without a key are not listed: there is no key to ask with.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     *
+     * @return list<string>
+     */
+    public function taggedKeys(string $tag): array
+    {
+        return self::stringKeys($this->taggedIds($tag));
     }
 
     /**
@@ -941,7 +1001,11 @@ final class Container implements ContainerInterface, ArrayAccess
      * Inherited tags come first, so a scope adding to a tag appends to what the
      * parent already grouped under it rather than replacing it.
      *
-     * @return list<string>
+     * A key is the one thing a scope can override: re-registering 'email' on
+     * the scope shadows the parent's entry for that scope alone, which is the
+     * same rule bindings follow. Unkeyed ids merge by value as they always did.
+     *
+     * @return array<array-key, string>
      */
     private function taggedIds(string $tag): array
     {
@@ -951,7 +1015,39 @@ final class Container implements ContainerInterface, ArrayAccess
             return $own;
         }
 
-        return array_values(array_unique([...$this->parent->taggedIds($tag), ...$own]));
+        $merged = $this->parent->taggedIds($tag);
+
+        foreach ($own as $key => $id) {
+            if (!is_int($key)) {
+                $merged[$key] = $id;
+
+                continue;
+            }
+
+            if (!in_array($id, $merged, true)) {
+                $merged[] = $id;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param array<array-key, string> $ids
+     *
+     * @return list<string>
+     */
+    private static function stringKeys(array $ids): array
+    {
+        $keys = [];
+
+        foreach ($ids as $key => $_) {
+            if (!is_int($key)) {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
     }
 
     /**

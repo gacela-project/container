@@ -182,7 +182,9 @@ Because a scope can resolve what its ancestors registered, it reports it too:
 `tagged()`, `isFactory()`, `isFrozen()`, `getDependencyTree()`, and therefore
 `stats()`. A shadowed id is listed once. `getRegisteredServices()` and
 `tagged()` list inherited entries first; `getBindings()` lists the scope's own
-first.
+first. A [keyed tag](bindings.md#keyed-tags) entry is the one part of a tag a
+scope can shadow: re-registering the same key on the scope replaces it there and
+leaves the parent's alone, the way a binding does.
 
 `isFactory()` and `isFrozen()` answer for whichever container owns the instance,
 so a scope shadowing an id reports its own copy — unfrozen however long the
