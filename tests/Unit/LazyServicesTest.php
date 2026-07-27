@@ -280,6 +280,10 @@ final class LazyServicesTest extends TestCase
 
     public function test_a_lazy_closure_binding_is_honoured_for_an_injected_dependency(): void
     {
+        if (!self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
         $closureCalls = 0;
         $container = new Container();
         $container->lazy(
@@ -301,6 +305,10 @@ final class LazyServicesTest extends TestCase
 
     public function test_a_scope_inherits_a_lazy_closure_registration(): void
     {
+        if (!self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
         $closureCalls = 0;
         $container = new Container();
         $container->lazy(
