@@ -83,6 +83,20 @@ Provide a default value for the parameter:
 `when(UserService::class)->needs('$param')->give(...)`. See the
 [cookbook](cookbook.md).
 
+### Readonly `#[Inject]` property
+
+```
+The property 'ReportBuilder::$logger' is readonly and cannot be injected.
+A readonly property may only be written from inside the declaring class, so the
+container cannot assign it after construction.
+
+Promote it to a constructor parameter instead, which keeps it readonly:
+  public function __construct(private readonly YourClass $logger) { ... }
+```
+
+An untyped or scalar-typed [`#[Inject]` property](attributes.md#on-properties)
+raises the same exception, with the property named rather than a parameter.
+
 ## `ContainerException`
 
 Four situations, all about the lifecycle of an already-registered service.

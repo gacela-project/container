@@ -47,6 +47,66 @@ TXT;
     }
 
     /**
+     * @param list<string> $resolutionChain
+     */
+    public static function noPropertyTypeFor(string $className, string $property, array $resolutionChain = []): self
+    {
+        $chainInfo = self::formatResolutionChain($resolutionChain);
+
+        $message = <<<TXT
+No type hint found for property '{$className}::\${$property}'.{$chainInfo}
+A #[Inject] property must declare the type to resolve.
+
+Add a type to the property, for example:
+  #[Inject]
+  private YourClass \${$property};
+TXT;
+        return new self($message);
+    }
+
+    /**
+     * @param list<string> $resolutionChain
+     */
+    public static function unableToResolveProperty(
+        string $className,
+        string $property,
+        string $type,
+        array $resolutionChain = [],
+    ): self {
+        $chainInfo = self::formatResolutionChain($resolutionChain);
+
+        $message = <<<TXT
+Unable to resolve #[Inject] property '{$className}::\${$property}' of type '{$type}'.{$chainInfo}
+Scalar types (string, int, float, bool, array) cannot be auto-resolved.
+
+Pass it through the constructor instead, so it can be given a value:
+  public function __construct(private {$type} \${$property}) { ... }
+TXT;
+        return new self($message);
+    }
+
+    /**
+     * @param list<string> $resolutionChain
+     */
+    public static function readonlyPropertyInjection(
+        string $className,
+        string $property,
+        array $resolutionChain = [],
+    ): self {
+        $chainInfo = self::formatResolutionChain($resolutionChain);
+
+        $message = <<<TXT
+The property '{$className}::\${$property}' is readonly and cannot be injected.{$chainInfo}
+A readonly property may only be written from inside the declaring class, so the
+container cannot assign it after construction.
+
+Promote it to a constructor parameter instead, which keeps it readonly:
+  public function __construct(private readonly YourClass \${$property}) { ... }
+TXT;
+        return new self($message);
+    }
+
+    /**
      * @param list<string> $chain
      */
     private static function formatResolutionChain(array $chain): string

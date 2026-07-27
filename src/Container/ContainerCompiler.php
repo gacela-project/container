@@ -103,6 +103,12 @@ final class ContainerCompiler
             return null;
         }
 
+        // A `new` expression cannot assign #[Inject] properties, and doing it
+        // in the generated closure would duplicate the resolver.
+        if (($plan['props'] ?? []) !== []) {
+            return null;
+        }
+
         $arguments = [];
         $stack[] = $class;
 

@@ -55,6 +55,14 @@ final class DependencyCacheManager
     /** @var array<class-string, bool> */
     private array $instantiableCache = [];
 
+    /**
+     * Whether a class has #[Inject] properties, so the resolver is not asked
+     * once per instantiation only to answer "no".
+     *
+     * @var array<class-string, bool>
+     */
+    private array $hasInjectedProps = [];
+
     /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
     private array $forcedSingletons = [];
 
@@ -114,10 +122,17 @@ final class DependencyCacheManager
     {
         $this->resolvedKeys[$class] = true;
 
-        $dependencies = $this->getDependencyResolver()->resolveDependencies($class, $overrides);
+        $resolver = $this->getDependencyResolver();
+        $dependencies = $resolver->resolveDependencies($class, $overrides);
 
         /** @psalm-suppress MixedMethodCall */
-        return new $class(...$dependencies);
+        $instance = new $class(...$dependencies);
+
+        if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+            $resolver->injectPropertiesOn($instance, $class);
+        }
+
+        return $instance;
     }
 
     /**
@@ -193,10 +208,17 @@ final class DependencyCacheManager
             return $this->newLazyGhost($class);
         }
 
-        $dependencies = $this->getDependencyResolver()->resolveDependencies($class);
+        $resolver = $this->getDependencyResolver();
+        $dependencies = $resolver->resolveDependencies($class);
 
         /** @psalm-suppress MixedMethodCall */
-        return new $class(...$dependencies);
+        $instance = new $class(...$dependencies);
+
+        if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+            $resolver->injectPropertiesOn($instance, $class);
+        }
+
+        return $instance;
     }
 
     /**
@@ -233,7 +255,8 @@ final class DependencyCacheManager
          * @phpstan-ignore method.notFound, return.type
          */
         return $reflection->newLazyGhost(function (object $instance) use ($class): void {
-            $dependencies = $this->getDependencyResolver()->resolveDependencies($class);
+            $resolver = $this->getDependencyResolver();
+            $dependencies = $resolver->resolveDependencies($class);
 
             /**
              * @psalm-suppress MixedMethodCall, DirectConstructorCall
@@ -241,6 +264,12 @@ final class DependencyCacheManager
              * @phpstan-ignore method.notFound
              */
             $instance->__construct(...$dependencies);
+
+            // Deferred with the constructor, not run eagerly at ghost creation:
+            // resolving them up front would defeat the point of #[Lazy].
+            if ($this->hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
+                $resolver->injectPropertiesOn($instance, $class);
+            }
         });
     }
 

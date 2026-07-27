@@ -13,6 +13,7 @@ use ReflectionClass;
 use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionProperty;
 
 use function array_key_exists;
 use function array_keys;
@@ -26,8 +27,10 @@ use function is_string;
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  *
  * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
- * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>}
- * @psalm-type CompiledPlans = array<class-string, ClassPlan>
+ * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
+ * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>}
+ * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>}
+ * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -51,6 +54,21 @@ final class DependencyResolver
 
     /** @var list<class-string> */
     private array $buildStack = [];
+
+    /**
+     * Property plans keyed by class, shared across containers.
+     *
+     * A class definition cannot change within a process, so this is a pure memo
+     * of reflection output. Sharing it keeps the scan off the cold-start path:
+     * without it every new container would re-reflect every class it touches,
+     * taxing users who have no #[Inject] properties at all.
+     *
+     * @var array<class-string, list<PropPlan>>
+     */
+    private static array $propertyPlans = [];
+
+    /** @var array<string, ReflectionProperty> */
+    private array $propertyHandles = [];
 
     /**
      * @param BindingsMap $bindings
@@ -96,6 +114,44 @@ final class DependencyResolver
     public function exportPlans(): array
     {
         return $this->planCache;
+    }
+
+    /**
+     * Whether $className declares any #[Inject] property.
+     *
+     * Lets a caller skip injectPropertiesOn() outright. Almost no class has
+     * one, and a call per instantiation to be told "none" is measurable on the
+     * shallow benchmarks.
+     *
+     * @param class-string $className
+     */
+    public function hasInjectedProperties(string $className): bool
+    {
+        return $this->describeProperties($className) !== [];
+    }
+
+    /**
+     * Assign the #[Inject] properties of an instance built outside this class.
+     *
+     * Nested instances are handled by instantiateFromPlan(); this is the entry
+     * point for the ones the cache manager constructs itself. Callers guard it
+     * with hasInjectedProperties() rather than it short-circuiting internally,
+     * so a class with nothing to inject costs no call at all.
+     *
+     * @param class-string $className
+     */
+    public function injectPropertiesOn(object $instance, string $className): void
+    {
+        $this->resolvingStack[$className] = true;
+
+        try {
+            $this->injectProperties($instance, $this->describeProperties($className));
+        } finally {
+            // The stack has to be unwound even when a property fails to
+            // resolve, or the next resolution on this container reports a
+            // resolution chain containing a class it never touched.
+            unset($this->resolvingStack[$className]);
+        }
     }
 
     /**
@@ -236,7 +292,7 @@ final class DependencyResolver
             $plan = $this->describeClass($paramTypeName);
         }
 
-        return $this->instantiateFromPlan($paramTypeName, $plan['params']);
+        return $this->instantiateFromPlan($paramTypeName, $plan);
     }
 
     /**
@@ -259,9 +315,9 @@ final class DependencyResolver
 
     /**
      * @param class-string $className
-     * @param list<ParamPlan> $params
+     * @param ClassPlan $plan
      */
-    private function instantiateFromPlan(string $className, array $params): object
+    private function instantiateFromPlan(string $className, array $plan): object
     {
         $this->resolvingStack[$className] = true;
 
@@ -269,7 +325,7 @@ final class DependencyResolver
             /** @var list<mixed> $args */
             $args = [];
 
-            foreach ($params as $param) {
+            foreach ($plan['params'] as $param) {
                 // Nested constructors skip untyped parameters, relying on their defaults.
                 if (!$param['hasType']) {
                     continue;
@@ -280,7 +336,19 @@ final class DependencyResolver
             }
 
             /** @psalm-suppress MixedMethodCall */
-            return new $className(...$args);
+            $instance = new $className(...$args);
+
+            // Read off the plan already in hand, and skipped entirely when
+            // there is nothing to inject — this runs for every node of every
+            // object graph.
+            if ($plan['props'] !== []) {
+                // Still inside the try, so the class remains on the resolving
+                // stack: a cycle reached through a property is caught like any
+                // other.
+                $this->injectProperties($instance, $plan['props']);
+            }
+
+            return $instance;
         } finally {
             unset($this->resolvingStack[$className]);
         }
@@ -293,7 +361,9 @@ final class DependencyResolver
      */
     private function describeClass(string $className): array
     {
-        if (!isset($this->planCache[$className])) {
+        $plan = $this->planCache[$className] ?? null;
+
+        if ($plan === null) {
             $reflection = new ReflectionClass($className);
             $constructor = $reflection->getConstructor();
 
@@ -304,13 +374,174 @@ final class DependencyResolver
                 }
             }
 
-            $this->planCache[$className] = [
+            return $this->planCache[$className] = [
                 'instantiable' => $reflection->isInstantiable(),
                 'params' => $params,
+                'props' => $this->describeProperties($className),
             ];
         }
 
-        return $this->planCache[$className];
+        // A cache written before property injection existed has no 'props'.
+        // Filling it in beats trusting it: a stale file would otherwise
+        // silently turn injection off in exactly the environment (production)
+        // where the cache is used.
+        if (!isset($plan['props'])) {
+            return $this->planCache[$className] = [
+                'instantiable' => $plan['instantiable'],
+                'params' => $plan['params'],
+                'props' => $this->describeProperties($className),
+            ];
+        }
+
+        return $plan;
+    }
+
+    /**
+     * The #[Inject] properties of $className, including inherited private ones.
+     *
+     * @param class-string $className
+     *
+     * @return list<PropPlan>
+     */
+    private function describeProperties(string $className): array
+    {
+        return self::$propertyPlans[$className] ??= $this->scanProperties($className);
+    }
+
+    /**
+     * @param class-string $className
+     *
+     * @return list<PropPlan>
+     */
+    private function scanProperties(string $className): array
+    {
+        $reflection = new ReflectionClass($className);
+
+        // The leaf lists its own properties plus inherited public and protected
+        // ones. Private properties declared upstream are the only gap, and each
+        // ancestor reports exactly its own, so the walk cannot double up — a
+        // private property shadowing a parent's stays a separate entry.
+        $properties = $reflection->getProperties();
+
+        for ($parent = $reflection->getParentClass(); $parent !== false; $parent = $parent->getParentClass()) {
+            foreach ($parent->getProperties(ReflectionProperty::IS_PRIVATE) as $property) {
+                $properties[] = $property;
+            }
+        }
+
+        $props = [];
+
+        foreach ($properties as $property) {
+            // A promoted property carries the parameter's attribute, and the
+            // constructor already acted on it.
+            if ($property->isStatic() || $property->isPromoted()) {
+                continue;
+            }
+
+            $plan = $this->describeProperty($property);
+            if ($plan !== null) {
+                $props[] = $plan;
+            }
+        }
+
+        return $props;
+    }
+
+    /**
+     * @return PropPlan|null null when the property carries no #[Inject]
+     */
+    private function describeProperty(ReflectionProperty $property): ?array
+    {
+        $attributes = $property->getAttributes(Inject::class);
+        if ($attributes === []) {
+            return null;
+        }
+
+        /** @var Inject $inject */
+        $inject = $attributes[0]->newInstance();
+
+        $type = $property->getType();
+        $typeName = null;
+        $isScalar = false;
+        if ($type instanceof ReflectionNamedType) {
+            $typeName = $type->getName();
+            $isScalar = $this->isScalar($typeName);
+        }
+
+        /** @var class-string|null $implementation */
+        $implementation = $inject->implementation;
+
+        return [
+            'name' => $property->getName(),
+            'hasType' => $type instanceof ReflectionNamedType,
+            'type' => $typeName,
+            'isScalar' => $isScalar,
+            'inject' => $implementation,
+            'isReadonly' => $property->isReadOnly(),
+            'declaringClass' => $property->getDeclaringClass()->getName(),
+        ];
+    }
+
+    /**
+     * @param list<PropPlan> $props
+     */
+    private function injectProperties(object $instance, array $props): void
+    {
+        foreach ($props as $prop) {
+            if ($prop['isReadonly']) {
+                throw DependencyInvalidArgumentException::readonlyPropertyInjection(
+                    $prop['declaringClass'],
+                    $prop['name'],
+                    $this->getResolutionChain(),
+                );
+            }
+
+            $this->handleFor($prop)->setValue($instance, $this->resolveProperty($prop));
+        }
+    }
+
+    /**
+     * @param PropPlan $prop
+     */
+    private function resolveProperty(array $prop): mixed
+    {
+        $declaringClass = $prop['declaringClass'];
+
+        if ($prop['inject'] !== null) {
+            return $this->resolveClass($prop['inject']);
+        }
+
+        if (!$prop['hasType']) {
+            throw DependencyInvalidArgumentException::noPropertyTypeFor(
+                $declaringClass,
+                $prop['name'],
+                $this->getResolutionChain(),
+            );
+        }
+
+        /** @var string $type hasType was just checked, so this is never null */
+        $type = $prop['type'];
+
+        if ($prop['isScalar']) {
+            throw DependencyInvalidArgumentException::unableToResolveProperty(
+                $declaringClass,
+                $prop['name'],
+                $type,
+                $this->getResolutionChain(),
+            );
+        }
+
+        /** @var class-string $type */
+        return $this->resolveClass($type);
+    }
+
+    /**
+     * @param PropPlan $prop
+     */
+    private function handleFor(array $prop): ReflectionProperty
+    {
+        return $this->propertyHandles[$prop['declaringClass'] . '::' . $prop['name']]
+            ??= new ReflectionProperty($prop['declaringClass'], $prop['name']);
     }
 
     /**
