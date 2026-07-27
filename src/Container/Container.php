@@ -209,15 +209,41 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     public function writeCompiledFactories(array $classNames, string $file): array
     {
-        $compiler = new ContainerCompiler(
-            $this->compile($classNames),
-            $this->getBindings(),
-            $this->cacheManager->lazyClasses(),
-        );
+        $compiler = $this->compilerFor($classNames);
 
         CompiledCacheWriter::put($file, $compiler->render());
 
         return $compiler->compilable();
+    }
+
+    /**
+     * What `writeCompiledFactories()` would make of these classes, and why it
+     * refuses the ones it refuses.
+     *
+     * The generator is deliberately conservative and silent about it, which is
+     * fine at runtime and unhelpful in a build. This turns that silence into an
+     * answer a build script can assert on:
+     *
+     * ```php
+     * $report = $container->compileReport([Foo::class, Bar::class]);
+     *
+     * foreach ($report->explanations() as $class => $why) {
+     *     echo "skipped {$class}: {$why}\n";
+     * }
+     * ```
+     *
+     * Nothing is written and no state changes beyond the warm-up `compile()`
+     * already performs. Its `compiled()` set is exactly what
+     * `writeCompiledFactories()` returns for the same input.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function compileReport(array $classNames): CompilationReport
+    {
+        return $this->compilerFor($classNames)->report();
     }
 
     /**
@@ -862,6 +888,18 @@ final class Container implements ContainerInterface, ArrayAccess
         return isset($this->bindings[$id])
             || $this->instanceRegistry->has($id)
             || $this->cacheManager->ownsSingleton($id);
+    }
+
+    /**
+     * @param list<class-string> $classNames
+     */
+    private function compilerFor(array $classNames): ContainerCompiler
+    {
+        return new ContainerCompiler(
+            $this->compile($classNames),
+            $this->getBindings(),
+            $this->cacheManager->lazyClasses(),
+        );
     }
 
     /**

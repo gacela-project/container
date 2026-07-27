@@ -128,6 +128,55 @@ Everything omitted resolves normally, so the file is only ever an optimisation.
 `writeCompiledFactories()` returns the list of classes it actually compiled, so
 you can assert on it in your build.
 
+### Asking why
+
+`compileReport()` answers the same question programmatically, and adds the part
+the returned list cannot tell you — *why* a class dropped out:
+
+```php
+$report = $container->compileReport([UserService::class, OrderService::class]);
+
+foreach ($report->explanations() as $class => $why) {
+    echo "skipped {$class}: {$why}\n";
+}
+
+// skipped App\OrderService: parameter $dsn is scalar or untyped, so its value
+// may come from a contextual binding
+```
+
+Nothing is written, and its `compiled()` set is exactly what
+`writeCompiledFactories()` returns for the same input — the report is the
+generator's own verdict, not a second opinion.
+
+`reasonFor()` gives the machine-readable half, a `CompilationSkipReason` case
+per branch that can refuse a class:
+
+| Case | Why |
+|---|---|
+| `Bound` | the class is bound, and the binding could change after compilation |
+| `LazyRegistration` | registered with [`lazy()`](bindings.md#deferred-registration) |
+| `NotInstantiable` | an interface, an abstract class, or a non-public constructor |
+| `LifetimeAttribute` | `#[Singleton]`, `#[Factory]` or `#[Lazy]` |
+| `InjectedProperty` | a `new` expression cannot assign `#[Inject]` properties |
+| `InjectedParameter` | an `#[Inject]` parameter is resolved at runtime |
+| `ScalarParameter` | a scalar or untyped constructor parameter |
+| `DependencyCycle` | the class takes part in a cycle |
+| `NoPlan` | the planner never described it |
+| `Dependency` | one of its constructor dependencies could not be compiled |
+
+Which makes "these classes must compile, fail the build otherwise" a few lines:
+
+```php
+$report = $container->compileReport($mustCompile);
+
+if ($report->skipped() !== []) {
+    foreach ($report->explanations() as $class => $why) {
+        fwrite(STDERR, "{$class}: {$why}\n");
+    }
+    exit(1);
+}
+```
+
 **Regenerate the file whenever a compiled constructor changes.** A stale file
 will happily build the old shape.
 
