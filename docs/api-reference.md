@@ -38,12 +38,14 @@ interface, never the concrete class — you lose nothing by doing so.
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Only three members live on `Container` alone, and none of them *can* be on an
+Four members live on `Container` alone. Three of them *cannot* be on an
 interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`.
+`loadCompiledCache()`. The fourth, `stats()`, is kept off deliberately — 1.x
+promises nothing will be added to `ContainerInterface`, so it moves there in 2.0.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
-returns is not covered by backward compatibility**. Treat it as debug output.
+returns is not covered by backward compatibility**. Treat it as debug output, or
+use `stats()`, whose shape *is* covered.
 
 ## Container methods
 
@@ -77,7 +79,8 @@ returns is not covered by backward compatibility**. Treat it as debug output.
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order |
-| `getStats(): array` | Get container statistics (return shape is not covered by BC) |
+| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `Container` only |
+| `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
 | `offsetGet` / `offsetSet` / `offsetExists` / `offsetUnset` | `ArrayAccess`: `$c[Id::class]`, assignment, `isset()`, `unset()` |

@@ -16,6 +16,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 - A cycle reached through an injected property still raises `CircularDependencyException`. Property injection runs inside the same resolution stack, so it is deliberately not an escape hatch for the diagnostic
 - `readonly`, untyped and scalar-typed `#[Inject]` properties fail with a `DependencyInvalidArgumentException` naming the property and what to do instead, rather than a raw PHP error
 
+- `stats(): ContainerStats` returns the container's counters as a `final readonly` object instead of a shapeless array. Its properties **are** covered by backward compatibility, unlike the array from `getStats()`, and memory comes back as `memoryUsageBytes` (an int, so it can be compared and summed) with `memoryUsageFormatted()` for display. Lives on `Container` only — 1.x promises nothing will be added to `ContainerInterface` — and moves onto the interface in 2.0, replacing `getStats()`. `getStats()` is unchanged and keeps working for the whole of 1.x
+
 ### Performance
 
 - Pass the whole class plan into instantiation instead of re-reading it per node, removing an array copy from every step of an object graph. Resolution is 5-8% faster on the chain benchmarks
