@@ -86,14 +86,28 @@ final class DependencyCacheManager
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
      * @param CompiledPlans $compiledPlans
+     * @param PlanCache|null $planCache a cache shared with unrelated containers
      */
     public function __construct(
         private array &$bindings = [],
         private array &$contextualBindings = [],
         array $compiledPlans = [],
         private ?ContainerInterface $container = null,
+        ?PlanCache $planCache = null,
     ) {
-        $this->planRegistry = new PlanRegistry($compiledPlans);
+        if ($planCache === null) {
+            $this->planRegistry = new PlanRegistry($compiledPlans);
+
+            return;
+        }
+
+        $this->planRegistry = $planCache->registry();
+
+        // A plan already in the shared cache was built by reflection in this
+        // process, so it describes the class as loaded. A compiled one came
+        // off disk and may not. Seeding around what is already there keeps the
+        // authoritative answer.
+        $this->planRegistry->plans += $compiledPlans;
     }
 
     /**

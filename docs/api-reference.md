@@ -129,10 +129,16 @@ public function __construct(
     array $bindings = [],        // abstract => concrete map
     array $instancesToExtend = [],  // id => list of extension closures
     array $compiledPlans = [],   // from writeCompiledCache() / loadCompiledCache()
+    ?PlanCache $planCache = null, // one plan cache shared with unrelated containers
 )
 ```
 
-All three parameters are optional and part of the stable API — their names, order,
+`PlanCache` shares reflection output — constructor plans — between containers
+that have no parent/scope relationship, and nothing else: bindings, contextual
+bindings, instances and singletons stay private to each container. See
+[performance](performance.md#one-plan-cache-for-several-containers).
+
+All four parameters are optional and part of the stable API — their names, order,
 types, and defaults do not change within a major version. Named arguments are safe.
 
 ## `Container` is final
