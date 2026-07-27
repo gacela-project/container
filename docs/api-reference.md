@@ -24,9 +24,9 @@ For the exceptions, the **class and its PSR-11 interface** are stable. Exception
 *messages* are not — do not parse or assert on them.
 
 **`@internal` — not covered.** `AliasRegistry`, `BindingResolver`,
-`DependencyCacheManager`, `DependencyResolver`, `DependencyTreeAnalyzer`,
-`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, `PlanRegistry`, and
-`TagRegistry` are implementation details of `Container`. They may change
+`DefinitionLoader`, `DependencyCacheManager`, `DependencyResolver`,
+`DependencyTreeAnalyzer`, `FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`,
+`PlanRegistry`, and `TagRegistry` are implementation details of `Container`. They may change
 signature, behaviour, or disappear entirely in **any** release, including a
 patch. Do not import them.
 
@@ -40,12 +40,12 @@ you need one of those.
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Nine members live on `Container` alone. Three of them *cannot* be on an
+Eleven members live on `Container` alone. Three of them *cannot* be on an
 interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`. The other six — `stats()`, `createScope()`, `provides()`,
-`lazy()`, `writeCompiledFactories()` and `useCompiledFactories()` — are kept off
-deliberately: 1.x promises nothing will be added to `ContainerInterface`, so they
-move there in 2.0.
+`loadCompiledCache()`. The other eight — `stats()`, `createScope()`,
+`provides()`, `lazy()`, `load()`, `loadFile()`, `writeCompiledFactories()` and
+`useCompiledFactories()` — are kept off deliberately: 1.x promises nothing will
+be added to `ContainerInterface`, so they move there in 2.0.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
 returns is not covered by backward compatibility**. Treat it as debug output, or
@@ -67,6 +67,8 @@ use `stats()`, whose shape *is* covered.
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
 | `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use. `Container` only — see [bindings](bindings.md#deferred-registration) |
+| `load(array $definitions): void` | Register services from a definitions array. `Container` only — see [definitions](definitions.md) |
+| `loadFile(string $file): void` | Load definitions from a `.php` file returning an array, or a `.json` file. `Container` only |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |

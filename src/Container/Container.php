@@ -273,6 +273,59 @@ final class Container implements ContainerInterface, ArrayAccess
     }
 
     /**
+     * Register services from a definitions array, so wiring can be shipped and
+     * overridden as data rather than code.
+     *
+     * ```php
+     * $container->load([
+     *     LoggerInterface::class => FileLogger::class,             // interface => concrete
+     *     Database::class => ['singleton' => DatabasePool::class], // explicit lifetime
+     *     'db.dsn' => ['value' => 'pgsql://localhost/app'],        // a config value
+     *     'logger' => ['alias' => LoggerInterface::class],
+     *     Metrics::class => ['singleton' => Metrics::class, 'tags' => ['reporters']],
+     * ]);
+     * ```
+     *
+     * Every entry ends up calling the registration method it stands for, so
+     * laziness, freezing and scope behaviour are exactly what the imperative
+     * equivalent would give you. Later calls override earlier keys, which makes
+     * per-environment layering a matter of loading base then overrides — except
+     * for 'tags', which accumulate the way tag() does.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     *
+     * @param array<array-key, mixed> $definitions
+     *
+     * @throws ContainerException when an entry names an unknown key, or a key's
+     *                            value is not of the type it accepts
+     */
+    public function load(array $definitions): void
+    {
+        (new DefinitionLoader($this))->load($definitions);
+    }
+
+    /**
+     * Load definitions from a '.php' file returning an array, or a '.json' file.
+     *
+     * YAML stays a userland concern — there is no parser here, and adding one
+     * would mean a second runtime dependency:
+     *
+     * ```php
+     * $container->load(Yaml::parseFile('services.yaml'));
+     * ```
+     *
+     * Deliberately not on ContainerInterface — see load().
+     *
+     * @throws ContainerException when the file is missing, unreadable, of an
+     *                            unsupported type, or does not hold an array
+     */
+    public function loadFile(string $file): void
+    {
+        (new DefinitionLoader($this))->loadFile($file);
+    }
+
+    /**
      * Defer the construction of a service until it is first used, without
      * putting #[Lazy] on the class.
      *

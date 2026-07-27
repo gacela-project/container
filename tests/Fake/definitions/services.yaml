@@ -1,0 +1,2 @@
+services:
+  GacelaTest\Fake\RepositoryInterface: GacelaTest\Fake\InMemoryRepository
