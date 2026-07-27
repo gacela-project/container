@@ -158,6 +158,10 @@ objects.
 Dependencies are resolved *inside* the initializer, so a lazy service that is
 never touched costs nothing to build, and neither does its subtree.
 
+That holds wherever the service appears, not just at the top of a `get()` call: a
+lazy class injected into another class's constructor is handed over uninitialized,
+so the holder can be built without paying for it.
+
 ### What triggers initialization
 
 Property access. A method that reads no properties never needs the constructor,
@@ -167,6 +171,40 @@ so it will not trigger one:
 $service->staticGreeting();   // returns a constant: still uninitialized
 $service->db;                 // touches state: constructs now
 ```
+
+### Without the attribute
+
+`lazy()` does the same thing from the outside, for classes you cannot annotate
+and for cases where laziness belongs to the app rather than the class:
+
+```php
+// A vendor class, made lazy without touching it
+$container->lazy(ReportGenerator::class);
+
+// An abstract, lazily bound to a concrete
+$container->lazy(ReportGeneratorInterface::class, PdfReportGenerator::class);
+
+// A closure binding that runs on first touch instead of on resolution
+$container->lazy(PdfReportGenerator::class, fn(Container $c) => new PdfReportGenerator(
+    $c->get(Database::class),
+));
+```
+
+The first two forms produce the same lazy ghost as the attribute. The closure
+form produces a lazy **proxy** instead — the closure, not the constructor, makes
+the instance — but it is still a native lazy object of the right class, so
+`instanceof` and `::class` behave exactly as above.
+
+The target must be a concrete, instantiable class either way: a lazy instance has
+to be an instance of *something*. `lazy(SomeInterface::class)` with no concrete
+throws a `ContainerException`.
+
+Registering both `#[Lazy]` and `lazy()` for the same class is not an error, and
+`singleton()` combines with it the way `#[Singleton] #[Lazy]` does — one shared
+instance, constructed on first touch. A [scope](scopes.md) inherits the lazy
+registrations its parent had when the scope was created.
+
+See [bindings](bindings.md#deferred-registration).
 
 ### Combining with other attributes
 

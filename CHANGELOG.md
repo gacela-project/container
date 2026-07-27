@@ -10,6 +10,14 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `Container::lazy()`, deferring construction without `#[Lazy]` on the class. `lazy(Vendor::class)` makes a class you do not own lazy, `lazy(Ifc::class, Impl::class)` binds an abstract to a deferred concrete, and `lazy(Impl::class, fn (Container $c) => …)` defers a *closure* binding — which `bind()`/`singleton()` always ran the moment the id resolved. The first two forms produce the same native lazy ghost as the attribute; the closure form produces a native lazy proxy, since the closure rather than the constructor makes the instance. Either way it is a real instance of the class — no proxy subclass, no new dependency. The target must be a concrete, instantiable class, and anything else throws a `ContainerException` naming what to do instead. Registering both `#[Lazy]` and `lazy()` is not an error; `singleton()` combines with it exactly as `#[Singleton] #[Lazy]` does; a scope inherits the registrations its parent had when the scope was created. Like `stats()`, `createScope()` and `provides()`, it lives on `Container` rather than `ContainerInterface`, which 1.x promises not to extend
+
+### Fixed
+
+- Laziness stopped at the top of a resolution: `#[Lazy]` was only consulted when the class was the id being resolved, so an expensive lazy service injected into another class's constructor was built eagerly along with its whole subtree — the case the attribute exists for. Nested resolution now honours it, for `#[Lazy]` and `lazy()` alike
+
 ## [1.3.0](https://github.com/gacela-project/container/compare/1.2.1...1.3.0) - 2026-07-27
 
 ### Added

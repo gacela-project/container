@@ -30,7 +30,7 @@ For these, within 1.x:
 - No method will be added to `ContainerInterface`. That is why the interface was
   brought to its full shape before 1.0. Anything that would otherwise belong
   there lands on `Container` instead until 2.0 — currently `stats()`,
-  `createScope()` and `provides()`.
+  `createScope()`, `provides()` and `lazy()`.
 - Exception **classes** and the PSR-11 interfaces they implement are stable.
 
 ## What is not covered

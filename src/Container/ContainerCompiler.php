@@ -34,10 +34,12 @@ final class ContainerCompiler
     /**
      * @param CompiledPlans $plans
      * @param BindingsMap $bindings
+     * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
      */
     public function __construct(
         private array $plans,
         private array $bindings = [],
+        private array $lazyClasses = [],
     ) {
     }
 
@@ -158,7 +160,7 @@ final class ContainerCompiler
      */
     private function isEligible(string $class): bool
     {
-        if (isset($this->bindings[$class]) || !class_exists($class)) {
+        if (isset($this->bindings[$class]) || isset($this->lazyClasses[$class]) || !class_exists($class)) {
             return false;
         }
 

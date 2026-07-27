@@ -121,6 +121,7 @@ cannot decide statically:
 - **scalar** or untyped parameters — the value may come from a contextual binding
 - `#[Inject]`, `#[Singleton]`, `#[Factory]`, `#[Lazy]` — lifetime and
   construction belong to the runtime
+- classes registered with `lazy()` — same reason, without the attribute to see
 - abstract classes and interfaces, and anything in a dependency cycle
 
 Everything omitted resolves normally, so the file is only ever an optimisation.
@@ -141,7 +142,9 @@ for services a request never reaches — usually the bigger win:
 | Untouched expensive branch, `#[Lazy]` | **1.513μs** | **6.45mb** |
 
 Roughly **4x faster and half the memory**, because neither the service nor its
-subtree is ever built. See [attributes](attributes.md#lazy).
+subtree is ever built. The same applies to a class you cannot annotate: register
+it with [`lazy()`](bindings.md#deferred-registration). See
+[attributes](attributes.md#lazy).
 
 Reproduce any of this with `composer bench`.
 

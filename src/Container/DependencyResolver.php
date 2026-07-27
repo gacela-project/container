@@ -6,6 +6,7 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Attribute\Inject;
+use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
@@ -22,6 +23,7 @@ use function count;
 use function is_callable;
 use function is_object;
 use function is_string;
+use function method_exists;
 
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
@@ -60,6 +62,18 @@ final class DependencyResolver
      */
     private static array $propertyPlans = [];
 
+    /**
+     * Whether a class carries #[Lazy], memoized process-wide.
+     *
+     * Read off a class definition, which cannot change within a process, so it
+     * is shared for the same reason the property plans are. Deliberately not
+     * part of the class plan: a #[Lazy] class must be answered *without*
+     * describing its constructor, which is the work laziness exists to defer.
+     *
+     * @var array<class-string, bool>
+     */
+    private static array $lazyAttribute = [];
+
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
 
@@ -74,15 +88,33 @@ final class DependencyResolver
     private bool $hasParent = false;
 
     /**
+     * Whether the runtime can build native lazy objects (PHP 8.4+). On older
+     * runtimes lazy targets are constructed eagerly, which is unobservable
+     * apart from the timing.
+     *
+     * Hoisted into a field for the same reason $hasParent is: every nested
+     * parameter of every graph tests it.
+     */
+    private bool $supportsLazyObjects;
+
+    private static ?bool $lazyObjectsAvailable = null;
+
+    /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
+     * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
+     * @param array<class-string, Closure> $lazyFactories lazy targets whose instance a closure produces
      */
     public function __construct(
         private array &$bindings = [],
         private array &$contextualBindings = [],
         private PlanRegistry $planRegistry = new PlanRegistry(),
         private ?ContainerInterface $container = null,
+        private array &$lazyClasses = [],
+        private array &$lazyFactories = [],
     ) {
+        $this->supportsLazyObjects = self::$lazyObjectsAvailable
+            ??= method_exists(ReflectionClass::class, 'newLazyGhost');
     }
 
     /**
@@ -128,6 +160,41 @@ final class DependencyResolver
     public function isInstantiable(string $className): bool
     {
         return class_exists($className) && $this->describeClass($className)['instantiable'];
+    }
+
+    /**
+     * Whether $className resolves to a lazy instance, whether it said so with
+     * #[Lazy] or was registered through Container::lazy().
+     *
+     * @param class-string $className
+     */
+    public function isLazy(string $className): bool
+    {
+        if (!$this->supportsLazyObjects) {
+            return false;
+        }
+
+        return isset($this->lazyClasses[$className])
+            || (self::$lazyAttribute[$className] ??= (new ReflectionClass($className))->getAttributes(Lazy::class) !== []);
+    }
+
+    /**
+     * A lazy instance of $className: a real object of that type whose
+     * construction has not happened yet.
+     *
+     * A ghost when the constructor produces the instance, a proxy when a
+     * lazy() factory does — the initializer of a ghost cannot replace the
+     * object, and a factory returns a different one.
+     *
+     * @param class-string $className
+     */
+    public function newLazyInstance(string $className): object
+    {
+        $factory = $this->lazyFactories[$className] ?? null;
+
+        return $factory === null
+            ? $this->newLazyGhost($className)
+            : $this->newLazyProxy($className, $factory);
     }
 
     /**
@@ -308,6 +375,10 @@ final class DependencyResolver
         }
 
         if (is_callable($bindClass)) {
+            if ($this->supportsLazyObjects && isset($this->lazyFactories[$paramTypeName])) {
+                return $this->newLazyInstance($paramTypeName);
+            }
+
             return $bindClass($this->container);
         }
 
@@ -321,6 +392,16 @@ final class DependencyResolver
         if (!$plan['instantiable']) {
             $paramTypeName = $this->resolveConcreteForAbstract($paramTypeName);
             $plan = $this->describeClass($paramTypeName);
+        }
+
+        // Deferred here rather than in instantiateFromPlan(): a lazy target must
+        // not have its constructor arguments resolved yet, and that is what the
+        // plan-driven path exists to do.
+        //
+        // The field guards the call rather than isLazy() alone: on PHP 8.3
+        // nothing is ever lazy, and this runs for every node of every graph.
+        if ($this->supportsLazyObjects && $this->isLazy($paramTypeName)) {
+            return $this->newLazyInstance($paramTypeName);
         }
 
         return $this->instantiateFromPlan($paramTypeName, $plan);
@@ -346,6 +427,71 @@ final class DependencyResolver
         $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($knownBindings));
 
         throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
+    }
+
+    /**
+     * A real instance of $className whose constructor runs on first use.
+     *
+     * Dependencies are resolved inside the initializer, not before it, so a
+     * lazy service that is never touched costs nothing to build.
+     *
+     * @param class-string $className
+     */
+    private function newLazyGhost(string $className): object
+    {
+        $reflection = new ReflectionClass($className);
+
+        /**
+         * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
+         * so they cannot see it. Callers gate this behind a runtime capability
+         * check, which is exactly what they cannot model.
+         *
+         * Calling __construct() directly on the ghost is the documented way to
+         * initialize one, not an accident.
+         *
+         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
+         *
+         * @phpstan-ignore method.notFound, return.type
+         */
+        return $reflection->newLazyGhost(function (object $instance) use ($className): void {
+            $dependencies = $this->resolveDependencies($className);
+
+            /**
+             * @psalm-suppress MixedMethodCall, DirectConstructorCall
+             *
+             * @phpstan-ignore method.notFound
+             */
+            $instance->__construct(...$dependencies);
+
+            // Deferred with the constructor, not run eagerly at ghost creation:
+            // resolving them up front would defeat the point of being lazy.
+            if ($this->hasInjectedProperties($className)) {
+                $this->injectPropertiesOn($instance, $className);
+            }
+        });
+    }
+
+    /**
+     * A real instance of $className produced by $factory on first use.
+     *
+     * @param class-string $className
+     */
+    private function newLazyProxy(string $className, Closure $factory): object
+    {
+        $reflection = new ReflectionClass($className);
+
+        /**
+         * newLazyProxy() is PHP 8.4+; see newLazyGhost() for why the analysers
+         * cannot see it.
+         *
+         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
+         *
+         * @phpstan-ignore method.notFound, return.type
+         */
+        return $reflection->newLazyProxy(function () use ($factory): object {
+            /** @var object */
+            return $factory($this->container);
+        });
     }
 
     /**

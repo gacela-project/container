@@ -13,6 +13,7 @@ use GacelaTest\Fake\CircularB;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
+use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\FactoryAttributeService;
 use GacelaTest\Fake\LazyService;
 use GacelaTest\Fake\Person;
@@ -87,6 +88,24 @@ final class ContainerCompilerTest extends TestCase
         self::assertNotContains(SingletonAttributeService::class, $compilable);
         self::assertNotContains(FactoryAttributeService::class, $compilable);
         self::assertNotContains(LazyService::class, $compilable);
+    }
+
+    public function test_it_refuses_a_class_registered_through_lazy(): void
+    {
+        $container = new Container();
+        $container->lazy(ExpensiveReportGenerator::class);
+
+        $file = tempnam(sys_get_temp_dir(), 'compiled') . '.php';
+        $compiled = $container->writeCompiledFactories(
+            [ExpensiveReportGenerator::class, ClassWithoutDependencies::class],
+            $file,
+        );
+        @unlink($file);
+
+        // There is no attribute to see here: the registration is the only thing
+        // saying the class is lazy, and a `new` expression would bypass it.
+        self::assertNotContains(ExpensiveReportGenerator::class, $compiled);
+        self::assertContains(ClassWithoutDependencies::class, $compiled);
     }
 
     public function test_the_rendered_file_is_valid_php_returning_factories(): void
