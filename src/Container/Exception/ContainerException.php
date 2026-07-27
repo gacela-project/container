@@ -91,6 +91,18 @@ TXT;
         return new self($message);
     }
 
+    public static function inheritedInstanceExtend(string $id): self
+    {
+        $message = <<<TXT
+The instance '{$id}' belongs to a parent container and cannot be extended from a scope.
+A scope never mutates what it inherits, and extending in place would.
+
+Extend it on the container that registered it, or shadow it in this scope:
+  \$scope->set('{$id}', static fn () => new Decorator(\$parent->get('{$id}')));
+TXT;
+        return new self($message);
+    }
+
     public static function instanceProtected(string $id): self
     {
         $message = <<<TXT

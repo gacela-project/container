@@ -81,6 +81,10 @@ final class DependencyCacheManager
 
     private ?DependencyResolver $dependencyResolver = null;
 
+    private ?Container $parent = null;
+
+    private PlanRegistry $planRegistry;
+
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
@@ -89,9 +93,24 @@ final class DependencyCacheManager
     public function __construct(
         private array &$bindings = [],
         private array &$contextualBindings = [],
-        private array $compiledPlans = [],
+        array $compiledPlans = [],
         private ?ContainerInterface $container = null,
     ) {
+        $this->planRegistry = new PlanRegistry($compiledPlans);
+    }
+
+    /**
+     * Wire this manager as a scope of $parent's.
+     *
+     * Must run before anything resolves through this manager: the resolver is
+     * handed the plan registry it finds at the time it is built. Singleton
+     * instances are deliberately not shared — those are what a scope exists to
+     * keep separate.
+     */
+    public function inheritFrom(self $parentManager, Container $parent): void
+    {
+        $this->parent = $parent;
+        $this->planRegistry = $parentManager->planRegistry;
     }
 
     /**
@@ -101,7 +120,16 @@ final class DependencyCacheManager
      */
     public function exportCompiledPlans(): array
     {
-        return $this->getDependencyResolver()->exportPlans();
+        return $this->planRegistry->plans;
+    }
+
+    /**
+     * Whether this manager already owns a singleton for $class, or has been
+     * told to treat it as one.
+     */
+    public function ownsSingleton(string $class): bool
+    {
+        return isset($this->singletonInstances[$class]) || isset($this->forcedSingletons[$class]);
     }
 
     /**
@@ -298,9 +326,13 @@ final class DependencyCacheManager
             $this->dependencyResolver = new DependencyResolver(
                 $this->bindings,
                 $this->contextualBindings,
-                $this->compiledPlans,
+                $this->planRegistry,
                 $this->container,
             );
+
+            if ($this->parent !== null) {
+                $this->dependencyResolver->inheritFrom($this->parent);
+            }
         }
 
         return $this->dependencyResolver;

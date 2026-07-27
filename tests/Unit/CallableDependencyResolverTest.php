@@ -37,9 +37,10 @@ final class CallableDependencyResolverTest extends TestCase
 
     public function test_interface_dependency(): void
     {
-        $resolver = new DependencyResolver([
+        $bindings = [
             PersonInterface::class => Person::class,
-        ]);
+        ];
+        $resolver = new DependencyResolver($bindings);
         $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
             return $person;
         });
@@ -54,9 +55,10 @@ final class CallableDependencyResolverTest extends TestCase
         $person = new Person();
         $person->name = 'anything';
 
-        $resolver = new DependencyResolver([
+        $bindings = [
             PersonInterface::class => $person,
-        ]);
+        ];
+        $resolver = new DependencyResolver($bindings);
 
         $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
             return $person;

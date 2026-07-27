@@ -10,6 +10,7 @@ use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\TestCase;
 
 final class BindAndSingletonTest extends TestCase
@@ -83,5 +84,23 @@ final class BindAndSingletonTest extends TestCase
 
         self::assertSame($first, $second);
         self::assertSame(1, $calls);
+    }
+
+    /**
+     * The resolver used to take the bindings map by value, snapshotting it on
+     * the first resolution — so binding after that point was invisible to
+     * nested resolution, while the same calls in the other order worked.
+     */
+    public function test_a_binding_registered_after_the_first_resolution_is_still_used(): void
+    {
+        $container = new Container();
+        $container->get(ClassWithoutDependencies::class);
+
+        $container->bind(RepositoryInterface::class, DatabaseRepository::class);
+
+        self::assertInstanceOf(
+            DatabaseRepository::class,
+            $container->make(ServiceWithRepository::class)->repository,
+        );
     }
 }

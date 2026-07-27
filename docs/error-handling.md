@@ -99,7 +99,7 @@ raises the same exception, with the property named rather than a parameter.
 
 ## `ContainerException`
 
-Four situations, all about the lifecycle of an already-registered service.
+Five situations, all about the lifecycle of an already-registered service.
 
 ### Frozen: cannot be overridden
 
@@ -144,6 +144,20 @@ Ensure the service is one of these types before calling extend().
 ```
 
 Scalars cannot be decorated.
+
+### Inherited: cannot be extended from a scope
+
+```
+The instance 'logger' belongs to a parent container and cannot be extended from a scope.
+A scope never mutates what it inherits, and extending in place would.
+
+Extend it on the container that registered it, or shadow it in this scope:
+  $scope->set('logger', static fn () => new Decorator($parent->get('logger')));
+```
+
+A [scope](scopes.md) resolves inherited ids through the ancestor that stores
+them, so an extension registered on the scope would never run. Shadowing the id
+is the way to decorate a parent's service for one scope only.
 
 ## Related
 

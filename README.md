@@ -27,6 +27,7 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 📦 **PSR-11 Compliant**: Standard container interface for interoperability
 - ⚡ **Performance Optimized**: Built-in caching, warmup, and a compiled cache that skips reflection
 - 🧩 **Fluent Registration**: Register bindings after construction with `bind()` and `singleton()`
+- 🌱 **Scopes**: Child containers that inherit registration without copying it, for per-request lifetimes
 - 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
@@ -77,6 +78,7 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | [Resolving Services](docs/resolution.md) | `get()`, `make()`, `getOrFail()`, `resolve()`, transient vs. shared |
 | [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]` |
 | [Managing Services](docs/services.md) | Factories, extending, protecting closures, introspection |
+| [Scopes](docs/scopes.md) | Child containers: inherited registration, per-request lifetimes |
 | [Performance & Compilation](docs/performance.md) | `warmUp()`, compiled container cache |
 | [Cookbook](docs/cookbook.md) | Recipes: testing, config, plugins, decorating, debugging |
 | [Error Handling](docs/error-handling.md) | Every exception, what causes it, how to fix it |

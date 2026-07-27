@@ -20,6 +20,8 @@ use function is_string;
  */
 final class BindingResolver
 {
+    private ?self $parent = null;
+
     /**
      * @param BindingsMap $bindings
      */
@@ -27,6 +29,14 @@ final class BindingResolver
         private array &$bindings = [],
         private ?ContainerInterface $container = null,
     ) {
+    }
+
+    /**
+     * Let a scope read the bindings of the container it was created from.
+     */
+    public function inheritFrom(self $parent): void
+    {
+        $this->parent = $parent;
     }
 
     public function resolve(string $class, DependencyCacheManager $cacheManager): ?object
@@ -61,7 +71,13 @@ final class BindingResolver
      */
     public function getBindings(): array
     {
-        return $this->bindings;
+        if ($this->parent === null) {
+            return $this->bindings;
+        }
+
+        // Union keeps the left operand on a duplicate key: a scope shadows what
+        // it inherits.
+        return $this->bindings + $this->parent->getBindings();
     }
 
     /**
@@ -73,15 +89,27 @@ final class BindingResolver
      */
     public function resolveType(string $typeName): string
     {
-        if (isset($this->bindings[$typeName])) {
-            $binding = $this->bindings[$typeName];
+        /** @psalm-suppress MixedAssignment */
+        $binding = $this->findBinding($typeName);
 
-            if (is_string($binding) && class_exists($binding)) {
-                /** @var class-string */
-                return $binding;
-            }
+        if (is_string($binding) && class_exists($binding)) {
+            /** @var class-string */
+            return $binding;
         }
 
         return $typeName;
+    }
+
+    /**
+     * The binding for one id, from the nearest container in the chain that has
+     * one.
+     *
+     * Deliberately not `getBindings()[$id]`: this runs once per constructor
+     * parameter of every node of a dependency tree, and building the merged map
+     * each time made analysing a scope scale with the size of its parent.
+     */
+    private function findBinding(string $typeName): mixed
+    {
+        return $this->bindings[$typeName] ?? $this->parent?->findBinding($typeName);
     }
 }

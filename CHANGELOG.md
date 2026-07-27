@@ -10,6 +10,15 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `Container::createScope()`, returning a child container that resolves everything its parent resolves plus whatever is registered on it directly. Registration is not copied — the scope starts empty and looks upward on a miss, so creating one costs the same whether the parent holds three bindings or three thousand. Anything registered on a scope shadows the parent for that scope alone and never mutates it. Lifetime follows ownership: an id an ancestor owns is resolved by that ancestor, so every scope shares what it produces, while a singleton a scope resolves first belongs to that scope and is released with it. Since a parent keeps no reference back, dropping a scope drops everything it owned, which is what makes it usable as a request lifetime under Swoole, RoadRunner or FrankenPHP. `remove()` and `extend()` deliberately stay local; see [scopes](docs/scopes.md) for the full semantics
+- `Container::provides()`, true when a container or one of its ancestors already owns an id — a binding, a stored instance, or a singleton it has resolved. It is the predicate a scope uses to decide whether to delegate upwards, and it fills the gap between `bound()`, which only knows registrations, and `has()`, which is true of anything merely autowirable. Like `stats()` in 1.2.0, both new methods live on `Container` rather than `ContainerInterface`, which 1.x promises not to extend; they move onto the interface in 2.0
+
+### Fixed
+
+- The resolver received the bindings map by value, snapshotting it the first time anything resolved. A `bind()` call made after that point was invisible to nested constructor resolution, so `$c->get(Anything::class); $c->bind(Ifc::class, Impl::class); $c->get(NeedsIfc::class);` threw `DependencyNotFoundException` instead of injecting `Impl` — the same three calls in the other order worked. The map is now held by reference, so late registration is seen
+
 ## [1.2.1](https://github.com/gacela-project/container/compare/1.2.0...1.2.1) - 2026-07-27
 
 ### Performance
