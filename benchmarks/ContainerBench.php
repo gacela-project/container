@@ -228,6 +228,16 @@ final class ContainerBench
         $this->container->get(SingletonService::class);
     }
 
+    /**
+     * Creating a scope must stay constant-time however much the parent holds,
+     * and however many scopes it has already created.
+     */
+    #[BeforeMethods('setUpPlain')]
+    public function benchCreateScope(): void
+    {
+        $this->container->createScope();
+    }
+
     #[BeforeMethods('setUpPlain')]
     public function benchHasHit(): void
     {

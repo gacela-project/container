@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Closure;
 use RuntimeException;
 
 use function is_array;
@@ -26,9 +27,13 @@ final class ContextualBindingBuilder
 
     /**
      * @param ContextualBindingsMap $contextualBindings
+     * @param Closure(class-string, string, mixed): void|null $onGive told about
+     *   each binding as it is written, so the container can hand it to the
+     *   scopes it has already created
      */
     public function __construct(
         private array &$contextualBindings,
+        private ?Closure $onGive = null,
     ) {
     }
 
@@ -62,7 +67,9 @@ final class ContextualBindingBuilder
      */
     public function give(mixed $implementation): void
     {
-        if ($this->needs === null) {
+        $needs = $this->needs;
+
+        if ($needs === null) {
             throw new RuntimeException('Must call needs() before give()');
         }
 
@@ -73,7 +80,11 @@ final class ContextualBindingBuilder
             }
 
             /** @psalm-suppress PropertyTypeCoercion */
-            $this->contextualBindings[$concreteClass][$this->needs] = $implementation;
+            $this->contextualBindings[$concreteClass][$needs] = $implementation;
+
+            if ($this->onGive !== null) {
+                ($this->onGive)($concreteClass, $needs, $implementation);
+            }
         }
     }
 }

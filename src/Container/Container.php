@@ -10,6 +10,7 @@ use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
 use ReflectionClass;
+use WeakReference;
 
 use function class_exists;
 use function count;
@@ -18,6 +19,7 @@ use function is_callable;
 use function is_int;
 use function is_object;
 use function is_string;
+use function max;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
@@ -31,6 +33,12 @@ use function is_string;
  */
 final class Container implements ContainerInterface, ArrayAccess
 {
+    /**
+     * Floor for the scope-sweep threshold, so a container with a handful of
+     * scopes never sweeps at all.
+     */
+    private const int SCOPE_SWEEP_MIN = 16;
+
     private AliasRegistry $aliasRegistry;
 
     private TagRegistry $tagRegistry;
@@ -62,6 +70,31 @@ final class Container implements ContainerInterface, ArrayAccess
 
     /** @var array<class-string, callable(): object> */
     private array $compiledFactories = [];
+
+    /**
+     * The contextual bindings when() wrote on this container itself, as opposed
+     * to the ones it inherited when it was created as a scope.
+     *
+     * Kept apart for one reason: a copy of an inherited binding is otherwise
+     * indistinguishable from one the scope defined, and the two must behave
+     * differently when the parent later changes that binding — the inherited
+     * copy follows, the scope's own does not.
+     *
+     * @var ContextualBindingsMap
+     */
+    private array $ownContextualBindings = [];
+
+    /**
+     * Scopes created from this container, weakly, so a scope that has been
+     * dropped is collected exactly as before rather than kept alive by its
+     * parent's bookkeeping.
+     *
+     * @var list<WeakReference<self>>
+     */
+    private array $scopes = [];
+
+    /** Size at which the scope list is swept for dead references. */
+    private int $sweepScopesAt = self::SCOPE_SWEEP_MIN;
 
     /**
      * @param  BindingsMap  $bindings
@@ -192,10 +225,10 @@ final class Container implements ContainerInterface, ArrayAccess
         // The one thing a scope takes a copy of, rather than looking up as it
         // goes. Contextual bindings are matched against the resolver's build
         // stack, so a chain walk would land on the hot path of every nested
-        // parameter to serve a map that is configuration, fixed before the
-        // scopes that read it exist. Copy-on-write makes the copy free until
-        // the scope defines one of its own. A when() call on this container
-        // after the scope exists is therefore not visible to it.
+        // parameter to serve a map that is configuration. Copy-on-write makes
+        // the copy free until the scope defines one of its own, and a later
+        // when() on this container is pushed down to the scopes that took a
+        // copy — so the snapshot is an optimisation, not an ordering rule.
         $scope->contextualBindings = $this->contextualBindings;
 
         // Same reasoning, and the same copy-on-write: a generated factory is a
@@ -207,6 +240,8 @@ final class Container implements ContainerInterface, ArrayAccess
         $scope->aliasRegistry->inheritFrom($this->aliasRegistry);
         $scope->bindingResolver->inheritFrom($this->bindingResolver);
         $scope->cacheManager->inheritFrom($this->cacheManager, $this);
+
+        $this->rememberScope($scope);
 
         return $scope;
     }
@@ -334,6 +369,8 @@ final class Container implements ContainerInterface, ArrayAccess
     public function useCompiledFactories(array $factories): void
     {
         $this->compiledFactories = $factories;
+
+        $this->pushCompiledFactories($factories);
     }
 
     /**
@@ -462,6 +499,7 @@ final class Container implements ContainerInterface, ArrayAccess
             }
 
             $this->cacheManager->markAsLazy($target);
+            $this->pushLazyRegistrations();
             return;
         }
 
@@ -471,6 +509,7 @@ final class Container implements ContainerInterface, ArrayAccess
 
         $this->bind($target, $concrete);
         $this->cacheManager->markAsLazyFactory($target, Closure::fromCallable($concrete));
+        $this->pushLazyRegistrations();
     }
 
     /**
@@ -921,12 +960,26 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Define a contextual binding.
      *
+     * Order does not matter relative to createScope(): a binding defined after
+     * a scope exists is handed to that scope, and to its scopes, unless one of
+     * them defined the same binding for itself — in which case its own wins,
+     * the way shadowing works everywhere else. Without that, a late when() was
+     * silently invisible to the containers created before it, which is a wrong
+     * object injected with nothing to say so.
+     *
      * @param class-string|list<class-string> $concrete
      */
     #[Override]
     public function when(string|array $concrete): ContextualBindingBuilder
     {
-        $builder = new ContextualBindingBuilder($this->contextualBindings);
+        $builder = new ContextualBindingBuilder(
+            $this->contextualBindings,
+            function (string $concrete, string $needs, mixed $implementation): void {
+                /** @psalm-suppress PropertyTypeCoercion */
+                $this->ownContextualBindings[$concrete][$needs] = $implementation;
+                $this->pushContextualBinding($concrete, $needs, $implementation);
+            },
+        );
         $builder->when($concrete);
 
         return $builder;
@@ -1030,6 +1083,102 @@ final class Container implements ContainerInterface, ArrayAccess
         }
 
         return $merged;
+    }
+
+    /**
+     * Keep a weak handle on a scope, so late configuration can reach it.
+     *
+     * Swept rather than checked on every creation, and the threshold grows with
+     * the number of live scopes, so remembering a scope stays the constant cost
+     * createScope() promises even in a runtime that makes one per request.
+     */
+    private function rememberScope(self $scope): void
+    {
+        if (count($this->scopes) >= $this->sweepScopesAt) {
+            $this->liveScopes();
+            $this->sweepScopesAt = max(self::SCOPE_SWEEP_MIN, count($this->scopes) * 2);
+        }
+
+        $this->scopes[] = WeakReference::create($scope);
+    }
+
+    /**
+     * The scopes of this container that are still alive, dropping the handles
+     * of those that are not. Weak, so a scope is collected when it goes out of
+     * scope exactly as it was before its parent kept a handle at all.
+     *
+     * @return list<self>
+     */
+    private function liveScopes(): array
+    {
+        $live = [];
+        $handles = [];
+
+        foreach ($this->scopes as $handle) {
+            $scope = $handle->get();
+
+            if ($scope === null) {
+                continue;
+            }
+
+            $live[] = $scope;
+            $handles[] = $handle;
+        }
+
+        $this->scopes = $handles;
+
+        return $live;
+    }
+
+    /**
+     * Hand a binding defined after the fact to the scopes that took a copy of
+     * this container's map, and to theirs.
+     *
+     * A scope that defined the same binding itself keeps it: that is its own
+     * configuration, not a stale copy of this one's.
+     */
+    private function pushContextualBinding(string $concrete, string $needs, mixed $implementation): void
+    {
+        foreach ($this->liveScopes() as $scope) {
+            if (isset($scope->ownContextualBindings[$concrete][$needs])) {
+                continue;
+            }
+
+            /** @psalm-suppress PropertyTypeCoercion */
+            $scope->contextualBindings[$concrete][$needs] = $implementation;
+            $scope->pushContextualBinding($concrete, $needs, $implementation);
+        }
+    }
+
+    /**
+     * Same, for generated factories. A stale factory map costs an optimisation
+     * rather than correctness — a generated `new` is only ever emitted for a
+     * class nobody has bound — but a scope silently missing the fast path its
+     * parent was given is still surprising.
+     *
+     * @param array<class-string, callable(): object> $factories
+     */
+    private function pushCompiledFactories(array $factories): void
+    {
+        foreach ($this->liveScopes() as $scope) {
+            // Union rather than assignment: anything the scope installed for
+            // itself outranks what arrives from above.
+            $scope->compiledFactories += $factories;
+            $scope->pushCompiledFactories($factories);
+        }
+    }
+
+    /**
+     * Same again, for lazy() registrations, which a scope also copies. A
+     * missing one constructs eagerly: unobservable apart from the timing, which
+     * is the entire reason lazy() was called.
+     */
+    private function pushLazyRegistrations(): void
+    {
+        foreach ($this->liveScopes() as $scope) {
+            $scope->cacheManager->adoptLazyFrom($this->cacheManager);
+            $scope->pushLazyRegistrations();
+        }
     }
 
     /**
