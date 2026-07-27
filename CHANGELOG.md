@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.2.1](https://github.com/gacela-project/container/compare/1.2.0...1.2.1) - 2026-07-27
+
 ### Performance
 
 - The instantiability guard added in 1.1.1 built a `ReflectionClass` of its own, duplicating the one the resolver builds a moment later for the same class, and memoized the verdict per container. On a cold container — one built per request, or per resolution — every `get()` therefore reflected twice. The guard now reads the answer off the class plan the resolver already produces, and the verdict is shared across containers. Cold resolution of a class with no dependencies is back to within noise of 1.1.0, from ~20% slower
