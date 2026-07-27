@@ -7,10 +7,15 @@ namespace Gacela\Container\Attribute;
 use Attribute;
 
 /**
- * Marks a constructor parameter for dependency injection.
+ * Marks a constructor parameter, or a property, for dependency injection.
  * Optionally specifies which concrete implementation to inject.
+ *
+ * Constructor injection remains the default. On a property this exists for
+ * classes whose constructor is not yours to change — framework base classes and
+ * legacy code — not as an equal alternative, and not as a way to model cycles:
+ * a cycle reached through a property still raises CircularDependencyException.
  */
-#[Attribute(Attribute::TARGET_PARAMETER)]
+#[Attribute(Attribute::TARGET_PARAMETER | Attribute::TARGET_PROPERTY)]
 /**
  * @api
  */

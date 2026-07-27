@@ -22,6 +22,75 @@ class NotificationService {
 $service = $container->get(NotificationService::class);
 ```
 
+### On properties
+
+`#[Inject]` also works on a property, for classes whose constructor is not yours
+to change:
+
+```php
+final class ReportBuilder extends FrameworkBaseClass
+{
+    #[Inject]
+    private LoggerInterface $logger;
+
+    #[Inject(RedisCache::class)]
+    private CacheInterface $cache;
+}
+```
+
+Private, protected and inherited properties are all supported, including private
+properties declared on a parent class. Static properties are ignored. A promoted
+constructor parameter is injected by the constructor, never twice.
+
+**Constructor injection remains the default, and this is not an equal
+alternative.** Dependencies stop being visible in the signature, the property
+cannot be `readonly`, and the object is briefly in an invalid state after `new`.
+Reach for it when the constructor is out of your hands — a framework base class,
+or legacy code — not as a matter of taste.
+
+Before using it, check whether [`afterResolving()`](services.md) already covers
+the case. It runs after resolution with the instance and the container in hand,
+and needs no new machinery.
+
+#### It is not a way to model cycles
+
+The most common reason people reach for property injection is to break a
+circular dependency. That does not work here, deliberately:
+
+```php
+final class A { #[Inject] public B $b; }
+final class B { #[Inject] public A $a; }
+
+$container->get(A::class);   // CircularDependencyException
+```
+
+Property injection runs inside the same resolution stack as constructor
+injection, so a cycle reached through a property is reported exactly like any
+other. `CircularDependencyException` and its resolution chain are a feature of
+this library, and this attribute does not open a hole in them.
+
+#### Errors
+
+| Property | Result |
+|---|---|
+| `readonly` | `DependencyInvalidArgumentException` — only the declaring class may write it |
+| Untyped | `DependencyInvalidArgumentException` — nothing to resolve |
+| Scalar type (`string`, `int`, …) | `DependencyInvalidArgumentException` — pass it through the constructor |
+
+#### Cost
+
+Nothing at all if you do not use it: classes with no `#[Inject]` property never
+enter the injection path, and the reflection scan is memoized per class for the
+lifetime of the process rather than per container.
+
+When you do use it, expect roughly **+15%** on that class's resolution against
+the constructor equivalent (1.099μs vs 0.959μs), which is the cost of
+`ReflectionProperty::setValue()`.
+
+A class with injected properties is skipped by
+[`writeCompiledFactories()`](performance.md) — a generated `new` expression
+cannot assign them — and resolves through the normal path instead.
+
 ## `#[Singleton]` — single instance
 
 Mark a class to be instantiated only once:

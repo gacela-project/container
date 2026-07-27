@@ -16,6 +16,7 @@ use GacelaBench\Fixture\NoDependencies;
 use GacelaBench\Fixture\SingletonService;
 use GacelaBench\Fixture\WithBinding;
 use GacelaBench\Fixture\WithInject;
+use GacelaBench\Fixture\WithInjectedProperty;
 use PhpBench\Attributes\Assert;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Iterations;
@@ -89,6 +90,12 @@ final class ContainerBench
     public function benchResolveWithInject(): void
     {
         $this->container->get(WithInject::class);
+    }
+
+    #[BeforeMethods('setUpPlain')]
+    public function benchResolveWithInjectedProperty(): void
+    {
+        $this->container->get(WithInjectedProperty::class);
     }
 
     #[BeforeMethods('setUpBound')]
