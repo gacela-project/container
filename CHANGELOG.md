@@ -15,7 +15,6 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 - `#[Inject]` now targets properties as well as constructor parameters, for classes whose constructor is not yours to change. Private, protected and inherited properties are supported; static properties are ignored, and a promoted parameter is still injected only by the constructor. Constructor injection remains the default — see [attributes](docs/attributes.md#on-properties)
 - A cycle reached through an injected property still raises `CircularDependencyException`. Property injection runs inside the same resolution stack, so it is deliberately not an escape hatch for the diagnostic
 - `readonly`, untyped and scalar-typed `#[Inject]` properties fail with a `DependencyInvalidArgumentException` naming the property and what to do instead, rather than a raw PHP error
-
 - `stats(): ContainerStats` returns the container's counters as a `final readonly` object instead of a shapeless array. Its properties **are** covered by backward compatibility, unlike the array from `getStats()`, and memory comes back as `memoryUsageBytes` (an int, so it can be compared and summed) with `memoryUsageFormatted()` for display. Lives on `Container` only — 1.x promises nothing will be added to `ContainerInterface` — and moves onto the interface in 2.0, replacing `getStats()`. `getStats()` is unchanged and keeps working for the whole of 1.x
 
 ### Performance
