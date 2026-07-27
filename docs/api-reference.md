@@ -103,6 +103,10 @@ use `stats()`, whose shape *is* covered.
 // Quick instantiation without container setup
 $instance = Container::create(YourClass::class);
 
+// Clear the reflection caches shared by every container in the process.
+// See performance.md#process-global-caches for what is and is not cleared
+Container::resetStaticCaches();
+
 // Load compiled constructor plans from a cache file. Entries whose class file
 // changed since the cache was written are dropped and fall back to reflection
 $plans = Container::loadCompiledCache(__DIR__ . '/cache/container.php');

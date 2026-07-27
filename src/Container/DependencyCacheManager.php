@@ -97,6 +97,20 @@ final class DependencyCacheManager
     }
 
     /**
+     * Drop the caches that outlive every container.
+     *
+     * Both are memos of a class definition — stable while the set of loadable
+     * classes is fixed, which is every production request and not a process
+     * that generates code, warms a cache, or re-bootstraps between jobs. See
+     * Container::resetStaticCaches(), the supported way in.
+     */
+    public static function resetCache(): void
+    {
+        self::$instantiable = [];
+        self::$hasInjectedProps = [];
+    }
+
+    /**
      * Wire this manager as a scope of $parent's.
      *
      * Must run before anything resolves through this manager: the resolver is
