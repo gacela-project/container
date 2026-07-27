@@ -116,6 +116,40 @@ final class Container implements ContainerInterface, ArrayAccess
     }
 
     /**
+     * Clear the caches that outlive every container.
+     *
+     * Four of the container's caches are `static`, shared by every instance
+     * and untouched by dropping one: reflection output keyed by class name. A
+     * class definition cannot change within a process, so this is normally
+     * free — and it is exactly wrong for a process where the set of loadable
+     * classes *does* change: code generation, a cache-warm command, a worker
+     * that re-bootstraps between jobs, a test suite that declares classes as
+     * it goes.
+     *
+     * | Cache | Lifetime |
+     * |---|---|
+     * | property plans (`#[Inject]` scan output) | class shape — cleared |
+     * | `#[Lazy]` on a class | class shape — cleared |
+     * | proven-instantiable classes | class shape — cleared |
+     * | has-`#[Inject]`-properties | class shape — cleared |
+     * | native lazy objects available | the PHP binary — recomputed, never differs |
+     *
+     * Only positives are ever stored, so a class that was not loadable when it
+     * was first asked about is not remembered as missing. Nothing here is a
+     * correctness crutch: calling this only ever costs the reflection it
+     * throws away.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there — and static, because there is no instance that owns this
+     * state to ask.
+     */
+    public static function resetStaticCaches(): void
+    {
+        DependencyCacheManager::resetCache();
+        DependencyResolver::resetCache();
+    }
+
+    /**
      * A child container that resolves everything this one resolves, plus
      * whatever is registered on it directly.
      *

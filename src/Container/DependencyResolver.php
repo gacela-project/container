@@ -118,6 +118,24 @@ final class DependencyResolver
     }
 
     /**
+     * Drop the caches that outlive every container.
+     *
+     * $propertyPlans and $lazyAttribute are memos of a class definition, and
+     * are the reason this exists. $lazyObjectsAvailable is a fact about the
+     * running PHP binary, which no reset can change — it is cleared anyway so
+     * that "every static is back at its declared default" holds without
+     * exceptions, and the next resolver recomputes the same answer.
+     *
+     * See Container::resetStaticCaches(), the supported way in.
+     */
+    public static function resetCache(): void
+    {
+        self::$propertyPlans = [];
+        self::$lazyAttribute = [];
+        self::$lazyObjectsAvailable = null;
+    }
+
+    /**
      * Let a scope hand unresolved types to the container it was created from.
      */
     public function inheritFrom(Container $parent): void

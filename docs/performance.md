@@ -20,6 +20,39 @@ $service = $container->get(UserService::class);
 
 `warmUp()` only lives for the current process — a new request warms up again.
 
+## Process-global caches
+
+Some reflection output is cached in `static` properties, shared by every
+container in the process and untouched by dropping one. That is normally free —
+a class definition cannot change while the process runs — and it is exactly
+wrong when the set of loadable classes *does* change: code generation, a
+`cache:warm` command, a worker that re-bootstraps between jobs, a test suite
+that declares classes as it goes.
+
+```php
+Container::resetStaticCaches();
+```
+
+| Cache | Lifetime |
+|---|---|
+| property plans (the `#[Inject]` scan) | class shape — cleared |
+| `#[Lazy]` on a class | class shape — cleared |
+| proven-instantiable classes | class shape — cleared |
+| has-`#[Inject]`-properties | class shape — cleared |
+| native lazy objects available | the PHP binary — recomputed, never differs |
+
+The distinction is the point: a cache keyed on a class's *shape* needs clearing
+when the classes change, and one keyed on the *runtime* never does.
+
+Only positives are cached, so a class that was not loadable when it was first
+asked about is never remembered as missing. Nothing here is a correctness
+crutch — calling this costs only the reflection it throws away, and never
+touches what a container was asked to keep: singletons, instances and bindings
+belong to the container and go away with it.
+
+Call it from your framework's own reset, so that reset can be honest about what
+it clears.
+
 ## Compiled container cache
 
 To skip reflection **across requests**, compile the constructor plans once
