@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.3.0](https://github.com/gacela-project/container/compare/1.2.1...1.3.0) - 2026-07-27
+
 ### Added
 
 - `Container::createScope()`, returning a child container that resolves everything its parent resolves plus whatever is registered on it directly. Registration is not copied — the scope starts empty and looks upward on a miss, so creating one costs the same whether the parent holds three bindings or three thousand. Anything registered on a scope shadows the parent for that scope alone and never mutates it. Lifetime follows ownership: an id an ancestor owns is resolved by that ancestor, so every scope shares what it produces, while a singleton a scope resolves first belongs to that scope and is released with it. Since a parent keeps no reference back, dropping a scope drops everything it owned, which is what makes it usable as a request lifetime under Swoole, RoadRunner or FrankenPHP. `remove()` and `extend()` deliberately stay local; see [scopes](docs/scopes.md) for the full semantics
