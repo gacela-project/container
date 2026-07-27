@@ -107,6 +107,34 @@ final class Connection {}
 
 The opposite — a fresh instance every time — is `#[Factory]`.
 
+## Give each request its own instances, under a long-running runtime
+
+Under Swoole, RoadRunner or FrankenPHP the process outlives the request, so a
+`singleton()` is shared by every request rather than scoped to one. Use a
+[scope](scopes.md) for the per-request half:
+
+```php
+$app = new Container($bindings);
+$app->singleton(Database::class);   // one instance for the whole process
+$app->warmUp([Router::class]);      // reflection done once, at boot
+
+foreach ($server->requests() as $request) {
+    $scope = $app->createScope();
+    $scope->set(Request::class, $request);
+
+    $handler->handle($scope);
+    // $scope goes out of range here, and takes its instances with it
+}
+```
+
+The scope resolves anything it does not hold through `$app`, and nothing is
+re-registered per request. Note the split: `singleton()` is what makes
+`Database` shared across requests — `warmUp()` only caches *reflection*, so a
+class that is merely warmed up is still built once per scope.
+
+See [scopes](scopes.md) for what a scope shares with its parent and what it
+keeps to itself.
+
 ## Build a service from other services
 
 Binding closures receive the container:
@@ -191,4 +219,5 @@ $container->bindIf(MailerInterface::class, SmtpMailer::class);
 
 - [Bindings & registration](bindings.md)
 - [Resolving services](resolution.md)
+- [Scopes](scopes.md)
 - [Error handling](error-handling.md)

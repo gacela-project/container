@@ -39,9 +39,10 @@ final class ClassDependencyResolverTest extends TestCase
 
     public function test_interface_dependency(): void
     {
-        $resolver = new DependencyResolver([
+        $bindings = [
             PersonInterface::class => Person::class,
-        ]);
+        ];
+        $resolver = new DependencyResolver($bindings);
         $actual = $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
 
         $expected = [new Person()];
@@ -54,9 +55,10 @@ final class ClassDependencyResolverTest extends TestCase
         $person = new Person();
         $person->name = 'anything';
 
-        $resolver = new DependencyResolver([
+        $bindings = [
             PersonInterface::class => $person,
-        ]);
+        ];
+        $resolver = new DependencyResolver($bindings);
         $actual = $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
 
         $expected = [$person];
@@ -90,10 +92,11 @@ final class ClassDependencyResolverTest extends TestCase
 
     public function test_missing_interface_with_suggestions(): void
     {
-        $resolver = new DependencyResolver([
+        $bindings = [
             'GacelaTest\\Fake\\PersonInterfaceTypo' => Person::class,
             'GacelaTest\\Fake\\PersonInterfce' => Person::class, // Close typo
-        ]);
+        ];
+        $resolver = new DependencyResolver($bindings);
 
         try {
             $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);

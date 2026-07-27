@@ -39,14 +39,6 @@ use function is_string;
  */
 final class DependencyResolver
 {
-    /**
-     * Plain-data constructor plans per class. Seeded from a compiled cache to
-     * skip reflection at runtime, and populated lazily otherwise.
-     *
-     * @var CompiledPlans
-     */
-    private array $planCache;
-
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
@@ -71,18 +63,35 @@ final class DependencyResolver
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
 
+    private ?Container $parent = null;
+
+    /**
+     * Hoisted out of $parent so the fall-through test costs a bool read on the
+     * hot path. Every unbound constructor parameter of every graph reaches it,
+     * and for a container with no parent — nearly all of them — the answer is
+     * fixed for the resolver's whole life.
+     */
+    private bool $hasParent = false;
+
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
-     * @param CompiledPlans $compiledPlans
      */
     public function __construct(
-        private array $bindings = [],
+        private array &$bindings = [],
         private array &$contextualBindings = [],
-        array $compiledPlans = [],
+        private PlanRegistry $planRegistry = new PlanRegistry(),
         private ?ContainerInterface $container = null,
     ) {
-        $this->planCache = $compiledPlans;
+    }
+
+    /**
+     * Let a scope hand unresolved types to the container it was created from.
+     */
+    public function inheritFrom(Container $parent): void
+    {
+        $this->parent = $parent;
+        $this->hasParent = true;
     }
 
     /**
@@ -128,7 +137,7 @@ final class DependencyResolver
      */
     public function exportPlans(): array
     {
-        return $this->planCache;
+        return $this->planRegistry->plans;
     }
 
     /**
@@ -291,6 +300,13 @@ final class DependencyResolver
         }
 
         $bindClass = $this->bindings[$paramTypeName] ?? null;
+
+        // An ancestor that already owns this type hands over its own instance,
+        // so a scope shares it instead of building a second one.
+        if ($this->hasParent && $bindClass === null && $this->parent?->provides($paramTypeName) === true) {
+            return $this->parent->get($paramTypeName);
+        }
+
         if (is_callable($bindClass)) {
             return $bindClass($this->container);
         }
@@ -323,7 +339,11 @@ final class DependencyResolver
             return $concrete;
         }
 
-        $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($this->bindings));
+        $knownBindings = $this->parent === null
+            ? $this->bindings
+            : $this->bindings + $this->parent->getBindings();
+
+        $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($knownBindings));
 
         throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
     }
@@ -376,7 +396,7 @@ final class DependencyResolver
      */
     private function describeClass(string $className): array
     {
-        $plan = $this->planCache[$className] ?? null;
+        $plan = $this->planRegistry->plans[$className] ?? null;
 
         if ($plan === null) {
             $reflection = new ReflectionClass($className);
@@ -389,7 +409,7 @@ final class DependencyResolver
                 }
             }
 
-            return $this->planCache[$className] = [
+            return $this->planRegistry->plans[$className] = [
                 'instantiable' => $reflection->isInstantiable(),
                 'params' => $params,
                 'props' => $this->describeProperties($className),
@@ -401,7 +421,7 @@ final class DependencyResolver
         // silently turn injection off in exactly the environment (production)
         // where the cache is used.
         if (!isset($plan['props'])) {
-            return $this->planCache[$className] = [
+            return $this->planRegistry->plans[$className] = [
                 'instantiable' => $plan['instantiable'],
                 'params' => $plan['params'],
                 'props' => $this->describeProperties($className),

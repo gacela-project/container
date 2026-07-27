@@ -42,6 +42,9 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
 
+    /** @var self|null the container this one was created as a scope of */
+    private ?self $parent = null;
+
     /** @var BindingsMap */
     private array $bindings;
 
@@ -85,6 +88,76 @@ final class Container implements ContainerInterface, ArrayAccess
     public static function loadCompiledCache(string $file): array
     {
         return CompiledCacheWriter::read($file);
+    }
+
+    /**
+     * A child container that resolves everything this one resolves, plus
+     * whatever is registered on it directly.
+     *
+     * Nothing is copied. The scope starts empty and falls through to this
+     * container on a miss, so creating one costs the same whether the parent
+     * holds three registrations or three thousand — cheap enough to do per
+     * request, or per module. Anything registered on the scope shadows the
+     * parent for that scope alone and never mutates it.
+     *
+     * Lifetime follows first resolution. A service this container has already
+     * resolved is handed to every scope, so they share one instance; one a
+     * scope resolves first belongs to that scope and goes away with it. That is
+     * what makes a scope usable as a request lifetime in a long-running
+     * runtime: drop the reference and everything it resolved is released, while
+     * everything resolved at boot stays put.
+     *
+     * Two things deliberately do not fall through. remove() only forgets what
+     * the scope itself stored, and extend() refuses to reach into an ancestor
+     * — see the exception it throws for the way to decorate a scope-locally.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     */
+    public function createScope(): self
+    {
+        $scope = new self();
+        $scope->parent = $this;
+
+        // The one thing a scope takes a copy of, rather than looking up as it
+        // goes. Contextual bindings are matched against the resolver's build
+        // stack, so a chain walk would land on the hot path of every nested
+        // parameter to serve a map that is configuration, fixed before the
+        // scopes that read it exist. Copy-on-write makes the copy free until
+        // the scope defines one of its own. A when() call on this container
+        // after the scope exists is therefore not visible to it.
+        $scope->contextualBindings = $this->contextualBindings;
+
+        // Same reasoning, and the same copy-on-write: a generated factory is a
+        // plain `new` expression for a class nobody has bound, so it stays
+        // correct in a scope, and looking the map up through the chain would
+        // cost every miss on the resolution path.
+        $scope->compiledFactories = $this->compiledFactories;
+
+        $scope->aliasRegistry->inheritFrom($this->aliasRegistry);
+        $scope->bindingResolver->inheritFrom($this->bindingResolver);
+        $scope->cacheManager->inheritFrom($this->cacheManager, $this);
+
+        return $scope;
+    }
+
+    /**
+     * Whether this container, or one of its ancestors, already owns something
+     * for $id: a binding, a stored instance, or a singleton it has resolved.
+     *
+     * Narrower than has(), which is also true of anything merely autowirable,
+     * and wider than bound(), which does not see a singleton that no binding
+     * introduced. A scope asks this to decide whether to delegate upwards or
+     * build its own.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there.
+     */
+    public function provides(string $id): bool
+    {
+        $id = $this->aliasRegistry->resolve($id);
+
+        return $this->ownsLocally($id) || ($this->parent?->provides($id) ?? false);
     }
 
     /**
@@ -135,7 +208,7 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     public function writeCompiledFactories(array $classNames, string $file): array
     {
-        $compiler = new ContainerCompiler($this->compile($classNames), $this->bindings);
+        $compiler = new ContainerCompiler($this->compile($classNames), $this->getBindings());
 
         CompiledCacheWriter::put($file, $compiler->render());
 
@@ -202,7 +275,9 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         $id = $this->aliasRegistry->resolve($id);
 
-        return isset($this->bindings[$id]) || $this->instanceRegistry->has($id);
+        return isset($this->bindings[$id])
+            || $this->instanceRegistry->has($id)
+            || ($this->parent?->bound($id) ?? false);
     }
 
     /**
@@ -262,6 +337,10 @@ final class Container implements ContainerInterface, ArrayAccess
             return true;
         }
 
+        if ($this->parent?->bound($id) === true) {
+            return true;
+        }
+
         return $this->isInstantiable($id);
     }
 
@@ -314,6 +393,11 @@ final class Container implements ContainerInterface, ArrayAccess
         if ($this->instanceRegistry->has($id)) {
             /** @var mixed $instance */
             $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this);
+        } elseif ($this->parent !== null && !$this->ownsLocally($id) && $this->parent->provides($id)) {
+            // The ancestor owns it, so it resolves it: its own factory and
+            // protected closures apply, and every scope gets the same instance.
+            /** @var mixed $instance */
+            $instance = $this->parent->get($id);
         } else {
             $instance = $this->createInstance($id);
         }
@@ -326,6 +410,11 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Register a callback to run after the given id is resolved, receiving the
      * resolved instance and the container. Callbacks run in registration order.
+     *
+     * Callbacks fire for the resolutions their own container performs. A scope
+     * resolving an id its parent registered is a resolution the parent
+     * performs, so callbacks registered up there still fire; one the scope
+     * autowires by itself is not, so they do not.
      */
     #[Override]
     public function afterResolving(string $id, Closure $callback): void
@@ -397,6 +486,13 @@ final class Container implements ContainerInterface, ArrayAccess
         return $instance;
     }
 
+    /**
+     * Forget an instance stored on this container.
+     *
+     * A scope only forgets what it stored itself; removing an id it inherits
+     * would mutate the ancestor holding it. After removing a shadowing entry,
+     * the id resolves through the parent again.
+     */
     #[Override]
     public function remove(string $id): void
     {
@@ -429,7 +525,7 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function tagged(string $tag): iterable
     {
-        foreach ($this->tagRegistry->idsFor($tag) as $id) {
+        foreach ($this->taggedIds($tag) as $id) {
             yield $this->get($id);
         }
     }
@@ -457,6 +553,13 @@ final class Container implements ContainerInterface, ArrayAccess
         // which is true for any instantiable class. Here the question is
         // narrower — is there something stored to extend right now?
         if (!$this->instanceRegistry->has($id)) {
+            // Scheduling would be a silent no-op: anything an ancestor owns is
+            // resolved by that ancestor, so the pending extension here would
+            // never fire. A binding counts, not just a stored instance.
+            if ($this->parent?->provides($id) === true) {
+                throw ContainerException::inheritedInstanceExtend($id);
+            }
+
             $this->factoryManager->scheduleExtension($id, $instance);
 
             return $instance;
@@ -494,7 +597,15 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function getRegisteredServices(): array
     {
-        return $this->instanceRegistry->getAll();
+        $own = $this->instanceRegistry->getAll();
+
+        if ($this->parent === null) {
+            return $own;
+        }
+
+        // A scope can resolve what its ancestors stored, so it reports those
+        // too; an id it shadows is listed once, under the scope.
+        return array_values(array_unique([...$this->parent->getRegisteredServices(), ...$own]));
     }
 
     #[Override]
@@ -504,7 +615,7 @@ final class Container implements ContainerInterface, ArrayAccess
 
         // Same distinction as extend(): only a stored instance can be a factory.
         if (!$this->instanceRegistry->has($id)) {
-            return false;
+            return $this->parent?->isFactory($id) ?? false;
         }
 
         return $this->factoryManager->isFactory($this->instanceRegistry->getRaw($id));
@@ -514,7 +625,15 @@ final class Container implements ContainerInterface, ArrayAccess
     public function isFrozen(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
-        return $this->instanceRegistry->isFrozen($id);
+
+        // Same distinction as isFactory(): a scope shadowing an id answers for
+        // its own copy, which is unfrozen however long the ancestor's has been
+        // read.
+        if ($this->instanceRegistry->has($id)) {
+            return $this->instanceRegistry->isFrozen($id);
+        }
+
+        return $this->parent?->isFrozen($id) ?? false;
     }
 
     /**
@@ -612,6 +731,37 @@ final class Container implements ContainerInterface, ArrayAccess
             'cached_dependencies' => $stats->cachedDependencies,
             'memory_usage' => $stats->memoryUsageFormatted(),
         ];
+    }
+
+    /**
+     * Inherited tags come first, so a scope adding to a tag appends to what the
+     * parent already grouped under it rather than replacing it.
+     *
+     * @return list<string>
+     */
+    private function taggedIds(string $tag): array
+    {
+        $own = $this->tagRegistry->idsFor($tag);
+
+        if ($this->parent === null) {
+            return $own;
+        }
+
+        return array_values(array_unique([...$this->parent->taggedIds($tag), ...$own]));
+    }
+
+    /**
+     * Whether this container owns $id itself, ignoring its ancestors.
+     *
+     * get() has to ask exactly what provides() asks, only without the chain
+     * walk. Anything narrower and a scope hands back an ancestor's instance for
+     * something it had already resolved for itself.
+     */
+    private function ownsLocally(string $id): bool
+    {
+        return isset($this->bindings[$id])
+            || $this->instanceRegistry->has($id)
+            || $this->cacheManager->ownsSingleton($id);
     }
 
     private function isInstantiable(string $id): bool

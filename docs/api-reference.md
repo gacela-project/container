@@ -25,23 +25,27 @@ For the exceptions, the **class and its PSR-11 interface** are stable. Exception
 
 **`@internal` — not covered.** `AliasRegistry`, `BindingResolver`,
 `DependencyCacheManager`, `DependencyResolver`, `DependencyTreeAnalyzer`,
-`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, and `TagRegistry` are
-implementation details of `Container`. They may change signature, behaviour, or
-disappear entirely in **any** release, including a patch. Do not import them.
+`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, `PlanRegistry`, and
+`TagRegistry` are implementation details of `Container`. They may change
+signature, behaviour, or disappear entirely in **any** release, including a
+patch. Do not import them.
 
 ## What the interface guarantees
 
-Every instance method below is declared on `ContainerInterface`. Type-hint the
-interface, never the concrete class — you lose nothing by doing so.
+Almost every instance method below is declared on `ContainerInterface`; the
+handful that are not are marked `Container` only. Type-hint the interface unless
+you need one of those.
 
 `ContainerInterface` also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`,
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Four members live on `Container` alone. Three of them *cannot* be on an
+Eight members live on `Container` alone. Three of them *cannot* be on an
 interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`. The fourth, `stats()`, is kept off deliberately — 1.x
-promises nothing will be added to `ContainerInterface`, so it moves there in 2.0.
+`loadCompiledCache()`. The other five — `stats()`, `createScope()`,
+`provides()`, `writeCompiledFactories()` and `useCompiledFactories()` — are kept
+off deliberately: 1.x promises nothing will be added to `ContainerInterface`, so
+they move there in 2.0.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
 returns is not covered by backward compatibility**. Treat it as debug output, or
@@ -57,6 +61,7 @@ use `stats()`, whose shape *is* covered.
 | `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
 | `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`) |
 | `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
+| `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton. `Container` only |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
@@ -74,11 +79,12 @@ use `stats()`, whose shape *is* covered.
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file |
-| `writeCompiledFactories(array $classNames, string $file): array` | Generate `new` expressions for statically-decidable classes; returns those compiled |
-| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path |
+| `writeCompiledFactories(array $classNames, string $file): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `Container` only |
+| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `Container` only |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order |
+| `createScope(): Container` | A child container inheriting this one's registration without copying it. `Container` only — see [scopes](scopes.md) |
 | `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `Container` only |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |

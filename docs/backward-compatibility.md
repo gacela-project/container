@@ -28,16 +28,18 @@ For these, within 1.x:
   named arguments are safe to use.
 - `Container::__construct()` keeps its three optional parameters, in order.
 - No method will be added to `ContainerInterface`. That is why the interface was
-  brought to its full shape before 1.0.
+  brought to its full shape before 1.0. Anything that would otherwise belong
+  there lands on `Container` instead until 2.0 — currently `stats()`,
+  `createScope()` and `provides()`.
 - Exception **classes** and the PSR-11 interfaces they implement are stable.
 
 ## What is not covered
 
 **`@internal` classes.** `AliasRegistry`, `BindingResolver`,
 `DependencyCacheManager`, `DependencyResolver`, `DependencyTreeAnalyzer`,
-`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, and `TagRegistry` are
-implementation details. They may change signature, behaviour, or be deleted in
-**any** release, including a patch. Do not import them.
+`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, `PlanRegistry`, and
+`TagRegistry` are implementation details. They may change signature, behaviour,
+or be deleted in **any** release, including a patch. Do not import them.
 
 **Exception messages.** Only the class is stable. Messages carry fuzzy-match
 suggestions and resolution chains that should stay free to improve — never parse
