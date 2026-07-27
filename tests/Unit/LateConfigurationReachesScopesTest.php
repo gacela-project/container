@@ -12,9 +12,11 @@ use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use WeakReference;
 
 use function gc_collect_cycles;
+use function method_exists;
 
 /**
  * A scope copies its parent's contextual bindings, generated factories and
@@ -172,6 +174,12 @@ final class LateConfigurationReachesScopesTest extends TestCase
 
     public function test_a_lazy_registration_made_after_a_scope_exists_reaches_it(): void
     {
+        if (!method_exists(ReflectionClass::class, 'newLazyGhost')) {
+            // On PHP 8.3 a lazy target is constructed eagerly whether or not
+            // the registration arrived, so there is nothing to observe.
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
         $container = new Container();
         $scope = $container->createScope();
 
