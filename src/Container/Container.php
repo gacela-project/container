@@ -65,11 +65,14 @@ final class Container implements ContainerInterface, ArrayAccess
      * @param  BindingsMap  $bindings
      * @param  array<string, list<Closure>>  $instancesToExtend
      * @param  CompiledPlans  $compiledPlans  precompiled constructor plans (see writeCompiledCache())
+     * @param  PlanCache|null  $planCache  one plan cache shared with containers this one is not related to;
+     *   what it shares is reflection output, never configuration (see PlanCache)
      */
     public function __construct(
         array $bindings = [],
         array $instancesToExtend = [],
         array $compiledPlans = [],
+        ?PlanCache $planCache = null,
     ) {
         $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
@@ -77,7 +80,13 @@ final class Container implements ContainerInterface, ArrayAccess
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($this->bindings, $this);
-        $this->cacheManager = new DependencyCacheManager($this->bindings, $this->contextualBindings, $compiledPlans, $this);
+        $this->cacheManager = new DependencyCacheManager(
+            $this->bindings,
+            $this->contextualBindings,
+            $compiledPlans,
+            $this,
+            $planCache,
+        );
         $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
     }
 

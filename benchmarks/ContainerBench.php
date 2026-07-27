@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GacelaBench;
 
 use Gacela\Container\Container;
+use Gacela\Container\PlanCache;
 use GacelaBench\Fixture\ConsoleLogger;
 use GacelaBench\Fixture\EagerExpensive;
 use GacelaBench\Fixture\LazyExpensive;
@@ -37,6 +38,9 @@ use PhpBench\Attributes\Warmup;
 #[Warmup(1)]
 final class ContainerBench
 {
+    /** How many sibling containers a modular application ends up with. */
+    private const SIBLINGS = 10;
+
     private Container $container;
 
     private Container $boundContainer;
@@ -166,6 +170,30 @@ final class ContainerBench
     public function benchColdResolveDeepChainCompiled(): void
     {
         (new Container([], [], $this->plans))->get(Level1::class);
+    }
+
+    /**
+     * The modular shape: one container per module, all resolving classes they
+     * have in common. Every container plans the chain from scratch.
+     */
+    public function benchColdResolveAcrossSiblings(): void
+    {
+        for ($i = 0; $i < self::SIBLINGS; ++$i) {
+            (new Container())->get(Level1::class);
+        }
+    }
+
+    /**
+     * The same, with one plan cache handed to all of them: the first container
+     * reflects the chain and the rest read it.
+     */
+    public function benchColdResolveAcrossSiblingsSharingPlans(): void
+    {
+        $plans = new PlanCache();
+
+        for ($i = 0; $i < self::SIBLINGS; ++$i) {
+            (new Container([], [], [], $plans))->get(Level1::class);
+        }
     }
 
     /**

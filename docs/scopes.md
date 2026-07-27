@@ -210,6 +210,9 @@ the two you already have:
 
 ## Compiled plans are shared
 
+Along the parent axis, automatically; between unrelated containers, by handing
+them one [`PlanCache`](performance.md#one-plan-cache-for-several-containers).
+
 A constructor plan is reflection output keyed by class name, so whichever
 container in a chain builds it first, all of them use the result — live, and in
 both directions. A scope created before the parent warms up still sees the

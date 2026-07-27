@@ -20,6 +20,53 @@ $service = $container->get(UserService::class);
 
 `warmUp()` only lives for the current process — a new request warms up again.
 
+## One plan cache for several containers
+
+A container caches its constructor plans per instance, and a
+[scope](scopes.md#compiled-plans-are-shared) shares its parent's. Sibling
+containers — one per module, which is where a modular application ends up —
+had no such axis, so every one of them re-planned whatever the modules had in
+common. Hand them the same `PlanCache` and the first to touch a class plans it
+for the rest:
+
+```php
+use Gacela\Container\PlanCache;
+
+$plans = new PlanCache();
+
+$users  = new Container($userBindings,  [], [], $plans);
+$orders = new Container($orderBindings, [], [], $plans);
+```
+
+Ten containers each resolving the same four-level chain (PHP 8.4, no JIT,
+`phpbench`, mode of 5×1000 revolutions):
+
+| | mode | peak memory |
+|---|---|---|
+| A cache each | 55.315μs | 82.61mb |
+| One shared cache | **37.067μs** | **45.79mb** |
+
+**Reflection output is all that is shared.** A plan records what a constructor
+asks for, never how a container satisfied it, so bindings, contextual bindings,
+aliases, tags, singletons, stored instances, `lazy()` registrations and compiled
+factories all stay private to the container they were registered on. Two
+containers sharing a cache still resolve the same class differently if their
+bindings differ — that is the whole point of the line.
+
+Seed it from a compiled cache file to pay for reading it once instead of once
+per container:
+
+```php
+$plans = new PlanCache(Container::loadCompiledCache(__DIR__ . '/cache/container.php'));
+```
+
+A plan already in the cache wins over a compiled one for the same class: the
+first was built by reflection in this process, the second came off disk and may
+be describing a constructor that has since changed.
+
+`count()` and `classes()` say what the cache holds, which is how a build asserts
+the sharing is happening at all.
+
 ## Process-global caches
 
 Some reflection output is cached in `static` properties, shared by every
