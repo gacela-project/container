@@ -60,11 +60,18 @@ final class ContainerCompiler
     }
 
     /**
-     * A `class-string => Closure(): object` map, as PHP source.
+     * A `class-string => Closure(): object` map, as PHP source, in the same
+     * stamped envelope CompiledCacheWriter writes plans into — a generated
+     * `new` expression pins an argument list, so it goes stale exactly as a
+     * plan does. Read it back with Container::loadCompiledFactories().
+     *
+     * @param string|null $buildStamp identifies the build this file belongs to;
+     *   see CompiledCacheWriter::read() for what it buys
      */
-    public function render(): string
+    public function render(?string $buildStamp = null): string
     {
         $entries = [];
+        $stamps = [];
 
         foreach (array_keys($this->plans) as $class) {
             $expression = $this->expressionFor($class, []);
@@ -73,12 +80,11 @@ final class ContainerCompiler
                 continue;
             }
 
-            $entries[] = '    ' . var_export($class, true) . ' => static fn (): object => ' . $expression . ',';
+            $entries[] = '        ' . var_export($class, true) . ' => static fn (): object => ' . $expression . ',';
+            $stamps[$class] = CacheStamp::of($class);
         }
 
-        return "<?php\n\ndeclare(strict_types=1);\n\nreturn [\n"
-            . implode("\n", $entries)
-            . "\n];\n";
+        return CompiledCacheWriter::envelope($buildStamp, $stamps, 'factories', $entries);
     }
 
     /**

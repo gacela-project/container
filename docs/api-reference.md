@@ -83,8 +83,8 @@ use `stats()`, whose shape *is* covered.
 | `getBindings(): array` | Get all bindings |
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans |
-| `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file |
-| `writeCompiledFactories(array $classNames, string $file): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `Container` only |
+| `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
+| `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `Container` only |
 | `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `Container` only — see [performance](performance.md#asking-why) |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `Container` only |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
@@ -103,10 +103,20 @@ use `stats()`, whose shape *is* covered.
 // Quick instantiation without container setup
 $instance = Container::create(YourClass::class);
 
-// Load compiled constructor plans from a cache file
+// Load compiled constructor plans from a cache file. Entries whose class file
+// changed since the cache was written are dropped and fall back to reflection
 $plans = Container::loadCompiledCache(__DIR__ . '/cache/container.php');
 $container = new Container($bindings, [], $plans);
+
+// Same, for generated `new` expressions
+$container->useCompiledFactories(
+    Container::loadCompiledFactories(__DIR__ . '/cache/factories.php'),
+);
 ```
+
+Both take an optional second argument, a build stamp: pass the same value used
+when the file was written and the whole file is validated in one comparison
+instead of one `stat` per class. See [staleness](performance.md#staleness).
 
 ## The constructor
 
