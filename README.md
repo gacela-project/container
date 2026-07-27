@@ -31,7 +31,7 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
-- 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, and `#[Factory]`
+- 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, `#[Factory]`, and `#[Lazy]`
 
 ## Installation
 
@@ -68,6 +68,33 @@ echo $greeter->greet();
 ```
 
 Need interfaces, singletons, attributes, or a compiled cache? See the docs below.
+
+## How it compares
+
+|  | Gacela | [Pimple](https://github.com/silexphp/Pimple) | [Laravel](https://github.com/illuminate/container) | [PHP-DI](https://php-di.org) | [Symfony](https://symfony.com/doc/current/service_container.html) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| PSR-11 | ✅ | wrapper | ✅ | ✅ | ✅ |
+| Autowiring with zero config | ✅ | ❌ | ✅ | ✅ | needs config |
+| Framework-independent | ✅ | ✅ | pulls `illuminate/contracts` | ✅ | ✅ |
+| Lifetimes as attributes | `#[Singleton]` `#[Factory]` `#[Lazy]` | ❌ | ❌ | `#[Inject]` only | `#[Autoconfigure]` |
+| Lazy services | ✅ native lazy objects, no proxy class | ❌ | ❌ | ✅ via proxy library | ✅ |
+| Compiled resolution | ✅ plans + generated factories | ❌ | ❌ | ✅ | ✅ |
+| Child/scope containers | ✅ inherits without copying | ❌ | ❌ | ❌ | ❌ |
+| Contextual bindings | ✅ | ❌ | ✅ | definitions | ✅ |
+| Tags | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Invoke any callable | ✅ `resolve()` | ❌ | ✅ `call()` | ✅ `call()` | ❌ |
+| Circular dependencies | ✅ named exception + path | ❌ | ✅ | ✅ | ✅ at compile time |
+| Introspection | ✅ `stats()`, dependency tree, typo hints | ❌ | ❌ | limited | ✅ via console |
+| Array access | ✅ | ✅ | ✅ | ❌ | ❌ |
+| YAML/XML definition files | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Compiler passes / extensions | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+**Use this if** you want Pimple's footprint with real autowiring, or Laravel's
+container API without Laravel — plus lazy services, per-request scopes, and a
+compiled cache that skips reflection entirely.
+
+**Look elsewhere if** you need container definitions in YAML/XML, or
+compiler-pass style extension points. Those are Symfony's territory by design.
 
 ## Documentation
 
