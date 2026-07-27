@@ -175,6 +175,39 @@ foreach ($container->tagged('exporters') as $exporter) {
   instances are built only as you iterate.
 - An unknown tag yields nothing.
 
+### Keyed tags
+
+Pass a map and the entries become addressable — a command bus, a router or a
+strategy map wants *the* handler for `'email'`, not all of them:
+
+```php
+$container->tag([
+    'email' => EmailHandler::class,
+    'sms' => SmsHandler::class,
+], 'notification.handlers');
+
+$handler = $container->taggedByKey('notification.handlers', 'sms');
+```
+
+- Only the entry asked for is built. Registering a hundred handlers constructs
+  none of them.
+- The instance comes from the container's own cache, so a `singleton()` still
+  lives in exactly one place — a keyed tag is a lookup table of ids, never a
+  second place instances are kept.
+- Registering a key again replaces it, which makes per-environment layering a
+  matter of registration order.
+- `taggedKeys($tag)` lists the keys, in insertion order. Entries registered
+  without one are not listed: there is no key to ask with.
+- An unknown key throws a `ContainerException` naming the keys that do exist
+  (with a did-you-mean for near misses) rather than returning `null` — a router
+  asking for a handler that was never registered is a misconfiguration. Check
+  `taggedKeys()` first when the key is genuinely optional.
+- Keys and plain ids live in one tag. `tagged()` yields keyed entries under
+  their key and unkeyed ones under their position, so existing loops are
+  unchanged.
+- A scope inherits keyed entries and can override one for itself, exactly as it
+  shadows a binding. See [scopes](scopes.md).
+
 ## Service aliasing
 
 Create multiple names for the same service:

@@ -67,6 +67,24 @@ foreach ($container->tagged('notifiers') as $notifier) {
 }
 ```
 
+## Route a message to one handler
+
+Same mechanism, keyed — a command bus or router needs *the* handler for a
+message type, not all of them. Only the one asked for is built:
+
+```php
+$container->tag([
+    'order.placed' => OrderPlacedHandler::class,
+    'order.shipped' => OrderShippedHandler::class,
+], 'handlers');
+
+$container->taggedByKey('handlers', $message->type())->handle($message);
+```
+
+An unknown key throws, naming the keys that exist. Use `taggedKeys('handlers')`
+when a message having no handler is a normal outcome rather than a
+misconfiguration. See [keyed tags](bindings.md#keyed-tags).
+
 ## Decorate a third-party service
 
 `extend()` wraps a single binding. It works even before the service is defined —

@@ -88,8 +88,10 @@ use `stats()`, whose shape *is* covered.
 | `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `Container` only — see [performance](performance.md#asking-why) |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `Container` only |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
-| `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |
-| `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order |
+| `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes); a map gives entries keys |
+| `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order; keyed entries under their key |
+| `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `Container` only — see [tags](bindings.md#keyed-tags) |
+| `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `Container` only |
 | `createScope(): Container` | A child container inheriting this one's registration without copying it. `Container` only — see [scopes](scopes.md) |
 | `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `Container` only |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |

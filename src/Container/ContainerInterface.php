@@ -158,14 +158,21 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
     /**
      * Group one or more service ids under a tag. Calls accumulate and dedupe.
      *
-     * @param string|list<string> $ids
+     * A map gives the entries keys, addressable with Container::taggedByKey().
+     * The runtime signature is unchanged — this widens what an implementation
+     * is asked to accept, not what it is asked to declare.
+     *
+     * @param string|array<array-key, string> $ids
      */
     public function tag(string|array $ids, string $tag): void;
 
     /**
      * Lazily resolve every service registered under a tag, in insertion order.
      *
-     * @return iterable<mixed>
+     * Keyed entries come back under their key, unkeyed ones under their
+     * position.
+     *
+     * @return iterable<array-key, mixed>
      */
     public function tagged(string $tag): iterable;
 
