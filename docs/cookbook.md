@@ -167,7 +167,7 @@ Regenerate the file whenever constructors change. See
 $container->getBindings();                           // every abstract => concrete
 $container->getDependencyTree(OrderService::class);  // what it pulls in, recursively
 $container->getRegisteredServices();                 // ids with a stored instance
-$container->getStats();                              // counters, for debugging only
+$container->stats();                                 // counters, for debugging only
 ```
 
 `has()` and `bound()` answer different questions — see

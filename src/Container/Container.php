@@ -550,17 +550,16 @@ final class Container implements ContainerInterface, ArrayAccess
     }
 
     /**
-     * @return array{
-     *     registered_services: int,
-     *     frozen_services: int,
-     *     factory_services: int,
-     *     bindings: int,
-     *     cached_dependencies: int,
-     *     memory_usage: string
-     * }
+     * A snapshot of what this container is holding.
+     *
+     * Prefer this over getStats(): the returned object's shape is covered by
+     * backward compatibility, where the array's explicitly is not, and memory
+     * comes back as an int rather than a string needing to be parsed.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0, replacing getStats().
      */
-    #[Override]
-    public function getStats(): array
+    public function stats(): ContainerStats
     {
         $services = $this->getRegisteredServices();
         $frozenCount = 0;
@@ -575,13 +574,43 @@ final class Container implements ContainerInterface, ArrayAccess
             }
         }
 
+        return new ContainerStats(
+            registeredServices: count($services),
+            frozenServices: $frozenCount,
+            factoryServices: $factoryCount,
+            bindings: count($this->getBindings()),
+            cachedDependencies: $this->cacheManager->getCacheSize(),
+            memoryUsageBytes: memory_get_usage(true),
+        );
+    }
+
+    /**
+     * Superseded by stats(), which is typed. Kept for the whole of 1.x.
+     *
+     * @return array{
+     *     registered_services: int,
+     *     frozen_services: int,
+     *     factory_services: int,
+     *     bindings: int,
+     *     cached_dependencies: int,
+     *     memory_usage: string
+     * }
+     */
+    #[Override]
+    public function getStats(): array
+    {
+        // Built from stats() rather than alongside it: two APIs over one set of
+        // numbers can only stay in agreement if there is one place computing
+        // them.
+        $stats = $this->stats();
+
         return [
-            'registered_services' => count($services),
-            'frozen_services' => $frozenCount,
-            'factory_services' => $factoryCount,
-            'bindings' => count($this->getBindings()),
-            'cached_dependencies' => $this->cacheManager->getCacheSize(),
-            'memory_usage' => ByteFormatter::format(memory_get_usage(true)),
+            'registered_services' => $stats->registeredServices,
+            'frozen_services' => $stats->frozenServices,
+            'factory_services' => $stats->factoryServices,
+            'bindings' => $stats->bindings,
+            'cached_dependencies' => $stats->cachedDependencies,
+            'memory_usage' => $stats->memoryUsageFormatted(),
         ];
     }
 

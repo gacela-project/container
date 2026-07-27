@@ -76,18 +76,25 @@ if ($container->isFrozen('logger')) {
 $bindings = $container->getBindings();
 
 // Get container statistics
-$stats = $container->getStats();
-/*
-[
-    'registered_services' => 42,
-    'frozen_services' => 15,
-    'factory_services' => 3,
-    'bindings' => 8,
-    'cached_dependencies' => 25,
-    'memory_usage' => '2.34 MB'
-]
-*/
+$stats = $container->stats();
+
+$stats->registeredServices;      // 42
+$stats->frozenServices;          // 15
+$stats->factoryServices;         // 3
+$stats->bindings;                // 8
+$stats->cachedDependencies;      // 25
+$stats->memoryUsageBytes;        // 2453667 — an int, so it can be compared
+$stats->memoryUsageFormatted();  // '2.34 MB'
 ```
+
+`stats()` lives on `Container` rather than `ContainerInterface`, because 1.x
+promises no method will be added to that interface. It moves onto the interface
+in 2.0.
+
+The older `getStats()` returns the same numbers as an array and keeps working for
+the whole of 1.x. Prefer `stats()`: the array's shape is
+[excluded from BC](backward-compatibility.md), and its memory figure is a
+preformatted string that has to be parsed back before it can be used.
 
 ## Related
 

@@ -44,7 +44,10 @@ suggestions and resolution chains that should stay free to improve — never par
 or assert on them.
 
 **The array returned by `getStats()`.** Debug output. Its keys and value formats
-may change at any time. Do not build logic on it.
+may change at any time. Do not build logic on it — use `stats()` instead, which
+returns a `ContainerStats` whose properties *are* covered here. Adding a property
+to a readonly object is additive and safe; adding a key to an array is not, which
+is the entire reason for this carve-out.
 
 **The compiled cache file format.** The file written by `writeCompiledCache()`
 is a build artifact tied to the exact version that produced it. Regenerate it on

@@ -13,7 +13,7 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  * @psalm-type Binding = class-string|callable|object
  * @psalm-type BindingsMap = array<class-string, Binding>
  * @psalm-type ContextualBindingsMap = array<string, array<string, mixed>>
- * @psalm-type ContainerStats = array{
+ * @psalm-type StatsArray = array{
  *     registered_services: int,
  *     frozen_services: int,
  *     factory_services: int,
@@ -209,7 +209,10 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * The shape of the returned array is NOT covered by backward compatibility
      * and may change in any release. Do not build logic on it.
      *
-     * @return ContainerStats
+     * Superseded by Container::stats(), which returns a ContainerStats whose
+     * shape IS covered. This method is replaced by it in 2.0.
+     *
+     * @return StatsArray
      */
     public function getStats(): array;
 }
