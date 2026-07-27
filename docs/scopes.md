@@ -38,9 +38,11 @@ a miss, so the cost is the same whether the parent holds three bindings or three
 thousand — cheap enough to do per request, or per module. Scopes nest: a scope
 can create a scope.
 
-Two maps are copied rather than looked up through the chain — contextual
-bindings and generated factories — and copy-on-write makes both free until the
-scope writes to them. See [what does not fall through](#what-does-not-fall-through).
+Three maps are copied rather than looked up through the chain — contextual
+bindings, generated factories and `lazy()` registrations — and copy-on-write
+makes them free until the scope writes to them. Registering one later still
+reaches scopes that already exist, so the copy is an optimisation and not an
+ordering rule. See [what does not fall through](#what-does-not-fall-through).
 
 ## Resolution order
 
@@ -160,16 +162,22 @@ parent performs, so callbacks registered up there still fire — which is the
 normal case, since hooks target registered services. One the scope autowires by
 itself is not, so they do not.
 
-**Contextual bindings** and the map installed by **`useCompiledFactories()`** are
-copied into a scope when it is created, rather than looked up through the chain.
-Both are consulted on the resolution path — contextual bindings once per nested
-parameter — so a chain walk would tax every miss to serve a map that is
-configuration, fixed before the scopes that read it exist. Define them before
-creating scopes; a `when()` or `useCompiledFactories()` call on the parent
-afterwards is not visible to scopes that already exist.
+**Contextual bindings**, the map installed by **`useCompiledFactories()`** and
+**`lazy()` registrations** are copied into a scope when it is created, rather
+than looked up through the chain. All three are consulted on the resolution path
+— contextual bindings once per nested parameter — so a chain walk would tax
+every miss to serve a map that is configuration.
 
-Bindings, instances and aliases have no such caveat: those are looked up live,
-so registering on the parent later still reaches existing scopes.
+Registering one *after* a scope exists still reaches it: the parent hands the
+new entry to the scopes it has created, and to theirs. **Order does not matter,
+and nothing is silently missed.** A scope that registered the same contextual
+binding for itself keeps its own — shadowing, as everywhere else.
+
+The handles a parent keeps on its scopes are weak, so a scope is still collected
+the moment you drop it. That is what makes a scope usable as a request lifetime.
+
+Bindings, instances and aliases are looked up live and never needed the
+treatment: registering on the parent later always reached existing scopes.
 
 **`bindIf()` / `singletonIf()`** ask `bound()`, which sees the whole chain. On a
 scope they are therefore no-ops when any ancestor already bound the id. Use

@@ -141,10 +141,21 @@ final class DependencyCacheManager
         // bindings and for the same reason: the lazy test runs on the hot path
         // of every nested parameter, and a walk up the chain there would make a
         // scope's resolutions scale with the depth of its ancestry. A lazy()
-        // call on the parent after the scope exists is therefore not visible
-        // to it.
+        // call made on the parent afterwards is pushed down instead — see
+        // adoptLazyFrom().
         $this->lazyClasses = $parentManager->lazyClasses;
         $this->lazyFactories = $parentManager->lazyFactories;
+    }
+
+    /**
+     * Take the registrations the parent has now, without disturbing the ones
+     * this manager was given for itself: a scope that made a class lazy on its
+     * own terms outranks whatever arrives from above.
+     */
+    public function adoptLazyFrom(self $parentManager): void
+    {
+        $this->lazyClasses += $parentManager->lazyClasses;
+        $this->lazyFactories += $parentManager->lazyFactories;
     }
 
     /**
