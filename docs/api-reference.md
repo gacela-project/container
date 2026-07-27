@@ -14,6 +14,7 @@ version:
 | `Container` | the container itself (`final`) |
 | `ContainerInterface` | the contract to type-hint against |
 | `ContextualBindingBuilder` | returned by `when()` |
+| `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
 | `Exception\ContainerException` | |
 | `Exception\CircularDependencyException` | |
@@ -40,12 +41,13 @@ you need one of those.
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Eleven members live on `Container` alone. Three of them *cannot* be on an
+Twelve members live on `Container` alone. Three of them *cannot* be on an
 interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`. The other eight — `stats()`, `createScope()`,
-`provides()`, `lazy()`, `load()`, `loadFile()`, `writeCompiledFactories()` and
-`useCompiledFactories()` — are kept off deliberately: 1.x promises nothing will
-be added to `ContainerInterface`, so they move there in 2.0.
+`loadCompiledCache()`. The other nine — `stats()`, `createScope()`,
+`provides()`, `lazy()`, `load()`, `loadFile()`, `writeCompiledFactories()`,
+`useCompiledFactories()` and `compileReport()` — are kept off deliberately: 1.x
+promises nothing will be added to `ContainerInterface`, so they move there in
+2.0.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
 returns is not covered by backward compatibility**. Treat it as debug output, or
@@ -83,6 +85,7 @@ use `stats()`, whose shape *is* covered.
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file |
 | `writeCompiledFactories(array $classNames, string $file): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `Container` only |
+| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `Container` only — see [performance](performance.md#asking-why) |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `Container` only |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes) |

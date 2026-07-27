@@ -16,6 +16,7 @@ Only classes marked `@api`. Every class in `src/` carries either `@api` or
 | `Container` | the container itself, `final` |
 | `ContainerInterface` | the contract to type-hint |
 | `ContextualBindingBuilder` | returned by `when()` |
+| `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | |
 | `Exception\ContainerException` | |
 | `Exception\CircularDependencyException` | |
