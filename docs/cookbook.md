@@ -214,8 +214,9 @@ $plans = Container::loadCompiledCache(__DIR__ . '/cache/container.php');
 $container = new Container($bindings, [], $plans);
 ```
 
-Regenerate the file whenever constructors change. See
-[performance](performance.md).
+Regenerate the file whenever constructors change. If a deploy forgets to, the
+entries whose class files moved on are dropped on load and those classes fall
+back to reflection — see [staleness](performance.md#staleness).
 
 ## Work out why something resolves to the wrong thing
 

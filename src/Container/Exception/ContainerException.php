@@ -45,6 +45,17 @@ TXT;
         return new self($message);
     }
 
+    public static function compiledCacheFormatMismatch(string $file): self
+    {
+        $message = <<<TXT
+The compiled cache '{$file}' was written in a format this version does not read.
+
+The file is a build artifact tied to the exact version that produced it.
+Regenerate it with writeCompiledCache() or writeCompiledFactories().
+TXT;
+        return new self($message);
+    }
+
     public static function classNotInstantiable(string $class): self
     {
         $message = <<<TXT

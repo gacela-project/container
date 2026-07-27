@@ -53,8 +53,13 @@ to a readonly object is additive and safe; adding a key to an array is not, whic
 is the entire reason for this carve-out.
 
 **The compiled cache file format.** The file written by `writeCompiledCache()`
-is a build artifact tied to the exact version that produced it. Regenerate it on
-every upgrade; never commit it and never hand-edit it.
+and `writeCompiledFactories()` is a build artifact tied to the exact version
+that produced it. Regenerate it on every upgrade; never commit it and never
+hand-edit it. It carries a format marker, and a file this version cannot read is
+refused with a `ContainerException` rather than half-understood. Read it back
+with `loadCompiledCache()` / `loadCompiledFactories()` — a raw `require` sees
+the envelope, not the map, and skips the
+[staleness check](performance.md#staleness).
 
 **Behaviour under `@internal` inputs**, e.g. passing untrusted user input as a
 service id. See [SECURITY.md](../.github/SECURITY.md).

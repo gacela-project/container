@@ -199,6 +199,12 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * Compile the given classes and write their constructor plans to an
      * opcache-friendly PHP file.
      *
+     * Entries are stamped with the files they were compiled from, so a plan for
+     * a constructor that has since changed is dropped when the file is loaded
+     * rather than used. Container adds an optional third argument, a build
+     * stamp; the signature here stays as it is, because widening an interface
+     * 1.x promises not to extend would break every implementation of it.
+     *
      * @param list<class-string> $classNames
      */
     public function writeCompiledCache(array $classNames, string $file): void;

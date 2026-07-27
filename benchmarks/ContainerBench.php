@@ -148,9 +148,7 @@ final class ContainerBench
     {
         $file = sys_get_temp_dir() . '/phpbench-compiled-factories.php';
         (new Container())->writeCompiledFactories([Level1::class], $file);
-        /** @var array<class-string, callable(): object> $factories */
-        $factories = require $file;
-        $this->factories = $factories;
+        $this->factories = Container::loadCompiledFactories($file);
     }
 
     /**

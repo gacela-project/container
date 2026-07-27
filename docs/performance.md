@@ -42,7 +42,8 @@ $service = $container->get(UserService::class);
 
 Classes whose constructor default values cannot be statically exported are
 skipped automatically and fall back to reflection at runtime, so correctness is
-never affected.
+never affected. Neither does a cache that has gone out of date — see
+[staleness](#staleness) below.
 
 Use `compile()` when you want the plans array directly, without writing a file:
 
@@ -99,8 +100,14 @@ $compiled = $container->writeCompiledFactories(
 
 // runtime
 $container = new Container($bindings);
-$container->useCompiledFactories(require __DIR__ . '/cache/factories.php');
+$container->useCompiledFactories(
+    Container::loadCompiledFactories(__DIR__ . '/cache/factories.php'),
+);
 ```
+
+Load the file with `loadCompiledFactories()` rather than `require`-ing it: the
+same [staleness](#staleness) check that protects compiled plans protects
+generated expressions, and a raw `require` skips it.
 
 Resolving the same four-level chain on a fresh container:
 
@@ -177,9 +184,6 @@ if ($report->skipped() !== []) {
 }
 ```
 
-**Regenerate the file whenever a compiled constructor changes.** A stale file
-will happily build the old shape.
-
 ### Skipping work entirely
 
 The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether
@@ -196,6 +200,55 @@ it with [`lazy()`](bindings.md#deferred-registration). See
 [attributes](attributes.md#lazy).
 
 Reproduce any of this with `composer bench`.
+
+## Staleness
+
+Regenerate the cache whenever a compiled constructor changes. When that does not
+happen — a deploy that ships new code over an old cache — the container does not
+build the old shape:
+
+Every entry is written with a **fingerprint** of the file its class was declared
+in (path, mtime, size). `loadCompiledCache()` and `loadCompiledFactories()`
+compare it, and an entry whose file has changed is dropped. A dropped entry
+behaves exactly like one that was never written: the class falls back to
+reflection, nothing throws, and correctness never depends on the cache being
+current. The same holds for a class whose file has been deleted, and for classes
+with no file of their own — an internal class cannot go stale by an edit, so its
+entry is kept.
+
+The file rather than the constructor signature, because verifying a signature
+means reflecting the class, which is the work the cache exists to avoid.
+
+### Trading the per-entry check for a build stamp
+
+The check costs one `stat` per entry. For a map of a few thousand classes that
+can cost more than the reflection it saves, so pass a **build stamp** instead —
+a deploy id, a commit sha, anything that changes when the code does:
+
+```php
+// build step
+$container->writeCompiledCache([UserService::class], $file, getenv('DEPLOY_SHA'));
+
+// runtime
+$plans = Container::loadCompiledCache($file, getenv('DEPLOY_SHA'));
+```
+
+| At write | At load | Result |
+|---|---|---|
+| no stamp | no stamp | every entry checked individually |
+| stamp | same stamp | file taken whole — no `stat` at all |
+| stamp | different stamp | file discarded whole, everything reflects |
+| stamp | no stamp | every entry checked individually |
+| no stamp | stamp | every entry checked individually |
+
+So the stamp is a promise: *this file belongs to this build*. It is the cheaper
+trade when the deploy id is trustworthy, and one comparison per process instead
+of one per class. Both `writeCompiledFactories()` and `loadCompiledFactories()`
+take it the same way.
+
+A file written by a different version of this package is refused with a
+`ContainerException` rather than half-read — it is a build artifact tied to the
+version that produced it.
 
 ## Related
 

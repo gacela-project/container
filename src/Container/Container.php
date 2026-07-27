@@ -84,11 +84,35 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Load previously compiled constructor plans from a cache file.
      *
+     * Every entry carries what it was compiled from, and one whose class file
+     * has changed since is dropped here rather than served as if current: a
+     * stale plan would build with the old constructor signature. A dropped
+     * entry behaves exactly like one that was never written, so the class
+     * falls back to reflection and correctness never depends on the cache
+     * being up to date.
+     *
+     * @param string|null $buildStamp skips the per-entry check when it matches
+     *   the value the file was written with, and discards the whole file when
+     *   it does not — the cheaper trade for a large map, where one stat per
+     *   class costs more than the reflection it saves
+     *
      * @return CompiledPlans
      */
-    public static function loadCompiledCache(string $file): array
+    public static function loadCompiledCache(string $file, ?string $buildStamp = null): array
     {
-        return CompiledCacheWriter::read($file);
+        return CompiledCacheWriter::read($file, $buildStamp);
+    }
+
+    /**
+     * Load previously generated factories from a cache file, under the same
+     * staleness rules as loadCompiledCache(). Feed the result to
+     * useCompiledFactories().
+     *
+     * @return array<class-string, callable(): object>
+     */
+    public static function loadCompiledFactories(string $file, ?string $buildStamp = null): array
+    {
+        return CompiledCacheWriter::readFactories($file, $buildStamp);
     }
 
     /**
@@ -183,12 +207,20 @@ final class Container implements ContainerInterface, ArrayAccess
      * opcache-friendly PHP file. Classes whose default values cannot be
      * exported are skipped and fall back to reflection at runtime.
      *
+     * Each entry is stamped with the declaring file it was compiled from, so
+     * loadCompiledCache() can tell a current plan from one whose constructor
+     * has since changed.
+     *
      * @param list<class-string> $classNames
+     * @param string|null $buildStamp a deploy id or commit sha identifying this
+     *   build; pass the same value to loadCompiledCache() to validate the file
+     *   in one comparison instead of one stat per class. Widening the
+     *   implementation is safe where widening ContainerInterface would not be
      */
     #[Override]
-    public function writeCompiledCache(array $classNames, string $file): void
+    public function writeCompiledCache(array $classNames, string $file, ?string $buildStamp = null): void
     {
-        CompiledCacheWriter::write($this->compile($classNames), $file);
+        CompiledCacheWriter::write($this->compile($classNames), $file, $buildStamp);
     }
 
     /**
@@ -200,18 +232,21 @@ final class Container implements ContainerInterface, ArrayAccess
      * attribute or a contextual binding is left out and keeps resolving
      * normally. The file is an optimisation, never a second resolver.
      *
-     * Feed it back with `useCompiledFactories()`, and regenerate it whenever a
-     * compiled constructor changes.
+     * Read it back with `loadCompiledFactories()` and install it with
+     * `useCompiledFactories()`. Entries are stamped like compiled plans are,
+     * so a generated expression for a constructor that has since changed is
+     * dropped on load rather than used.
      *
      * @param list<class-string> $classNames
+     * @param string|null $buildStamp see writeCompiledCache()
      *
      * @return list<class-string> the classes that were compiled
      */
-    public function writeCompiledFactories(array $classNames, string $file): array
+    public function writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array
     {
         $compiler = $this->compilerFor($classNames);
 
-        CompiledCacheWriter::put($file, $compiler->render());
+        CompiledCacheWriter::put($file, $compiler->render($buildStamp));
 
         return $compiler->compilable();
     }

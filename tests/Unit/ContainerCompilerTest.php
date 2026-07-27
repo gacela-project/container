@@ -137,8 +137,7 @@ final class ContainerCompilerTest extends TestCase
         $file = tempnam(sys_get_temp_dir(), 'compiled') . '.php';
         file_put_contents($file, $compiler->render());
 
-        /** @var array<class-string, callable> $factories */
-        $factories = require $file;
+        $factories = Container::loadCompiledFactories($file);
         @unlink($file);
 
         self::assertArrayHasKey(ClassWithDependencyWithoutDependencies::class, $factories);
@@ -158,8 +157,7 @@ final class ContainerCompilerTest extends TestCase
 
         $file = tempnam(sys_get_temp_dir(), 'compiled') . '.php';
         file_put_contents($file, $compiler->render());
-        /** @var array<class-string, callable> $factories */
-        $factories = require $file;
+        $factories = Container::loadCompiledFactories($file);
         @unlink($file);
 
         $container = new Container();
@@ -179,8 +177,7 @@ final class ContainerCompilerTest extends TestCase
 
         $file = tempnam(sys_get_temp_dir(), 'compiled') . '.php';
         file_put_contents($file, $compiler->render());
-        /** @var array<class-string, callable> $factories */
-        $factories = require $file;
+        $factories = Container::loadCompiledFactories($file);
         @unlink($file);
 
         $factory = $factories[ClassWithDependencyWithoutDependencies::class];
