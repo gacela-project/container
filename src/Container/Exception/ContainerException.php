@@ -58,6 +58,22 @@ TXT;
         return new self($message);
     }
 
+    public static function lazyTargetNotConcrete(string $abstract, string $target): self
+    {
+        $hint = $abstract === $target
+            ? "Give it a concrete class to build:\n  \$container->lazy('{$abstract}', YourConcreteClass::class);"
+            : "'{$abstract}' was pointed at '{$target}', which is not one.";
+
+        $message = <<<TXT
+'{$target}' cannot be made lazy.
+A lazy target must be a concrete, instantiable class: interfaces, abstract
+classes and unknown class names leave nothing to build a lazy instance of.
+
+{$hint}
+TXT;
+        return new self($message);
+    }
+
     public static function instanceNotExtendable(): self
     {
         $message = <<<TXT

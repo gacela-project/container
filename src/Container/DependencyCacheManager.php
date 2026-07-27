@@ -6,14 +6,12 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Attribute\Factory;
-use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\ContainerException;
 use ReflectionClass;
 
 use function class_exists;
 use function count;
-use function method_exists;
 
 /**
  * Resolves dependencies (delegating reflection caching to the resolver),
@@ -42,15 +40,8 @@ final class DependencyCacheManager
     /** @var array<class-string, object> */
     private array $singletonInstances = [];
 
-    /** @var array<class-string, array{singleton: bool, factory: bool, lazy: bool}> */
+    /** @var array<class-string, array{singleton: bool, factory: bool}> */
     private array $attributeCache = [];
-
-    /**
-     * Whether the runtime can build lazy ghosts (PHP 8.4+). On older runtimes
-     * #[Lazy] classes are constructed eagerly, which is unobservable apart
-     * from the timing.
-     */
-    private static ?bool $supportsLazyObjects = null;
 
     /**
      * Classes already proven instantiable, shared across containers.
@@ -85,6 +76,12 @@ final class DependencyCacheManager
 
     private PlanRegistry $planRegistry;
 
+    /** @var array<class-string, true> Classes made lazy through Container::lazy() */
+    private array $lazyClasses = [];
+
+    /** @var array<class-string, Closure> Lazy targets whose instance a closure produces */
+    private array $lazyFactories = [];
+
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
@@ -111,6 +108,15 @@ final class DependencyCacheManager
     {
         $this->parent = $parent;
         $this->planRegistry = $parentManager->planRegistry;
+
+        // Copied rather than chained, like Container does with contextual
+        // bindings and for the same reason: the lazy test runs on the hot path
+        // of every nested parameter, and a walk up the chain there would make a
+        // scope's resolutions scale with the depth of its ancestry. A lazy()
+        // call on the parent after the scope exists is therefore not visible
+        // to it.
+        $this->lazyClasses = $parentManager->lazyClasses;
+        $this->lazyFactories = $parentManager->lazyFactories;
     }
 
     /**
@@ -138,6 +144,55 @@ final class DependencyCacheManager
     public function markAsSingleton(string $class): void
     {
         $this->forcedSingletons[$class] = true;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    public function markAsLazy(string $class): void
+    {
+        $this->lazyClasses[$class] = true;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    public function markAsLazyFactory(string $class, Closure $factory): void
+    {
+        $this->lazyClasses[$class] = true;
+        $this->lazyFactories[$class] = $factory;
+    }
+
+    /**
+     * A lazy proxy for a class whose instance a lazy() closure produces, or null
+     * when there is no such registration.
+     *
+     * Lets BindingResolver hold off on invoking a callable binding: doing it
+     * there is what makes every closure binding eager.
+     *
+     * @param class-string $class
+     */
+    public function lazyProxyFor(string $class): ?object
+    {
+        if (!isset($this->lazyFactories[$class])) {
+            return null;
+        }
+
+        $resolver = $this->getDependencyResolver();
+
+        // On PHP 8.3 there is nothing to build a proxy with, so the closure
+        // binding stays eager and BindingResolver invokes it as usual.
+        return $resolver->isLazy($class)
+            ? $resolver->newLazyInstance($class)
+            : null;
+    }
+
+    /**
+     * @return array<class-string, true>
+     */
+    public function lazyClasses(): array
+    {
+        return $this->lazyClasses;
     }
 
     /**
@@ -233,7 +288,7 @@ final class DependencyCacheManager
     }
 
     /**
-     * Build the instance, deferring the constructor when the class is #[Lazy].
+     * Build the instance, deferring the constructor when the class is lazy.
      *
      * @param class-string $class
      */
@@ -251,8 +306,8 @@ final class DependencyCacheManager
             self::$instantiable[$class] = true;
         }
 
-        if ($this->isLazy($class)) {
-            return $this->newLazyGhost($class);
+        if ($resolver->isLazy($class)) {
+            return $resolver->newLazyInstance($class);
         }
 
         $dependencies = $resolver->resolveDependencies($class);
@@ -267,59 +322,6 @@ final class DependencyCacheManager
         return $instance;
     }
 
-    /**
-     * A real instance of $class whose constructor runs on first use.
-     *
-     * Dependencies are resolved inside the initializer, not before it, so a
-     * lazy service that is never touched costs nothing to build.
-     *
-     * @param class-string $class
-     */
-    private function newLazyGhost(string $class): object
-    {
-        $reflection = new ReflectionClass($class);
-
-        /**
-         * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
-         * so they cannot see it. isLazy() gates this behind a runtime
-         * capability check, which is exactly what they cannot model.
-         *
-         * Calling __construct() directly on the ghost is the documented way to
-         * initialize one, not an accident.
-         *
-         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
-         *
-         * @phpstan-ignore method.notFound, return.type
-         */
-        return $reflection->newLazyGhost(function (object $instance) use ($class): void {
-            $resolver = $this->getDependencyResolver();
-            $dependencies = $resolver->resolveDependencies($class);
-
-            /**
-             * @psalm-suppress MixedMethodCall, DirectConstructorCall
-             *
-             * @phpstan-ignore method.notFound
-             */
-            $instance->__construct(...$dependencies);
-
-            // Deferred with the constructor, not run eagerly at ghost creation:
-            // resolving them up front would defeat the point of #[Lazy].
-            if (self::$hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
-                $resolver->injectPropertiesOn($instance, $class);
-            }
-        });
-    }
-
-    /**
-     * @param class-string $class
-     */
-    private function isLazy(string $class): bool
-    {
-        self::$supportsLazyObjects ??= method_exists(ReflectionClass::class, 'newLazyGhost');
-
-        return self::$supportsLazyObjects && $this->attributesOf($class)['lazy'];
-    }
-
     private function getDependencyResolver(): DependencyResolver
     {
         if ($this->dependencyResolver === null) {
@@ -328,6 +330,8 @@ final class DependencyCacheManager
                 $this->contextualBindings,
                 $this->planRegistry,
                 $this->container,
+                $this->lazyClasses,
+                $this->lazyFactories,
             );
 
             if ($this->parent !== null) {
@@ -339,15 +343,19 @@ final class DependencyCacheManager
     }
 
     /**
-     * Every class attribute the container cares about, read in one reflection
-     * pass and memoized per class.
+     * The lifetime attributes of a class, read in one reflection pass and
+     * memoized per class.
      *
      * Looking each attribute up separately meant rebuilding a concatenated
      * cache key on every instantiation, which is squarely on the hot path.
      *
+     * #[Lazy] is deliberately absent: the resolver memoizes it process-wide,
+     * because nested resolution has to answer the same question without ever
+     * reaching this manager.
+     *
      * @param class-string $class
      *
-     * @return array{singleton: bool, factory: bool, lazy: bool}
+     * @return array{singleton: bool, factory: bool}
      */
     private function attributesOf(string $class): array
     {
@@ -361,7 +369,6 @@ final class DependencyCacheManager
         return $this->attributeCache[$class] = [
             'singleton' => $reflection->getAttributes(Singleton::class) !== [],
             'factory' => $reflection->getAttributes(Factory::class) !== [],
-            'lazy' => $reflection->getAttributes(Lazy::class) !== [],
         ];
     }
 }

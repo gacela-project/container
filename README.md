@@ -26,7 +26,7 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 🔄 **Circular Dependency Detection**: Clear error messages when dependencies form a loop
 - 📦 **PSR-11 Compliant**: Standard container interface for interoperability
 - ⚡ **Performance Optimized**: Built-in caching, warmup, and a compiled cache that skips reflection
-- 🧩 **Fluent Registration**: Register bindings after construction with `bind()` and `singleton()`
+- 🧩 **Fluent Registration**: Register bindings after construction with `bind()`, `singleton()` and `lazy()`
 - 🌱 **Scopes**: Child containers that inherit registration without copying it, for per-request lifetimes
 - 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
 - 🔍 **Introspection**: Debug and inspect container state easily
@@ -77,7 +77,7 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | Autowiring with zero config | ✅ | ❌ | ✅ | ✅ | needs config |
 | Framework-independent | ✅ | ✅ | pulls `illuminate/contracts` | ✅ | ✅ |
 | Lifetimes as attributes | `#[Singleton]` `#[Factory]` `#[Lazy]` | ❌ | ❌ | `#[Inject]` only | `#[Autoconfigure]` |
-| Lazy services | ✅ native lazy objects, no proxy class | ❌ | ❌ | ✅ via proxy library | ✅ |
+| Lazy services | ✅ native lazy objects, attribute or `lazy()`, no proxy class | ❌ | ❌ | ✅ via proxy library | ✅ |
 | Compiled resolution | ✅ plans + generated factories | ❌ | ❌ | ✅ | ✅ |
 | Child/scope containers | ✅ inherits without copying | ❌ | ❌ | ❌ | ❌ |
 | Contextual bindings | ✅ | ❌ | ✅ | definitions | ✅ |

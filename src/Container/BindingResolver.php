@@ -45,6 +45,14 @@ final class BindingResolver
             $binding = $this->bindings[$class];
 
             if (is_callable($binding)) {
+                // Invoking the closure here is what makes every closure binding
+                // eager; a lazy() registration exists precisely to defer it.
+                /** @var class-string $class */
+                $lazyProxy = $cacheManager->lazyProxyFor($class);
+                if ($lazyProxy !== null) {
+                    return $lazyProxy;
+                }
+
                 /** @var mixed $binding */
                 $binding = $binding($this->container);
             }

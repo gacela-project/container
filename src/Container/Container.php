@@ -15,6 +15,7 @@ use function class_exists;
 use function count;
 use function is_callable;
 use function is_object;
+use function is_string;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
@@ -208,7 +209,11 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     public function writeCompiledFactories(array $classNames, string $file): array
     {
-        $compiler = new ContainerCompiler($this->compile($classNames), $this->getBindings());
+        $compiler = new ContainerCompiler(
+            $this->compile($classNames),
+            $this->getBindings(),
+            $this->cacheManager->lazyClasses(),
+        );
 
         CompiledCacheWriter::put($file, $compiler->render());
 
@@ -265,6 +270,48 @@ final class Container implements ContainerInterface, ArrayAccess
         /** @var class-string $concrete */
         $this->bind($abstract, $concrete);
         $this->cacheManager->markAsSingleton($concrete);
+    }
+
+    /**
+     * Defer the construction of a service until it is first used, without
+     * putting #[Lazy] on the class.
+     *
+     * ```php
+     * $container->lazy(ReportGenerator::class);                     // a class you cannot annotate
+     * $container->lazy(ReportsInterface::class, PdfReports::class); // an abstract, lazily bound
+     * $container->lazy(PdfReports::class, fn (Container $c) => new PdfReports($c->get(Db::class)));
+     * ```
+     *
+     * The first two forms return a lazy ghost, exactly like the attribute. The
+     * closure form returns a lazy proxy instead: the closure, not the
+     * constructor, produces the instance, and it runs on first touch rather
+     * than on resolution.
+     *
+     * The target must be a concrete class either way — a lazy instance has to
+     * be an instance of something.
+     *
+     * Deliberately not on ContainerInterface — 1.x promises no method will be
+     * added there. It moves onto the interface in 2.0.
+     */
+    public function lazy(string $abstract, string|callable|null $concrete = null): void
+    {
+        if ($concrete === null || is_string($concrete)) {
+            $target = $this->assertLazyTarget($abstract, $concrete ?? $abstract);
+
+            if ($concrete !== null) {
+                $this->bind($abstract, $target);
+            }
+
+            $this->cacheManager->markAsLazy($target);
+            return;
+        }
+
+        // Nothing but $abstract names a class here, so it is the only thing a
+        // proxy can be an instance of.
+        $target = $this->assertLazyTarget($abstract, $abstract);
+
+        $this->bind($target, $concrete);
+        $this->cacheManager->markAsLazyFactory($target, Closure::fromCallable($concrete));
     }
 
     /**
@@ -762,6 +809,19 @@ final class Container implements ContainerInterface, ArrayAccess
         return isset($this->bindings[$id])
             || $this->instanceRegistry->has($id)
             || $this->cacheManager->ownsSingleton($id);
+    }
+
+    /**
+     * @return class-string the target, proven buildable
+     */
+    private function assertLazyTarget(string $abstract, string $target): string
+    {
+        if (!$this->isInstantiable($target)) {
+            throw ContainerException::lazyTargetNotConcrete($abstract, $target);
+        }
+
+        /** @var class-string */
+        return $target;
     }
 
     private function isInstantiable(string $id): bool

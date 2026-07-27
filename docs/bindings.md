@@ -76,6 +76,29 @@ $container->singletonIf(CacheInterface::class, ArrayCache::class);  // no-op if 
 retrieved from the instance registry, while `bound()` also accounts for
 bindings.
 
+### Deferred registration
+
+`lazy()` registers a binding whose construction is put off until the service is
+first used:
+
+```php
+$container->lazy(ReportGenerator::class);                              // the class itself, deferred
+$container->lazy(ReportGeneratorInterface::class, PdfReports::class);  // an abstract, lazily bound
+$container->lazy(PdfReports::class, fn(Container $c) => new PdfReports($c->get(Database::class)));
+```
+
+Unlike a plain `bind()` closure — which runs the moment the id resolves — the
+closure form runs on first touch. What comes back is a real instance of the
+target class, not a proxy subclass.
+
+The target must be a concrete, instantiable class; anything else throws a
+`ContainerException`. Combine it with `singleton()` for one shared instance built
+on first touch. See [`#[Lazy]`](attributes.md#lazy) for what triggers
+initialization and for the PHP 8.4 requirement.
+
+`lazy()` lives on `Container`, not on `ContainerInterface` — 1.x adds no methods
+to the interface.
+
 ## Contextual bindings
 
 Provide different implementations depending on which class needs them:

@@ -40,12 +40,12 @@ you need one of those.
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Eight members live on `Container` alone. Three of them *cannot* be on an
+Nine members live on `Container` alone. Three of them *cannot* be on an
 interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`. The other five — `stats()`, `createScope()`,
-`provides()`, `writeCompiledFactories()` and `useCompiledFactories()` — are kept
-off deliberately: 1.x promises nothing will be added to `ContainerInterface`, so
-they move there in 2.0.
+`loadCompiledCache()`. The other six — `stats()`, `createScope()`, `provides()`,
+`lazy()`, `writeCompiledFactories()` and `useCompiledFactories()` — are kept off
+deliberately: 1.x promises nothing will be added to `ContainerInterface`, so they
+move there in 2.0.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
 returns is not covered by backward compatibility**. Treat it as debug output, or
@@ -66,6 +66,7 @@ use `stats()`, whose shape *is* covered.
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
+| `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use. `Container` only — see [bindings](bindings.md#deferred-registration) |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
