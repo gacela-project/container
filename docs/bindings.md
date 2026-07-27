@@ -99,6 +99,24 @@ initialization and for the PHP 8.4 requirement.
 `lazy()` lives on `Container`, not on `ContainerInterface` — 1.x adds no methods
 to the interface.
 
+### Registration as data
+
+Everything above has an array form, so wiring can be shipped and overridden as
+configuration instead of code:
+
+```php
+$container->load([
+    LoggerInterface::class => FileLogger::class,
+    Database::class => ['singleton' => DatabasePool::class],
+    'db.dsn' => ['value' => 'pgsql://localhost/app'],
+]);
+
+$container->loadFile(__DIR__ . '/config/services.php');   // or .json
+```
+
+See [definitions](definitions.md) for every entry form, file loading, and
+environment layering.
+
 ## Contextual bindings
 
 Provide different implementations depending on which class needs them:

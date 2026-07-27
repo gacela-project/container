@@ -58,6 +58,54 @@ TXT;
         return new self($message);
     }
 
+    public static function definitionFileUnreadable(string $file): self
+    {
+        $message = <<<TXT
+The definitions file '{$file}' could not be read.
+
+Check the path and that the file is readable by the running user.
+TXT;
+        return new self($message);
+    }
+
+    public static function definitionFileUnsupported(string $file): self
+    {
+        $message = <<<TXT
+The definitions file '{$file}' has no supported extension.
+
+loadFile() reads '.php' files returning an array and '.json' files. Anything
+else — YAML, XML — is a userland concern: parse it yourself and hand the array
+to load().
+TXT;
+        return new self($message);
+    }
+
+    public static function definitionFileInvalid(string $file, string $reason): self
+    {
+        $message = <<<TXT
+The definitions file '{$file}' could not be used: {$reason}.
+
+A '.php' file must `return` an array of id => definition; a '.json' file must
+contain a JSON object with the same shape.
+TXT;
+        return new self($message);
+    }
+
+    public static function invalidDefinition(string $id, string $reason, ?string $file = null): self
+    {
+        $origin = $file === null
+            ? "The definition for '{$id}' is invalid"
+            : "The definition for '{$id}' in '{$file}' is invalid";
+
+        $message = <<<TXT
+{$origin}: {$reason}.
+
+A definition is either a class-string, or an array with at most one of
+'singleton', 'value', 'factory' or 'alias', plus an optional 'tags' list.
+TXT;
+        return new self($message);
+    }
+
     public static function lazyTargetNotConcrete(string $abstract, string $target): self
     {
         $hint = $abstract === $target

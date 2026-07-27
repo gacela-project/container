@@ -86,7 +86,8 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | Circular dependencies | ✅ named exception + path | ❌ | ✅ | ✅ | ✅ at compile time |
 | Introspection | ✅ `stats()`, dependency tree, typo hints | ❌ | ❌ | limited | ✅ via console |
 | Array access | ✅ | ✅ | ✅ | ❌ | ❌ |
-| YAML/XML definition files | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Definitions as data | ✅ arrays, PHP + JSON files | ❌ | ❌ | ✅ | ✅ |
+| YAML/XML definition files | ❌ parse it and `load()` the array | ❌ | ❌ | ✅ | ✅ |
 | Compiler passes / extensions | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 **Use this if** you want Pimple's footprint with real autowiring, or Laravel's
@@ -102,6 +103,7 @@ compiler-pass style extension points. Those are Symfony's territory by design.
 |-------|---------------|
 | [Getting Started](docs/getting-started.md) | Installation, basic usage, how resolution works |
 | [Bindings & Registration](docs/bindings.md) | Constructor bindings, `bind()`/`singleton()`, contextual bindings, aliasing |
+| [Definitions as Data](docs/definitions.md) | `load()`/`loadFile()`: wiring from arrays, PHP and JSON files |
 | [Resolving Services](docs/resolution.md) | `get()`, `make()`, `getOrFail()`, `resolve()`, transient vs. shared |
 | [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]` |
 | [Managing Services](docs/services.md) | Factories, extending, protecting closures, introspection |

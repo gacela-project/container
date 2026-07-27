@@ -172,6 +172,34 @@ $service = $container->make(ReportService::class, ['format' => 'csv']);
 Overrides apply to the top-level constructor only, and the instance is always
 built fresh.
 
+## Wire a container per environment
+
+Keep the shared wiring in one file and the per-environment differences in
+another. Later keys win, so layering is just load order:
+
+```php
+$container = new Container();
+$container->loadFile(__DIR__ . '/config/services.php');
+$container->loadFile(__DIR__ . "/config/services.{$env}.php");
+```
+
+```php
+// config/services.php
+return [
+    LoggerInterface::class => FileLogger::class,
+    MailerInterface::class => ['singleton' => SmtpMailer::class],
+    'db.dsn' => ['value' => getenv('DATABASE_URL')],
+];
+
+// config/services.test.php
+return [
+    MailerInterface::class => ['singleton' => NullMailer::class],
+];
+```
+
+A package can ship its defaults the same way and let the application override
+them. See [definitions](definitions.md).
+
 ## Speed up per-request bootstrap
 
 Compile constructor plans in a build step, load them at runtime:
@@ -218,6 +246,7 @@ $container->bindIf(MailerInterface::class, SmtpMailer::class);
 ## Related
 
 - [Bindings & registration](bindings.md)
+- [Definitions as data](definitions.md)
 - [Resolving services](resolution.md)
 - [Scopes](scopes.md)
 - [Error handling](error-handling.md)
