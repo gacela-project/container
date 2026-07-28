@@ -215,6 +215,25 @@ Everything omitted resolves normally, so the file is only ever an optimisation.
 `writeCompiledFactories()` returns the list of classes it actually compiled, so
 you can assert on it in your build.
 
+### Registration still wins
+
+Those rules describe the container the file was written *from*. They cannot
+speak for the one it is installed into, so registration on the receiving
+container outranks a generated expression:
+
+```php
+$container->useCompiledFactories(Container::loadCompiledFactories($file));
+
+$container->bind(Mailer::class, LoggingMailer::class);
+$container->get(Mailer::class);   // LoggingMailer, not the generated `new Mailer`
+```
+
+A `bind()`, a `singleton()` or a `set()` for the same class sends it back down
+the normal path, whichever side of `useCompiledFactories()` the call happens on.
+Order does not matter, and neither does whether the build container had the same
+bindings — the generated file cannot quietly out-vote the container you
+configured.
+
 ### Asking why
 
 `compileReport()` answers the same question programmatically, and adds the part
