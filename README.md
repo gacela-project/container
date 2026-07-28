@@ -25,10 +25,14 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 🚀 **Zero Configuration**: Automatic constructor injection without verbose setup
 - 🔄 **Circular Dependency Detection**: Clear error messages when dependencies form a loop
 - 📦 **PSR-11 Compliant**: Standard container interface for interoperability
-- ⚡ **Performance Optimized**: Built-in caching, warmup, and a compiled cache that skips reflection
+- ⚡ **Performance Optimized**: Built-in caching, warmup, a compiled cache that skips reflection, and one plan cache shared across sibling containers
 - 🧩 **Fluent Registration**: Register bindings after construction with `bind()`, `singleton()` and `lazy()`
 - 🌱 **Scopes**: Child containers that inherit registration without copying it, for per-request lifetimes
 - 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
+- 🧵 **Tags**: Group services under a tag and resolve them lazily, as a list or as a keyed map
+- 🧭 **Contextual Bindings**: `when()` scopes a dependency — or a scalar — to the classes that ask for it
+- 📄 **Definitions as Data**: Ship and override wiring as arrays, PHP or JSON files with `load()`/`loadFile()`
+- 🪝 **Resolution Hooks**: `afterResolving()` callbacks run once an id is built
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
 - 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, `#[Factory]`, and `#[Lazy]`
@@ -77,25 +81,32 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | Autowiring with zero config | ✅ | ❌ | ✅ | ✅ | needs config |
 | Framework-independent | ✅ | ✅ | pulls `illuminate/contracts` | ✅ | ✅ |
 | Lifetimes as attributes | `#[Singleton]` `#[Factory]` `#[Lazy]` | ❌ | ❌ | `#[Inject]` only | `#[Autoconfigure]` |
-| Lazy services | ✅ native lazy objects, attribute or `lazy()`, no proxy class | ❌ | ❌ | ✅ via proxy library | ✅ |
+| Property injection | ✅ `#[Inject]` | ❌ | ❌ | ✅ | via config |
+| Lazy services | ✅ native lazy objects (PHP 8.4+), attribute or `lazy()`, no proxy class | ❌ | ❌ | ✅ via proxy library | ✅ |
 | Compiled resolution | ✅ plans + generated factories | ❌ | ❌ | ✅ | ✅ |
+| Reflection shared across sibling containers | ✅ `PlanCache`, in-process | ❌ | ❌ | via APCu cache | n/a — dumped once |
 | Child/scope containers | ✅ inherits without copying | ❌ | ❌ | ❌ | ❌ |
 | Contextual bindings | ✅ | ❌ | ✅ | definitions | ✅ |
-| Tags | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Tags | ✅ list or keyed map | ❌ | ✅ | ❌ | ✅ |
+| Resolution hooks | ✅ `afterResolving()` | ❌ | ✅ | ❌ | ❌ |
 | Invoke any callable | ✅ `resolve()` | ❌ | ✅ `call()` | ✅ `call()` | ❌ |
 | Circular dependencies | ✅ named exception + path | ❌ | ✅ | ✅ | ✅ at compile time |
-| Introspection | ✅ `stats()`, dependency tree, typo hints | ❌ | ❌ | limited | ✅ via console |
+| Introspection | ✅ `stats()`, dependency tree, `compileReport()`, typo hints | ❌ | ❌ | limited | ✅ via console |
 | Array access | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Definitions as data | ✅ arrays, PHP + JSON files | ❌ | ❌ | ✅ | ✅ |
-| YAML/XML definition files | ❌ parse it and `load()` the array | ❌ | ❌ | ✅ | ✅ |
-| Compiler passes / extensions | ❌ | ❌ | ❌ | ❌ | ✅ |
+| YAML/XML definition files | ❌ [by design](https://github.com/gacela-project/container/issues/139) — parse it and `load()` the array | ❌ | ❌ | ✅ | ✅ |
+| Compiler passes / extensions | ❌ [by design](https://github.com/gacela-project/container/issues/140) | ❌ | ❌ | ❌ | ✅ |
 
 **Use this if** you want Pimple's footprint with real autowiring, or Laravel's
 container API without Laravel — plus lazy services, per-request scopes, and a
 compiled cache that skips reflection entirely.
 
 **Look elsewhere if** you need container definitions in YAML/XML, or
-compiler-pass style extension points. Those are Symfony's territory by design.
+compiler-pass style extension points. Both are deliberate boundaries rather than
+a backlog — a YAML parser would be a second runtime dependency ([#139](https://github.com/gacela-project/container/issues/139)),
+and passes operate on a definition set an autowiring container mostly does not
+have ([#140](https://github.com/gacela-project/container/issues/140)). Each
+issue records the reasoning and what would change it.
 
 ## Documentation
 
@@ -114,7 +125,7 @@ compiler-pass style extension points. Those are Symfony's territory by design.
 | [Best Practices](docs/best-practices.md) | Recommended patterns |
 | [API Reference](docs/api-reference.md) | Full method, static, and attribute reference |
 | [Backward Compatibility](docs/backward-compatibility.md) | What semver covers here, and what it does not |
-| [Upgrade Guide](UPGRADE.md) | Migrating from 0.10.0 to 1.0.0 |
+| [Upgrade Guide](UPGRADE.md) | Migrating from 0.10.0 to 1.0.0 — the only breaking bump so far |
 
 ## Real-World Example
 
