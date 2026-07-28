@@ -1284,7 +1284,7 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private function createInstance(string $class): ?object
     {
-        if ($this->compiledFactories !== []) {
+        if ($this->compiledFactories !== [] && !$this->runtimeOwns($class)) {
             $factory = $this->compiledFactories[$class] ?? null;
 
             if ($factory !== null) {
@@ -1293,6 +1293,25 @@ final class Container implements ContainerInterface, ArrayAccess
         }
 
         return $this->bindingResolver->resolve($class, $this->cacheManager);
+    }
+
+    /**
+     * Whether a registration on this container decides how $class is built, in
+     * which case a generated `new` expression must not.
+     *
+     * The generator refuses to emit anything for a bound class or one carrying a
+     * lifetime attribute, so the file it writes agrees with the container it was
+     * written from. It cannot speak for the container it is installed *into*:
+     * `bind()` there resolved to the generated class rather than the bound one,
+     * and `singleton()` built a fresh instance per get() while the application
+     * believed the service was shared. Neither said anything.
+     *
+     * Only asked once a factory map is installed, so a container without one
+     * pays nothing.
+     */
+    private function runtimeOwns(string $class): bool
+    {
+        return isset($this->bindings[$class]) || $this->cacheManager->ownsSingleton($class);
     }
 
     /**
