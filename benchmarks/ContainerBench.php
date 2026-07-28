@@ -76,6 +76,12 @@ final class ContainerBench
         $this->container = new Container();
     }
 
+    public function setUpStoredInstance(): void
+    {
+        $this->container = new Container();
+        $this->container->set('stored', new NoDependencies());
+    }
+
     public function setUpCallable(): void
     {
         $this->container = new Container();
@@ -269,6 +275,15 @@ final class ContainerBench
     public function benchCreateScope(): void
     {
         $this->container->createScope();
+    }
+
+    /**
+     * Reading a set() instance, the only path InstanceRegistry::get() serves.
+     */
+    #[BeforeMethods('setUpStoredInstance')]
+    public function benchGetStoredInstance(): void
+    {
+        $this->container->get('stored');
     }
 
     #[BeforeMethods('setUpPlain')]
