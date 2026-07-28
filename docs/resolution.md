@@ -64,6 +64,25 @@ Runtime parameters work here too — override callable arguments by name:
 $container->resolve($handler, ['request' => $request]);
 ```
 
+Every form of callable works: a closure, `[$object, 'method']`,
+`[Foo::class, 'staticMethod']`, `'Foo::staticMethod'`, a function name, or an
+invokable object.
+
+The parameter list is reflected once and reused. Anything with a name to key on
+— a function, a `Class::method`, an invokable's `__invoke` — is described once
+per signature, so two instances of a class share one description. A closure has
+no such name, so it is keyed on the closure itself and released along with it;
+building a fresh closure per call therefore re-reflects each time. Hoist it out
+of the loop if that matters:
+
+```php
+$handler = static fn (LoggerInterface $logger) => $logger->info('tick');
+
+foreach ($jobs as $job) {
+    $container->resolve($handler);   // described once, not once per job
+}
+```
+
 ## `has()` vs. `bound()`
 
 Two similar-looking questions with different answers:

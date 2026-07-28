@@ -16,7 +16,7 @@ final class CallableDependencyResolverTest extends TestCase
     public function test_without_dependencies(): void
     {
         $resolver = new DependencyResolver();
-        $actual = $resolver->resolveDependencies(static function () {
+        $actual = $resolver->resolveCallableDependencies(static function () {
             return [];
         });
 
@@ -26,7 +26,7 @@ final class CallableDependencyResolverTest extends TestCase
     public function test_object_dependencies(): void
     {
         $resolver = new DependencyResolver();
-        $actual = $resolver->resolveDependencies(static function (Person $person) {
+        $actual = $resolver->resolveCallableDependencies(static function (Person $person) {
             return $person;
         });
 
@@ -41,7 +41,7 @@ final class CallableDependencyResolverTest extends TestCase
             PersonInterface::class => Person::class,
         ];
         $resolver = new DependencyResolver($bindings);
-        $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
+        $actual = $resolver->resolveCallableDependencies(static function (PersonInterface $person) {
             return $person;
         });
 
@@ -60,7 +60,7 @@ final class CallableDependencyResolverTest extends TestCase
         ];
         $resolver = new DependencyResolver($bindings);
 
-        $actual = $resolver->resolveDependencies(static function (PersonInterface $person) {
+        $actual = $resolver->resolveCallableDependencies(static function (PersonInterface $person) {
             return $person;
         });
 
@@ -75,7 +75,7 @@ final class CallableDependencyResolverTest extends TestCase
 
         $resolver = new DependencyResolver();
 
-        $resolver->resolveDependencies(static function (PersonInterface $person) {
+        $resolver->resolveCallableDependencies(static function (PersonInterface $person) {
             return $person;
         });
     }
@@ -85,7 +85,7 @@ final class CallableDependencyResolverTest extends TestCase
         $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', self::class));
 
         $resolver = new DependencyResolver();
-        $resolver->resolveDependencies(static function (string $name) {
+        $resolver->resolveCallableDependencies(static function (string $name) {
             return $name;
         });
     }
@@ -95,7 +95,7 @@ final class CallableDependencyResolverTest extends TestCase
         $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name'));
 
         $resolver = new DependencyResolver();
-        $resolver->resolveDependencies(static function ($name) {
+        $resolver->resolveCallableDependencies(static function ($name) {
             return $name;
         });
     }
