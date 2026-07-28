@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.4.0](https://github.com/gacela-project/container/compare/1.3.0...1.4.0) - 2026-07-28
+
 ### Added
 
 - Keyed tags: `tag(['email' => EmailHandler::class], 'handlers')` and `taggedByKey('handlers', 'email')` resolve *the* handler for a key rather than all of them. Only the entry asked for is built and it comes from the container's own cache, so a keyed tag is a lookup table of ids and not a second place instances live. An unknown key throws naming the keys that exist; `taggedKeys()` lists them. See [tags](docs/bindings.md#keyed-tags)
