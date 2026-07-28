@@ -41,7 +41,12 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private AliasRegistry $aliasRegistry;
 
-    private TagRegistry $tagRegistry;
+    /**
+     * Built on demand. Most containers never group a service under a tag, and
+     * createScope() pays the constructor per scope — the operation whose whole
+     * point is being cheap enough to run per request.
+     */
+    private ?TagRegistry $tagRegistry = null;
 
     private FactoryManager $factoryManager;
 
@@ -51,7 +56,8 @@ final class Container implements ContainerInterface, ArrayAccess
 
     private BindingResolver $bindingResolver;
 
-    private DependencyTreeAnalyzer $dependencyTreeAnalyzer;
+    /** Built on demand: getDependencyTree() is a debugging call. */
+    private ?DependencyTreeAnalyzer $dependencyTreeAnalyzer = null;
 
     /** @var self|null the container this one was created as a scope of */
     private ?self $parent = null;
@@ -111,7 +117,6 @@ final class Container implements ContainerInterface, ArrayAccess
     ) {
         $this->bindings = $bindings;
         $this->aliasRegistry = new AliasRegistry();
-        $this->tagRegistry = new TagRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
         $this->bindingResolver = new BindingResolver($this->bindings, $this);
@@ -122,7 +127,6 @@ final class Container implements ContainerInterface, ArrayAccess
             $this,
             $planCache,
         );
-        $this->dependencyTreeAnalyzer = new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
     /**
@@ -770,7 +774,7 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function tag(string|array $ids, string $tag): void
     {
-        $this->tagRegistry->tag($ids, $tag);
+        $this->tagRegistry()->tag($ids, $tag);
     }
 
     /**
@@ -840,7 +844,7 @@ final class Container implements ContainerInterface, ArrayAccess
     #[Override]
     public function getDependencyTree(string $className): array
     {
-        return $this->dependencyTreeAnalyzer->analyze($className);
+        return $this->dependencyTreeAnalyzer()->analyze($className);
     }
 
     /**
@@ -1061,7 +1065,7 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     private function taggedIds(string $tag): array
     {
-        $own = $this->tagRegistry->idsFor($tag);
+        $own = $this->tagRegistry()->idsFor($tag);
 
         if ($this->parent === null) {
             return $own;
@@ -1235,6 +1239,16 @@ final class Container implements ContainerInterface, ArrayAccess
 
         /** @var class-string */
         return $target;
+    }
+
+    private function tagRegistry(): TagRegistry
+    {
+        return $this->tagRegistry ??= new TagRegistry();
+    }
+
+    private function dependencyTreeAnalyzer(): DependencyTreeAnalyzer
+    {
+        return $this->dependencyTreeAnalyzer ??= new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
     private function isInstantiable(string $id): bool
