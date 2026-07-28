@@ -10,6 +10,11 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- One of the benchmark assertions #83 added was attached to `setUpColdFactories()` — a *setup* method, so it asserted nothing, and the subject it prepares was the fastest documented path with no gate at all. It now sits on `benchColdResolveDeepChainGenerated`, verified by injecting a regression and watching the run exit non-zero. `benchColdResolveDeepChainCompiled` and `benchColdResolveAcrossSiblingsSharingPlans` are gated too, so every performance figure in the docs has an assertion behind it
+- Benchmark iterations deviating 5% or more from the mean of their set are re-run, which is what makes those assertions able to fire: the worst subject measured ±40% relative standard deviation on the first `phpbench` invocation of a session against ±8% on the second, and the CI job stored its baseline on exactly that first invocation — inflating the baseline, flattering every candidate, and biasing the comparison towards missing regressions rather than reporting them. CI now warms the caches with a discarded run first, and the whole suite reports under ±3.2%
+
 ## [1.4.0](https://github.com/gacela-project/container/compare/1.3.0...1.4.0) - 2026-07-28
 
 ### Added
