@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Performance
+
+- Whether a class carries `#[Singleton]` or `#[Factory]` was cached per container, so every container reflected every class it resolved to re-derive an answer that belongs to the class definition and cannot change while the process runs — the tax `PlanCache` removed on the plan axis, still being paid on this one. The verdict is now shared across containers, and cleared by `resetStaticCaches()` like the other class-shape memos. Cold resolution of a four-level chain is 4.3% faster and ten sibling containers resolving the same chain hold 9.4% less peak memory, rising to 16.9% when they also share a plan cache
+
 ### Fixed
 
 - A `bind()` or `singleton()` for a class that has a generated factory was silently ignored: `useCompiledFactories()` was consulted before the bindings, so `bind(Mailer::class, LoggingMailer::class)` kept handing back the generated `new Mailer`, and `singleton(Mailer::class)` built a fresh instance per `get()` while the application believed the service was shared. The generator refuses to emit anything for a bound class, so the file always agreed with the container it was written *from* — it just could not speak for the one it was installed into, in either call order. Registration on the receiving container now outranks a generated expression, and a container with no factory map installed pays nothing for the check. See [performance](docs/performance.md#registration-still-wins)

@@ -7,10 +7,36 @@ namespace GacelaTest\Unit;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Container;
+use Gacela\Container\DependencyCacheManager;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 final class AttributeCacheTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        Container::resetStaticCaches();
+    }
+
+    public function test_the_attribute_verdict_is_shared_across_containers(): void
+    {
+        (new Container())->get(CachedSingletonService::class);
+
+        // Held per container, every container reflected every class it resolved
+        // to re-derive an answer that is a property of the class definition.
+        self::assertArrayHasKey(CachedSingletonService::class, self::sharedVerdicts());
+    }
+
+    public function test_a_singleton_is_still_recognised_after_the_verdicts_are_reset(): void
+    {
+        $container = new Container();
+        $first = $container->get(CachedSingletonService::class);
+
+        Container::resetStaticCaches();
+
+        self::assertSame($first, $container->get(CachedSingletonService::class));
+    }
+
     public function test_singleton_attribute_is_cached_on_repeated_instantiations(): void
     {
         $container = new Container();
@@ -105,6 +131,16 @@ final class AttributeCacheTest extends TestCase
         self::assertNotSame($factory1, $factory2);
         self::assertNotSame($factory2, $factory3);
         self::assertNotSame($factory1, $factory3);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function sharedVerdicts(): array
+    {
+        /** @var array<string, mixed> */
+        return (new ReflectionClass(DependencyCacheManager::class))
+            ->getStaticPropertyValue('attributeCache');
     }
 }
 
