@@ -162,7 +162,7 @@ final class Container implements ContainerInterface, ArrayAccess
     /**
      * Clear the caches that outlive every container.
      *
-     * Four of the container's caches are `static`, shared by every instance
+     * Five of the container's caches are `static`, shared by every instance
      * and untouched by dropping one: reflection output keyed by class name. A
      * class definition cannot change within a process, so this is normally
      * free — and it is exactly wrong for a process where the set of loadable
@@ -174,6 +174,7 @@ final class Container implements ContainerInterface, ArrayAccess
      * |---|---|
      * | property plans (`#[Inject]` scan output) | class shape — cleared |
      * | `#[Lazy]` on a class | class shape — cleared |
+     * | `#[Singleton]`/`#[Factory]` on a class | class shape — cleared |
      * | proven-instantiable classes | class shape — cleared |
      * | has-`#[Inject]`-properties | class shape — cleared |
      * | native lazy objects available | the PHP binary — recomputed, never differs |

@@ -84,6 +84,7 @@ Container::resetStaticCaches();
 |---|---|
 | property plans (the `#[Inject]` scan) | class shape — cleared |
 | `#[Lazy]` on a class | class shape — cleared |
+| `#[Singleton]`/`#[Factory]` on a class | class shape — cleared |
 | proven-instantiable classes | class shape — cleared |
 | has-`#[Inject]`-properties | class shape — cleared |
 | native lazy objects available | the PHP binary — recomputed, never differs |

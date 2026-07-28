@@ -40,8 +40,18 @@ final class DependencyCacheManager
     /** @var array<class-string, object> */
     private array $singletonInstances = [];
 
-    /** @var array<class-string, array{singleton: bool, factory: bool}> */
-    private array $attributeCache = [];
+    /**
+     * The lifetime attributes of a class, shared across containers.
+     *
+     * Whether a class carries #[Singleton] or #[Factory] is read off its
+     * definition, which cannot change within a process, so there is nothing
+     * container-specific in the answer — held per instance, every container
+     * reflected every class it resolved, which is the tax PlanCache exists to
+     * remove on the plan axis being paid again on this one.
+     *
+     * @var array<class-string, array{singleton: bool, factory: bool}>
+     */
+    private static array $attributeCache = [];
 
     /**
      * Classes already proven instantiable, shared across containers.
@@ -113,15 +123,16 @@ final class DependencyCacheManager
     /**
      * Drop the caches that outlive every container.
      *
-     * Both are memos of a class definition — stable while the set of loadable
-     * classes is fixed, which is every production request and not a process
-     * that generates code, warms a cache, or re-bootstraps between jobs. See
-     * Container::resetStaticCaches(), the supported way in.
+     * All three are memos of a class definition — stable while the set of
+     * loadable classes is fixed, which is every production request and not a
+     * process that generates code, warms a cache, or re-bootstraps between jobs.
+     * See Container::resetStaticCaches(), the supported way in.
      */
     public static function resetCache(): void
     {
         self::$instantiable = [];
         self::$hasInjectedProps = [];
+        self::$attributeCache = [];
     }
 
     /**
@@ -398,14 +409,14 @@ final class DependencyCacheManager
      */
     private function attributesOf(string $class): array
     {
-        $flags = $this->attributeCache[$class] ?? null;
+        $flags = self::$attributeCache[$class] ?? null;
         if ($flags !== null) {
             return $flags;
         }
 
         $reflection = new ReflectionClass($class);
 
-        return $this->attributeCache[$class] = [
+        return self::$attributeCache[$class] = [
             'singleton' => $reflection->getAttributes(Singleton::class) !== [],
             'factory' => $reflection->getAttributes(Factory::class) !== [],
         ];
