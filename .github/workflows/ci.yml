@@ -170,6 +170,14 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-ansi --no-progress
 
+      # Discarded on purpose. The first phpbench invocation of a job pays for a
+      # cold opcache and page cache, and measures several times noisier than the
+      # second — so storing the baseline on it inflated the baseline and
+      # flattered every candidate, biasing the comparison towards missing
+      # regressions rather than flagging them.
+      - name: Warm the caches, discarding the result
+        run: vendor/bin/phpbench run --progress=none --iterations=1
+
       - name: Store a baseline from the merge base
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref || 'main' }} --depth=1

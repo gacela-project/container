@@ -330,6 +330,20 @@ A file written by a different version of this package is refused with a
 `ContainerException` rather than half-read — it is a build artifact tied to the
 version that produced it.
 
+## Reproducing the figures above
+
+```bash
+composer bench
+```
+
+Every figure on this page is a mode of iterations, never a mean, and the suite
+re-runs any iteration deviating 5% or more from the mean of its set.
+
+**Discard the first run of a session.** With a cold opcache and page cache it
+measures several times noisier than the second — up to ±40% relative standard
+deviation against ±8% on the same subject moments later — which is enough to
+swamp the differences this page reports. Run it twice and read the second.
+
 ## Related
 
 - [Resolving services](resolution.md)
