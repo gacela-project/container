@@ -716,12 +716,10 @@ final class Container implements ContainerInterface, ArrayAccess
     public function resolve(callable $callable, array $parameters = []): mixed
     {
         $callableKey = CallableKey::for($callable);
-        $closure = Closure::fromCallable($callable);
 
-        $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $closure, $parameters);
+        $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $callable, $parameters);
 
-        /** @psalm-suppress MixedMethodCall */
-        return $closure(...$dependencies);
+        return $callable(...$dependencies);
     }
 
     #[Override]

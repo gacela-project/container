@@ -15,6 +15,7 @@ use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
+use WeakMap;
 
 use function array_key_exists;
 use function array_keys;
@@ -76,6 +77,22 @@ final class DependencyResolver
 
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
+
+    /**
+     * Parameter plans of callables that have a name to key on: a function, a
+     * `Class::method`, an invokable's `__invoke`.
+     *
+     * @var array<string, list<ParamPlan>>
+     */
+    private array $callablePlans = [];
+
+    /**
+     * The same for closures, which have none. Built on first use, since most
+     * containers never resolve one.
+     *
+     * @var WeakMap<Closure, list<ParamPlan>>|null
+     */
+    private ?WeakMap $closurePlans = null;
 
     private ?Container $parent = null;
 
@@ -145,17 +162,13 @@ final class DependencyResolver
     }
 
     /**
-     * @param class-string|Closure $toResolve
+     * @param class-string $toResolve
      * @param array<string, mixed> $overrides runtime values keyed by parameter name (top level only)
      *
      * @return list<mixed>
      */
-    public function resolveDependencies(string|Closure $toResolve, array $overrides = []): array
+    public function resolveDependencies(string $toResolve, array $overrides = []): array
     {
-        if (!is_string($toResolve)) {
-            return $this->resolveEntryParameters($this->describeFunction($toResolve), $overrides);
-        }
-
         // Track which class is being resolved for contextual bindings.
         $this->buildStack[] = $toResolve;
 
@@ -164,6 +177,16 @@ final class DependencyResolver
         } finally {
             array_pop($this->buildStack);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $overrides runtime values keyed by parameter name
+     *
+     * @return list<mixed>
+     */
+    public function resolveCallableDependencies(callable $callable, array $overrides = []): array
+    {
+        return $this->resolveEntryParameters($this->describeCallable($callable), $overrides);
     }
 
     /**
@@ -741,6 +764,49 @@ final class DependencyResolver
     {
         return $this->propertyHandles[$prop['declaringClass'] . '::' . $prop['name']]
             ??= new ReflectionProperty($prop['declaringClass'], $prop['name']);
+    }
+
+    /**
+     * The parameter plan of a callable, memoized.
+     *
+     * Every other reflection result here is memoized and this one was not, so a
+     * repeated resolve() re-built a ReflectionFunction and re-described every
+     * parameter each time — costing more than the resolution it was feeding.
+     *
+     * @return list<ParamPlan>
+     */
+    private function describeCallable(callable $callable): array
+    {
+        $signature = CallableKey::signatureFor($callable);
+
+        if ($signature !== null) {
+            // Closure::fromCallable() allocates a closure for every form but a
+            // Closure, so it is built here on a miss rather than by the caller
+            // on every call: with the plan cached there is nothing to reflect
+            // and nothing to convert.
+            return $this->callablePlans[$signature] ??= $this->describeFunction(Closure::fromCallable($callable));
+        }
+
+        // A closure has no name to key on, so the object is its own identity —
+        // weakly, or a container would pin every closure ever passed to
+        // resolve() for as long as it lived.
+        /** @var Closure $callable a null signature means exactly this */
+        $plans = $this->closurePlans;
+
+        if ($plans === null) {
+            /** @var WeakMap<Closure, list<ParamPlan>> $plans */
+            $plans = new WeakMap();
+            $this->closurePlans = $plans;
+        }
+
+        $plan = $plans[$callable] ?? null;
+
+        if ($plan === null) {
+            $plan = $this->describeFunction($callable);
+            $plans[$callable] = $plan;
+        }
+
+        return $plan;
     }
 
     /**

@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Performance
 
+- `resolve()` re-reflected its callable on every call: every other reflection result in the container is memoized and this one was not, so invoking a callable cost more in `ReflectionFunction` than in the resolution it was feeding. Parameter plans are memoized now — by `Class::method` where the callable has a name, so two instances of a class share one plan, and by the closure itself through a `WeakMap` where it does not, so a plan is released with the closure that needed it. The `Closure::fromCallable()` conversion moved to the miss path, since a cached plan needs neither reflection nor a closure. Invoking a one-argument method through the container is 27% faster
 - Whether a class carries `#[Singleton]` or `#[Factory]` was cached per container, so every container reflected every class it resolved to re-derive an answer that belongs to the class definition and cannot change while the process runs — the tax `PlanCache` removed on the plan axis, still being paid on this one. The verdict is now shared across containers, and cleared by `resetStaticCaches()` like the other class-shape memos. Cold resolution of a four-level chain is 4.3% faster and ten sibling containers resolving the same chain hold 9.4% less peak memory, rising to 16.9% when they also share a plan cache
 
 ### Fixed

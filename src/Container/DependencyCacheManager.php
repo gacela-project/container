@@ -250,11 +250,11 @@ final class DependencyCacheManager
      *
      * @return list<mixed>
      */
-    public function resolveCallableDependencies(string $callableKey, Closure $callable, array $overrides = []): array
+    public function resolveCallableDependencies(string $callableKey, callable $callable, array $overrides = []): array
     {
         $this->resolvedKeys[$callableKey] = true;
 
-        return $this->getDependencyResolver()->resolveDependencies($callable, $overrides);
+        return $this->getDependencyResolver()->resolveCallableDependencies($callable, $overrides);
     }
 
     /**

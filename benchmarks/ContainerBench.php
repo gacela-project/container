@@ -6,6 +6,7 @@ namespace GacelaBench;
 
 use Gacela\Container\Container;
 use Gacela\Container\PlanCache;
+use GacelaBench\Fixture\CallableHandler;
 use GacelaBench\Fixture\ConsoleLogger;
 use GacelaBench\Fixture\EagerExpensive;
 use GacelaBench\Fixture\LazyExpensive;
@@ -62,6 +63,9 @@ final class ContainerBench
     /** @var array<class-string, callable(): object> */
     private array $factories = [];
 
+    /** @var callable */
+    private $callable;
+
     public function setUpColdPlans(): void
     {
         $this->plans = (new Container())->compile([Level1::class]);
@@ -70,6 +74,12 @@ final class ContainerBench
     public function setUpPlain(): void
     {
         $this->container = new Container();
+    }
+
+    public function setUpCallable(): void
+    {
+        $this->container = new Container();
+        $this->callable = [new CallableHandler(), 'handle'];
     }
 
     public function setUpBound(): void
@@ -238,6 +248,17 @@ final class ContainerBench
     public function benchResolveSingleton(): void
     {
         $this->container->get(SingletonService::class);
+    }
+
+    /**
+     * Invoking a callable through the container. Every other reflection result
+     * is memoized, and this one was not, so the subject exists to keep it that
+     * way.
+     */
+    #[BeforeMethods('setUpCallable')]
+    public function benchResolveCallable(): void
+    {
+        $this->container->resolve($this->callable);
     }
 
     /**
