@@ -8,6 +8,7 @@ use Closure;
 use Gacela\Container\CompilationReport;
 use Gacela\Container\ContainerStats;
 use Gacela\Container\ContextualBindingBuilder;
+use Gacela\Container\DependencyNode;
 use Gacela\Container\FullContainerInterface;
 use Override;
 
@@ -77,6 +78,12 @@ final class ForwardingContainer implements FullContainerInterface
     public function taggedKeys(string $tag): array
     {
         return $this->inner->taggedKeys($tag);
+    }
+
+    #[Override]
+    public function dependencyGraph(string $className): DependencyNode
+    {
+        return $this->inner->dependencyGraph($className);
     }
 
     #[Override]

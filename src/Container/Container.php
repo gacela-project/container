@@ -846,6 +846,12 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
+     * Every class reachable from $className, flat and deduplicated.
+     *
+     * Despite the name this is a list, not a tree. It stays that way — it is on
+     * ContainerInterface, which 1.x does not change, and a flat list is what
+     * some callers want. Use dependencyGraph() for depth, parents and cycles.
+     *
      * @param class-string $className
      *
      * @return list<string>
@@ -854,6 +860,39 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function getDependencyTree(string $className): array
     {
         return $this->dependencyTreeAnalyzer()->analyze($className);
+    }
+
+    /**
+     * The dependency graph rooted at $className, as a tree.
+     *
+     * getDependencyTree() answers "what does this touch". This answers the
+     * questions flattening removes: how deep a dependency sits, which
+     * constructor parameter asked for it, that three parents each pull in the
+     * same class, and where a cycle closes.
+     *
+     * ```php
+     * echo $container->dependencyGraph(OrderService::class)->render();
+     *
+     * // App\OrderService
+     * // ├── $repository: App\OrderRepository
+     * // │   └── $db: App\Db
+     * // └── $clock: App\SystemClock
+     * ```
+     *
+     * A cycle is marked and cut rather than thrown, unlike resolution: this is
+     * a debugging call, and a broken graph is precisely when it is reached for.
+     * Bindings are resolved as it is built, so an interface shows up as the
+     * concrete it maps to.
+     *
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
+     *
+     * @param class-string $className
+     */
+    #[Override]
+    public function dependencyGraph(string $className): DependencyNode
+    {
+        return $this->dependencyTreeAnalyzer()->graph($className);
     }
 
     /**

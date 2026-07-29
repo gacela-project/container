@@ -28,9 +28,9 @@ use function sort;
 /**
  * The full surface of Container, reachable through an interface.
  *
- * Eleven methods used to be concrete-class-only, each documented as a
- * limitation, which meant the library's own advice — depend on the interface —
- * cost a consumer most of the 1.2–1.4 feature set. This interface is additive:
+ * Most of the 1.2–1.4 feature set used to be concrete-class-only, each method
+ * documented as a limitation, which meant the library's own advice — depend on
+ * the interface — cost a consumer exactly those features. This interface is additive:
  * ContainerInterface is untouched, so the 1.x promise that nothing is added to
  * it holds literally, and no existing implementor of it is affected.
  */
@@ -40,10 +40,15 @@ final class FullContainerInterfaceTest extends TestCase
      * Everything the interface exists to expose. Written out rather than
      * derived, so adding a method to Container without deciding whether it
      * belongs on the contract is a failing test rather than a silent omission.
+     *
+     * dependencyGraph() arrived after the interface did, and adding it broke
+     * ForwardingContainer's compilation until it grew a forwarder — which is
+     * the enforcement this whole interface exists to buy.
      */
     private const array EXPECTED = [
         'compileReport',
         'createScope',
+        'dependencyGraph',
         'lazy',
         'load',
         'loadFile',
@@ -172,8 +177,8 @@ final class FullContainerInterfaceTest extends TestCase
     public function test_a_decorator_implementing_it_is_bound_to_the_whole_surface(): void
     {
         // The value this buys downstream: a forwarding container declares the
-        // interface and the compiler holds it to all eleven methods, instead of
-        // hand-written forwarders that nothing checks.
+        // interface and the compiler holds it to every method on the
+        // contract, instead of hand-written forwarders that nothing checks.
         $decorator = new ForwardingContainer(new Container());
 
         self::assertInstanceOf(FullContainerInterface::class, $decorator);
@@ -193,7 +198,7 @@ final class FullContainerInterfaceTest extends TestCase
      */
     public function test_the_expected_list_is_not_accidentally_empty(): void
     {
-        self::assertCount(11, self::EXPECTED);
+        self::assertCount(12, self::EXPECTED);
         self::assertTrue(in_array('createScope', self::EXPECTED, true));
         self::assertTrue((new ReflectionMethod(Container::class, 'createScope'))->hasReturnType());
     }

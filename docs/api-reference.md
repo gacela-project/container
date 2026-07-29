@@ -16,6 +16,7 @@ version:
 | `FullContainerInterface` | the same, plus everything 1.x could not add to it |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
+| `DependencyNode` | returned by `dependencyGraph()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
 | `Exception\ContainerException` | |
 | `Exception\CircularDependencyException` | |
@@ -35,21 +36,21 @@ patch. Do not import them.
 ## What the interface guarantees
 
 Almost every instance method below is declared on `ContainerInterface`; the
-eleven that are not are marked `FullContainerInterface`, the additive interface
-that carries them. Type-hint whichever of the two you need.
+twelve that are not are marked `FullContainerInterface`, the additive
+interface that carries them. Type-hint whichever of the two you need.
 
 `ContainerInterface` also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`,
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Eleven methods are **not** on `ContainerInterface` and never will be within
+Twelve methods are **not** on `ContainerInterface` and never will be within
 1.x, which promises nothing will be added to it: `stats()`, `createScope()`,
 `provides()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`,
-`taggedKeys()`, `writeCompiledFactories()`, `useCompiledFactories()` and
-`compileReport()`.
+`taggedKeys()`, `dependencyGraph()`, `writeCompiledFactories()`,
+`useCompiledFactories()` and `compileReport()`.
 
 They are on **`FullContainerInterface`**, which extends `ContainerInterface` and
-adds exactly those eleven. Adding a new interface breaks nothing — nothing is
+adds exactly those twelve. Adding a new interface breaks nothing — nothing is
 added to `ContainerInterface`, so the 1.x promise holds literally and no
 existing implementor of it is affected. Type-hint it when you want the whole
 surface without coupling to the `final` class:
@@ -119,10 +120,11 @@ See [introspection](services.md#introspection).
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order; keyed entries under their key |
 | `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `FullContainerInterface` — see [tags](bindings.md#keyed-tags) |
 | `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `FullContainerInterface` |
+| `dependencyGraph(string $className): DependencyNode` | The dependency graph as a tree — depth, the parameter each child satisfies, and cycles marked rather than thrown. `FullContainerInterface` — see [cookbook](cookbook.md#work-out-why-something-resolves-to-the-wrong-thing) |
 | `createScope(): static` | A child container inheriting this one's registration without copying it. `FullContainerInterface` — see [scopes](scopes.md) |
 | `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `memoryUsageBytes` is **process** memory, not this container's — see [introspection](services.md#introspection). `FullContainerInterface` |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
-| `getDependencyTree(string $className): array` | List the classes a given class depends on |
+| `getDependencyTree(string $className): array` | Every class a given class depends on, flat and deduplicated — despite the name, a list rather than a tree. Use `dependencyGraph()` for structure |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
 | `offsetGet` / `offsetSet` / `offsetExists` / `offsetUnset` | `ArrayAccess`: `$c[Id::class]`, assignment, `isset()`, `unset()` |
 

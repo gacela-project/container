@@ -240,9 +240,34 @@ back to reflection — see [staleness](performance.md#staleness).
 
 ```php
 $container->getBindings();                           // every abstract => concrete
-$container->getDependencyTree(OrderService::class);  // what it pulls in, recursively
+$container->getDependencyTree(OrderService::class);  // what it pulls in, flat
 $container->getRegisteredServices();                 // ids with a stored instance
 $container->stats();                                 // counters, for debugging only
+```
+
+`getDependencyTree()` is a flat, deduplicated list — it answers *what* is
+touched, not how. When the question is *why*, print the graph:
+
+```php
+echo $container->dependencyGraph(OrderService::class);
+
+// App\OrderService
+// ├── $repository: App\OrderRepository
+// │   └── $db: App\Db
+// └── $clock: App\SystemClock
+```
+
+Each node carries the constructor parameter it satisfies, so you can see which
+class asked for what and how deep it sits. Bindings are already resolved, so an
+interface shows the concrete it maps to. A cycle is marked `(cycle)` and cut
+rather than thrown — a broken graph is exactly when you reach for this:
+
+```php
+$graph = $container->dependencyGraph(OrderService::class);
+
+$graph->depth();      // 2
+$graph->hasCycle();   // false
+$graph->flatten();    // same list getDependencyTree() returns
 ```
 
 `has()` and `bound()` answer different questions — see
