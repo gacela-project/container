@@ -16,6 +16,7 @@ use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
 use WeakMap;
+use WeakReference;
 
 use function array_key_exists;
 use function array_keys;
@@ -119,6 +120,7 @@ final class DependencyResolver
     /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
+     * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
      * @param array<class-string, Closure> $lazyFactories lazy targets whose instance a closure produces
      */
@@ -126,7 +128,7 @@ final class DependencyResolver
         private array &$bindings = [],
         private array &$contextualBindings = [],
         private PlanRegistry $planRegistry = new PlanRegistry(),
-        private ?ContainerInterface $container = null,
+        private ?WeakReference $containerRef = null,
         private array &$lazyClasses = [],
         private array &$lazyFactories = [],
     ) {
@@ -287,6 +289,18 @@ final class DependencyResolver
     }
 
     /**
+     * The container this resolver belongs to, or null once it has been dropped.
+     *
+     * Never null on any path a binding closure runs on: those run while the
+     * container is resolving. A lazy object resolves after get() returned, so
+     * its initializer captures the container strongly to keep it that way.
+     */
+    private function container(): ?ContainerInterface
+    {
+        return $this->containerRef?->get();
+    }
+
+    /**
      * Entry-point parameters (top-level class or callable) must all be
      * resolvable; an untyped parameter is a hard error here.
      *
@@ -379,7 +393,7 @@ final class DependencyResolver
         $value = $this->contextualBindings[$declaringClass][$key];
         if (is_callable($value)) {
             /** @psalm-suppress MixedFunctionCall */
-            return [true, $value($this->container)];
+            return [true, $value($this->container())];
         }
 
         return [true, $value];
@@ -399,7 +413,7 @@ final class DependencyResolver
             // true for a class whose name collides with a function's.
             if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
                 /** @psalm-suppress MixedFunctionCall */
-                return $contextualBinding($this->container);
+                return $contextualBinding($this->container());
             }
 
             if (is_object($contextualBinding)) {
@@ -429,7 +443,7 @@ final class DependencyResolver
                 return $this->newLazyInstance($paramTypeName);
             }
 
-            return $bindClass($this->container);
+            return $bindClass($this->container());
         }
 
         if (is_object($bindClass)) {
@@ -491,6 +505,12 @@ final class DependencyResolver
     {
         $reflection = new ReflectionClass($className);
 
+        // Captured strongly and never read: the capture alone is what keeps the
+        // container its constructor will need alive, since an untouched ghost may
+        // outlive every other reference to it. PHP releases an initializer once it
+        // has run, ending the hold exactly when the ghost stops needing it.
+        $ownerContainer = $this->container();
+
         /**
          * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
          * so they cannot see it. Callers gate this behind a runtime capability
@@ -499,11 +519,15 @@ final class DependencyResolver
          * Calling __construct() directly on the ghost is the documented way to
          * initialize one, not an accident.
          *
+         * $ownerContainer reads as unused because its purpose is the capture
+         * itself, which is a lifetime, and a lifetime is the other thing they
+         * cannot model.
+         *
          * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
          *
-         * @phpstan-ignore method.notFound, return.type
+         * @phpstan-ignore method.notFound, return.type, closure.unusedUse
          */
-        return $reflection->newLazyGhost(function (object $instance) use ($className): void {
+        return $reflection->newLazyGhost(function (object $instance) use ($className, $ownerContainer): void {
             $dependencies = $this->resolveDependencies($className);
 
             /**
@@ -530,6 +554,11 @@ final class DependencyResolver
     {
         $reflection = new ReflectionClass($className);
 
+        // Captured strongly for the same reason a ghost does it: $factory is
+        // handed this container on first touch, which may be long after the
+        // caller dropped its own reference.
+        $container = $this->container();
+
         /**
          * newLazyProxy() is PHP 8.4+; see newLazyGhost() for why the analysers
          * cannot see it.
@@ -538,9 +567,9 @@ final class DependencyResolver
          *
          * @phpstan-ignore method.notFound, return.type
          */
-        return $reflection->newLazyProxy(function () use ($factory): object {
+        return $reflection->newLazyProxy(static function () use ($factory, $container): object {
             /** @var object */
-            return $factory($this->container);
+            return $factory($container);
         });
     }
 

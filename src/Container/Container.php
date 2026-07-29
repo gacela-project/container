@@ -114,12 +114,18 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->aliasRegistry = new AliasRegistry();
         $this->factoryManager = new FactoryManager($instancesToExtend);
         $this->instanceRegistry = new InstanceRegistry();
-        $this->bindingResolver = new BindingResolver($this->bindings, $this);
+
+        // Weak, and one reference shared by every collaborator that needs it: a
+        // strong back-pointer made each container a reference cycle, so dropping
+        // one freed it whenever the cycle collector next ran instead of at once.
+        $containerRef = WeakReference::create($this);
+
+        $this->bindingResolver = new BindingResolver($this->bindings, $containerRef);
         $this->cacheManager = new DependencyCacheManager(
             $this->bindings,
             $this->contextualBindings,
             $compiledPlans,
-            $this,
+            $containerRef,
             $planCache,
         );
     }
@@ -209,7 +215,8 @@ final class Container implements FullContainerInterface, ArrayAccess
      * scope resolves first belongs to that scope and goes away with it. That is
      * what makes a scope usable as a request lifetime in a long-running
      * runtime: drop the reference and everything it resolved is released, while
-     * everything resolved at boot stays put.
+     * everything resolved at boot stays put. Released by refcounting, not by the
+     * cycle collector, so a worker running with gc_disable() is fine.
      *
      * Two things deliberately do not fall through. remove() only forgets what
      * the scope itself stored, and extend() refuses to reach into an ancestor
