@@ -73,9 +73,12 @@ the constructor, and the static methods `create()`, `loadCompiledCache()`,
 `loadCompiledFactories()` and `resetStaticCaches()` — there is no instance that
 owns that state to ask, and so nothing for a decorator to forward.
 
-One caveat: `getStats()` is on the interface, but the **shape of the array it
-returns is not covered by backward compatibility**. Treat it as debug output, or
-use `stats()`, whose shape *is* covered.
+Two caveats. `getStats()` is on the interface, but the **shape of the array it
+returns is not covered by backward compatibility** — treat it as debug output,
+or use `stats()`, whose shape *is* covered. And the memory figure in both is the
+whole PHP **process**, not the container; every other field is container-scoped,
+so it is the one number that does not answer "what does this container hold".
+See [introspection](services.md#introspection).
 
 ## Container methods
 
@@ -117,7 +120,7 @@ use `stats()`, whose shape *is* covered.
 | `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `FullContainerInterface` — see [tags](bindings.md#keyed-tags) |
 | `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `FullContainerInterface` |
 | `createScope(): static` | A child container inheriting this one's registration without copying it. `FullContainerInterface` — see [scopes](scopes.md) |
-| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `FullContainerInterface` |
+| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `memoryUsageBytes` is **process** memory, not this container's — see [introspection](services.md#introspection). `FullContainerInterface` |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |

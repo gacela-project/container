@@ -87,6 +87,18 @@ $stats->memoryUsageBytes;        // 2453667 — an int, so it can be compared
 $stats->memoryUsageFormatted();  // '2.34 MB'
 ```
 
+**`memoryUsageBytes` is the whole PHP process, not this container.** It is
+`memory_get_usage(true)`: the real memory the allocator has handed the process.
+It moves when anything anywhere allocates, and two containers in the same
+process report the same number. Every other field is a container-scoped counter,
+so this one is the odd one out — read it as ambient context beside them, not as
+what the container costs.
+
+Measuring a single container's footprint would mean carrying accounting code on
+the registration paths to feed a debug field, which is not a trade this library
+makes. The field is renamed `processMemoryBytes` in 2.0, so the name says what
+the value is.
+
 `stats()` is on [`FullContainerInterface`](api-reference.md#what-the-interface-guarantees)
 rather than `ContainerInterface`, because 1.x promises no method will be added
 to the latter. The two merge at 2.0.

@@ -20,6 +20,23 @@ namespace Gacela\Container;
  */
 final readonly class ContainerStats
 {
+    /**
+     * @param int $registeredServices ids this container holds an instance for
+     * @param int $frozenServices of those, how many have been resolved and can
+     *   no longer be overwritten
+     * @param int $factoryServices of those, how many are factory closures
+     * @param int $bindings abstract-to-concrete mappings registered here
+     * @param int $cachedDependencies classes this container has resolved at
+     *   least once
+     * @param int $memoryUsageBytes **the whole PHP process**, not this
+     *   container — memory_get_usage(true), the real memory the allocator has
+     *   handed the process. It moves when anything anywhere allocates, and two
+     *   containers in the same process report the same number. Every other
+     *   field here is container-scoped, so this one is the odd one out: read it
+     *   as ambient context for the counters beside it, never as what this
+     *   container costs. Renamed to processMemoryBytes in 2.0, where the name
+     *   will say so.
+     */
     public function __construct(
         public int $registeredServices,
         public int $frozenServices,
@@ -30,6 +47,10 @@ final readonly class ContainerStats
     ) {
     }
 
+    /**
+     * memoryUsageBytes as a human-readable string. Process memory — see the
+     * constructor.
+     */
     public function memoryUsageFormatted(): string
     {
         return ByteFormatter::format($this->memoryUsageBytes);
