@@ -93,10 +93,18 @@ The distinction is the point: a cache keyed on a class's *shape* needs clearing
 when the classes change, and one keyed on the *runtime* never does.
 
 Only positives are cached, so a class that was not loadable when it was first
-asked about is never remembered as missing. Nothing here is a correctness
-crutch — calling this costs only the reflection it throws away, and never
-touches what a container was asked to keep: singletons, instances and bindings
-belong to the container and go away with it.
+asked about is never remembered as missing — `has('App\Generated\Handler')`
+answering `false` before the file exists does not stop it answering `true`
+after. Nothing here is a correctness crutch — calling this costs only the
+reflection it throws away, and never touches what a container was asked to
+keep: singletons, instances and bindings belong to the container and go away
+with it.
+
+`has()` on an unregistered class shares the proven-instantiable entry above
+rather than reflecting for itself, so the probe leaves behind the constructor
+plan the following `get()` needs. Two consequences worth knowing: `has()` warms
+the cache it reads, and containers sharing a
+[plan cache](#one-plan-cache-for-several-containers) share that answer too.
 
 Call it from your framework's own reset, so that reset can be honest about what
 it clears.

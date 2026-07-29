@@ -9,10 +9,8 @@ use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
-use ReflectionClass;
 use WeakReference;
 
-use function class_exists;
 use function count;
 use function in_array;
 use function is_callable;
@@ -70,9 +68,6 @@ final class Container implements ContainerInterface, ArrayAccess
 
     /** @var array<string, list<Closure>> */
     private array $afterResolvingCallbacks = [];
-
-    /** @var array<string, bool> memoizes has()'s instantiability probe */
-    private array $instantiableCache = [];
 
     /** @var array<class-string, callable(): object> */
     private array $compiledFactories = [];
@@ -591,7 +586,10 @@ final class Container implements ContainerInterface, ArrayAccess
             return true;
         }
 
-        return $this->isInstantiable($id);
+        // Last, and deliberately so: the probe is the only branch that can
+        // reflect, and routing it through the plan must not make a bound
+        // abstract start building one.
+        return $this->cacheManager->isInstantiable($id);
     }
 
     #[Override]
@@ -1233,7 +1231,7 @@ final class Container implements ContainerInterface, ArrayAccess
      */
     private function assertLazyTarget(string $abstract, string $target): string
     {
-        if (!$this->isInstantiable($target)) {
+        if (!$this->cacheManager->isInstantiable($target)) {
             throw ContainerException::lazyTargetNotConcrete($abstract, $target);
         }
 
@@ -1249,19 +1247,6 @@ final class Container implements ContainerInterface, ArrayAccess
     private function dependencyTreeAnalyzer(): DependencyTreeAnalyzer
     {
         return $this->dependencyTreeAnalyzer ??= new DependencyTreeAnalyzer($this->bindingResolver);
-    }
-
-    private function isInstantiable(string $id): bool
-    {
-        if (isset($this->instantiableCache[$id])) {
-            return $this->instantiableCache[$id];
-        }
-
-        if (!class_exists($id)) {
-            return $this->instantiableCache[$id] = false;
-        }
-
-        return $this->instantiableCache[$id] = (new ReflectionClass($id))->isInstantiable();
     }
 
     private function fireAfterResolving(string $id, mixed $instance): void
