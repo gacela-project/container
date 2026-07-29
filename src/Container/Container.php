@@ -176,6 +176,7 @@ final class Container implements ContainerInterface, ArrayAccess
      * | `#[Singleton]`/`#[Factory]` on a class | class shape — cleared |
      * | proven-instantiable classes | class shape — cleared |
      * | has-`#[Inject]`-properties | class shape — cleared |
+     * | declares `__invoke` | class shape — cleared |
      * | native lazy objects available | the PHP binary — recomputed, never differs |
      *
      * Only positives are ever stored, so a class that was not loadable when it
@@ -191,6 +192,7 @@ final class Container implements ContainerInterface, ArrayAccess
     {
         DependencyCacheManager::resetCache();
         DependencyResolver::resetCache();
+        InstanceRegistry::resetCache();
     }
 
     /**

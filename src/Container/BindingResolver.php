@@ -42,9 +42,16 @@ final class BindingResolver
     public function resolve(string $class, DependencyCacheManager $cacheManager): ?object
     {
         if (isset($this->bindings[$class])) {
+            /** @var mixed $binding */
             $binding = $this->bindings[$class];
 
-            if (is_callable($binding)) {
+            // A binding is a class-string far more often than anything else, so
+            // strings skip the function-table lookup is_callable() costs on
+            // every bound parameter of every resolution. It is also the lookup
+            // that answers *true* for a class whose name collides with a
+            // defined function — invoking the binding instead of instantiating
+            // it, silently.
+            if (!is_string($binding) && is_callable($binding)) {
                 // Invoking the closure here is what makes every closure binding
                 // eager; a lazy() registration exists precisely to defer it.
                 /** @var class-string $class */
@@ -61,8 +68,7 @@ final class BindingResolver
                 return $binding;
             }
 
-            /** @var class-string $binding */
-            if (class_exists($binding)) {
+            if (is_string($binding) && class_exists($binding)) {
                 return $cacheManager->instantiate($binding);
             }
         }

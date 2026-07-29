@@ -43,6 +43,12 @@ $container->get(CacheInterface::class); // same instance every time
 - a **closure** — memoized, so it runs only on the first resolution
 - **omitted** — the `$abstract` itself is treated as the concrete class
 
+A **string concrete is always read as a class name**, never as a callable. That
+matters in the one case where it is ambiguous: PHP keeps classes and functions
+in separate tables, so `App\Mailer` can name both, and a container that asked
+`is_callable()` first would call the function and hand back whatever it
+returned. Pass a closure when you want something invoked.
+
 ### Container-aware closures
 
 Binding closures receive the container as their first argument, so a factory can

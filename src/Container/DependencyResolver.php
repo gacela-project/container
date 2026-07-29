@@ -393,7 +393,11 @@ final class DependencyResolver
         /** @psalm-suppress MixedAssignment */
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
-            if (is_callable($contextualBinding)) {
+            // Same ordering as BindingResolver::resolve(): a class-string is
+            // the common case, so it never pays the function-table lookup
+            // is_callable() does on a string — nor risks that lookup answering
+            // true for a class whose name collides with a function's.
+            if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
                 /** @psalm-suppress MixedFunctionCall */
                 return $contextualBinding($this->container);
             }
@@ -415,7 +419,12 @@ final class DependencyResolver
             return $this->parent->get($paramTypeName);
         }
 
-        if (is_callable($bindClass)) {
+        // The hottest of the three sites with this ordering: it runs once per
+        // constructor parameter of every node of every graph. A class-string
+        // binding is settled below, by the plan, so it never pays the
+        // function-table lookup — nor risks that lookup answering true for a
+        // class whose name a function shares.
+        if (!is_string($bindClass) && is_callable($bindClass)) {
             if ($this->supportsLazyObjects && isset($this->lazyFactories[$paramTypeName])) {
                 return $this->newLazyInstance($paramTypeName);
             }
