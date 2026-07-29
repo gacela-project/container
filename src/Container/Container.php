@@ -1004,6 +1004,10 @@ final class Container implements FullContainerInterface, ArrayAccess
      * backward compatibility, where the array's explicitly is not, and memory
      * comes back as an int rather than a string needing to be parsed.
      *
+     * One caveat about that memory figure, which the type does not convey:
+     * memoryUsageBytes is the PHP *process*, not this container. See
+     * ContainerStats.
+     *
      * On FullContainerInterface rather than ContainerInterface, which 1.x
      * promises not to extend. The two merge at 2.0, where this replaces
      * getStats().
@@ -1030,12 +1034,18 @@ final class Container implements FullContainerInterface, ArrayAccess
             factoryServices: $factoryCount,
             bindings: count($this->getBindings()),
             cachedDependencies: $this->cacheManager->getCacheSize(),
+            // Process-wide, deliberately: measuring this container's own
+            // footprint would mean accounting code on the registration paths to
+            // feed a debug field. Named for what it is at 2.0.
             memoryUsageBytes: memory_get_usage(true),
         );
     }
 
     /**
      * Superseded by stats(), which is typed. Kept for the whole of 1.x.
+     *
+     * 'memory_usage' is the PHP process, not this container — see
+     * ContainerStats.
      *
      * @return array{
      *     registered_services: int,
