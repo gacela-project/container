@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `FullContainerInterface` — the whole of what a `Container` does, as a contract. Eleven methods were reachable only through the concrete `final class Container`, each documented as a limitation, so following the library's own advice and depending on the interface cost you scopes, definitions-as-data, lazy registration, keyed tags, typed stats and everything about compiled factories. The new interface extends `ContainerInterface` and adds exactly those eleven; **`ContainerInterface` is untouched**, so the 1.x promise that nothing is added to it holds literally and no existing implementor — a test double, most likely — is affected. `createScope()` is typed `static`, so a scope of a full container is a full container and a decorator's scope is a decorator. At 2.0 these move onto `ContainerInterface` and this name stays as a deprecated alias, so code written against it now does not migrate twice. See [api reference](docs/api-reference.md#what-the-interface-guarantees)
+
 ### Performance
 
 - A container built a `TagRegistry` and a `DependencyTreeAnalyzer` whether or not it ever grouped a service under a tag or was asked for a dependency tree, and `createScope()` paid for both per scope — the operation whose whole point is being cheap enough to run per request. Both are built on first use now: creating a scope is 10.5% faster and a cold container resolving a four-level chain 3.4% faster, for 1% less peak memory. `FactoryManager` stays eager deliberately, since `get()` reaches it for any stored instance

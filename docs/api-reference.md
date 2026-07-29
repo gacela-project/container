@@ -13,6 +13,7 @@ version:
 |---|---|
 | `Container` | the container itself (`final`) |
 | `ContainerInterface` | the contract to type-hint against |
+| `FullContainerInterface` | the same, plus everything 1.x could not add to it |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
@@ -34,20 +35,43 @@ patch. Do not import them.
 ## What the interface guarantees
 
 Almost every instance method below is declared on `ContainerInterface`; the
-handful that are not are marked `Container` only. Type-hint the interface unless
-you need one of those.
+eleven that are not are marked `FullContainerInterface`, the additive interface
+that carries them. Type-hint whichever of the two you need.
 
 `ContainerInterface` also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`,
 assignment, and `unset()` are part of the contract rather than a concrete-class
 convenience.
 
-Twelve members live on `Container` alone. Three of them *cannot* be on an
-interface: the constructor, and the two static methods `create()` and
-`loadCompiledCache()`. The other nine — `stats()`, `createScope()`,
-`provides()`, `lazy()`, `load()`, `loadFile()`, `writeCompiledFactories()`,
-`useCompiledFactories()` and `compileReport()` — are kept off deliberately: 1.x
-promises nothing will be added to `ContainerInterface`, so they move there in
-2.0.
+Eleven methods are **not** on `ContainerInterface` and never will be within
+1.x, which promises nothing will be added to it: `stats()`, `createScope()`,
+`provides()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`,
+`taggedKeys()`, `writeCompiledFactories()`, `useCompiledFactories()` and
+`compileReport()`.
+
+They are on **`FullContainerInterface`**, which extends `ContainerInterface` and
+adds exactly those eleven. Adding a new interface breaks nothing — nothing is
+added to `ContainerInterface`, so the 1.x promise holds literally and no
+existing implementor of it is affected. Type-hint it when you want the whole
+surface without coupling to the `final` class:
+
+```php
+public function __construct(
+    private FullContainerInterface $container,
+) {
+}
+```
+
+`createScope()` is typed `static` there, so a scope of a full container is a
+full container, and a decorator's scope is a decorator.
+
+At **2.0** these methods move onto `ContainerInterface` itself and
+`FullContainerInterface` stays as a deprecated alias, so code written against it
+now does not migrate twice.
+
+What remains on `Container` alone is what an instance contract cannot express:
+the constructor, and the static methods `create()`, `loadCompiledCache()`,
+`loadCompiledFactories()` and `resetStaticCaches()` — there is no instance that
+owns that state to ask, and so nothing for a decorator to forward.
 
 One caveat: `getStats()` is on the interface, but the **shape of the array it
 returns is not covered by backward compatibility**. Treat it as debug output, or
@@ -63,14 +87,14 @@ use `stats()`, whose shape *is* covered.
 | `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
 | `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`) |
 | `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
-| `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton. `Container` only |
+| `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton. `FullContainerInterface` |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
-| `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use. `Container` only — see [bindings](bindings.md#deferred-registration) |
-| `load(array $definitions): void` | Register services from a definitions array. `Container` only — see [definitions](definitions.md) |
-| `loadFile(string $file): void` | Load definitions from a `.php` file returning an array, or a `.json` file. `Container` only |
+| `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use. `FullContainerInterface` — see [bindings](bindings.md#deferred-registration) |
+| `load(array $definitions): void` | Register services from a definitions array. `FullContainerInterface` — see [definitions](definitions.md) |
+| `loadFile(string $file): void` | Load definitions from a `.php` file returning an array, or a `.json` file. `FullContainerInterface` |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
@@ -84,16 +108,16 @@ use `stats()`, whose shape *is* covered.
 | `warmUp(array $classNames): void` | Pre-resolve dependencies |
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
-| `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `Container` only |
-| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `Container` only — see [performance](performance.md#asking-why) |
-| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `Container` only |
+| `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `FullContainerInterface` |
+| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why) |
+| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `FullContainerInterface` |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes); a map gives entries keys |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order; keyed entries under their key |
-| `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `Container` only — see [tags](bindings.md#keyed-tags) |
-| `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `Container` only |
-| `createScope(): Container` | A child container inheriting this one's registration without copying it. `Container` only — see [scopes](scopes.md) |
-| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `Container` only |
+| `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `FullContainerInterface` — see [tags](bindings.md#keyed-tags) |
+| `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `FullContainerInterface` |
+| `createScope(): static` | A child container inheriting this one's registration without copying it. `FullContainerInterface` — see [scopes](scopes.md) |
+| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. `FullContainerInterface` |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | List the classes a given class depends on |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
@@ -146,13 +170,18 @@ types, and defaults do not change within a major version. Named arguments are sa
 ## `Container` is final
 
 `Container` cannot be subclassed. Extend behaviour by composition instead of
-inheritance: type-hint `ContainerInterface` and wrap.
+inheritance: type-hint an interface and wrap.
+
+Implement `FullContainerInterface` rather than `ContainerInterface` when the
+wrapper is meant to stand in for a container everywhere. It costs more
+forwarders and buys the compiler checking them: a method the wrapper forgets is
+a compile error, not a method that silently goes missing at runtime.
 
 ```php
-final class LoggingContainer implements ContainerInterface
+final class LoggingContainer implements FullContainerInterface
 {
     public function __construct(
-        private ContainerInterface $inner,
+        private FullContainerInterface $inner,
         private LoggerInterface $logger,
     ) {}
 
