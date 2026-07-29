@@ -24,6 +24,28 @@ final class InstanceRegistry
     /** @var array<string,bool> */
     private array $frozenInstances = [];
 
+    /**
+     * Whether a class declares __invoke, keyed by class name.
+     *
+     * get() asked method_exists() on every read of a stored instance, to answer
+     * a question the class settles once. Shared across containers, and keyed on
+     * a class's shape like the resolver's memos are, so it is cleared by
+     * Container::resetStaticCaches() for the same reason they are.
+     *
+     * @var array<class-string, bool>
+     */
+    private static array $invokable = [];
+
+    /**
+     * Drop the memo that outlives every container.
+     *
+     * See Container::resetStaticCaches(), the supported way in.
+     */
+    public static function resetCache(): void
+    {
+        self::$invokable = [];
+    }
+
     public function has(string $id): bool
     {
         return isset($this->instances[$id]);
@@ -52,18 +74,35 @@ final class InstanceRegistry
         /** @var mixed $instance */
         $instance = $this->instances[$id];
 
+        // The memo carries exactly what method_exists() used to prove inline —
+        // and proved again on every single read of the instance. Both analysers
+        // narrow an object to a callable from the call itself and cannot follow
+        // that through the cache, hence the two annotations below; the class
+        // declaring __invoke is what makes the invocation safe, and a class
+        // cannot stop declaring it within a process.
         if (!is_object($instance)
             || $factoryManager->isProtected($instance)
-            || !method_exists($instance, '__invoke')
+            || !(self::$invokable[$instance::class] ??= method_exists($instance, '__invoke'))
         ) {
             return $instance;
         }
 
         if ($factoryManager->isFactory($instance)) {
+            /**
+             * @psalm-suppress InvalidFunctionCall
+             *
+             * @phpstan-ignore callable.nonCallable
+             */
             return $instance($container);
         }
 
-        /** @var mixed $resolvedService */
+        /**
+         * @var mixed $resolvedService
+         *
+         * @psalm-suppress InvalidFunctionCall
+         *
+         * @phpstan-ignore callable.nonCallable
+         */
         $resolvedService = $instance($container);
 
         $this->instances[$id] = $resolvedService;

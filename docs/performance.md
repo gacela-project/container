@@ -87,6 +87,7 @@ Container::resetStaticCaches();
 | `#[Singleton]`/`#[Factory]` on a class | class shape — cleared |
 | proven-instantiable classes | class shape — cleared |
 | has-`#[Inject]`-properties | class shape — cleared |
+| declares `__invoke` | class shape — cleared |
 | native lazy objects available | the PHP binary — recomputed, never differs |
 
 The distinction is the point: a cache keyed on a class's *shape* needs clearing
