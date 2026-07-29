@@ -10,8 +10,8 @@ use Gacela\Container\Exception\ContainerException;
  * The whole of what a Container does, as a contract.
  *
  * `ContainerInterface` is frozen for 1.x — nothing will be added to it — which
- * is the right promise and has a cost: eleven methods, most of the 1.2–1.4
- * feature set, are reachable only through the concrete `final class Container`.
+ * is the right promise and has a cost: most of the 1.2–1.4 feature set was
+ * reachable only through the concrete `final class Container`.
  * Following the library's own advice and depending on the interface therefore
  * costs you scopes, definitions-as-data, lazy registration, keyed tags, typed
  * stats and every part of compiled factories.
@@ -29,9 +29,10 @@ use Gacela\Container\Exception\ContainerException;
  * ```
  *
  * The value is compile-time enforcement for decorators. A container that wraps
- * another and forwards to it can implement this instead of hand-writing eleven
- * forwarders that nothing checks — a method added upstream then fails
- * compilation there rather than silently going missing.
+ * another and forwards to it can implement this instead of hand-writing a
+ * forwarder per uncovered method, with nothing checking the list stays
+ * complete — a method added here then fails compilation there rather than
+ * silently going missing.
  *
  * At 2.0 these methods move onto `ContainerInterface` itself, and this name
  * stays as a deprecated alias. Nothing that depends on it now has to migrate
@@ -132,6 +133,22 @@ interface FullContainerInterface extends ContainerInterface
      * @return list<string>
      */
     public function taggedKeys(string $tag): array;
+
+    /**
+     * The dependency graph rooted at $className, as a tree.
+     *
+     * `getDependencyTree()` on ContainerInterface answers "what does this
+     * touch" with a flat, deduplicated list. This keeps what flattening
+     * removes: depth, which constructor parameter asked for what, the same
+     * class appearing under several parents, and where a cycle closes.
+     *
+     * A cycle is marked on the node and cut, not thrown — inspecting a broken
+     * graph is precisely when this is reached for. Bindings are resolved as the
+     * graph is built, so an interface appears as its concrete.
+     *
+     * @param class-string $className
+     */
+    public function dependencyGraph(string $className): DependencyNode;
 
     /**
      * What writeCompiledFactories() would make of these classes, and why it
