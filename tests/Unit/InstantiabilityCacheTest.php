@@ -29,6 +29,18 @@ use PHPUnit\Framework\TestCase;
  */
 final class InstantiabilityCacheTest extends TestCase
 {
+    /**
+     * The memo these tests observe is process-global, so an earlier test class
+     * that resolved the same fixture leaves it already answered — and a test
+     * asserting the plan was built then sees nothing built. Clearing on the way
+     * in is what makes that independent of execution order; clearing on the way
+     * out keeps it from leaking the other direction.
+     */
+    protected function setUp(): void
+    {
+        Container::resetStaticCaches();
+    }
+
     protected function tearDown(): void
     {
         Container::resetStaticCaches();
