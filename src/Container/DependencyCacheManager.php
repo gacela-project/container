@@ -328,6 +328,33 @@ final class DependencyCacheManager
     }
 
     /**
+     * Whether $class can be instantiated, answered once per class per process.
+     *
+     * The resolver answers off the class plan rather than reflecting again, so
+     * a caller asking this before resolving — has(), lazy() — warms the very
+     * plan the following get() needs instead of building a ReflectionClass the
+     * plan registry already holds or is about to.
+     *
+     * The memo is read before class_exists() because a repeated has() on an
+     * autowirable class is the hot shape, and that ordering keeps it at one
+     * array lookup. The guard still runs before the resolver, which needs a
+     * loaded class; its negative is not stored, since class_exists() can start
+     * answering true later in the same process.
+     */
+    public function isInstantiable(string $class): bool
+    {
+        if (isset(self::$instantiable[$class])) {
+            return true;
+        }
+
+        if (!class_exists($class) || !$this->getDependencyResolver()->isInstantiable($class)) {
+            return false;
+        }
+
+        return self::$instantiable[$class] = true;
+    }
+
+    /**
      * @param class-string $class
      */
     private function createInstance(string $class): object
@@ -348,12 +375,8 @@ final class DependencyCacheManager
 
         // has() already reports these as unresolvable; without this guard get()
         // disagreed by emitting a raw PHP Error from inside the container.
-        if (!isset(self::$instantiable[$class])) {
-            if (!$resolver->isInstantiable($class)) {
-                throw ContainerException::classNotInstantiable($class);
-            }
-
-            self::$instantiable[$class] = true;
+        if (!$this->isInstantiable($class)) {
+            throw ContainerException::classNotInstantiable($class);
         }
 
         if ($resolver->isLazy($class)) {
