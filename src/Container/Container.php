@@ -29,7 +29,7 @@ use function max;
  *
  * @api
  */
-final class Container implements ContainerInterface, ArrayAccess
+final class Container implements FullContainerInterface, ArrayAccess
 {
     /**
      * Floor for the scope-sweep threshold, so a container with a handful of
@@ -184,9 +184,8 @@ final class Container implements ContainerInterface, ArrayAccess
      * correctness crutch: calling this only ever costs the reflection it
      * throws away.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there — and static, because there is no instance that owns this
-     * state to ask.
+     * On neither container interface, and static: there is no instance that
+     * owns this state to ask, so there is nothing for a decorator to forward.
      */
     public static function resetStaticCaches(): void
     {
@@ -216,10 +215,11 @@ final class Container implements ContainerInterface, ArrayAccess
      * the scope itself stored, and extend() refuses to reach into an ancestor
      * — see the exception it throws for the way to decorate a scope-locally.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      */
-    public function createScope(): self
+    #[Override]
+    public function createScope(): static
     {
         $scope = new self();
         $scope->parent = $this;
@@ -257,9 +257,10 @@ final class Container implements ContainerInterface, ArrayAccess
      * introduced. A scope asks this to decide whether to delegate upwards or
      * build its own.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      */
+    #[Override]
     public function provides(string $id): bool
     {
         $id = $this->aliasRegistry->resolve($id);
@@ -324,6 +325,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *
      * @return list<class-string> the classes that were compiled
      */
+    #[Override]
     public function writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array
     {
         $compiler = $this->compilerFor($classNames);
@@ -353,11 +355,12 @@ final class Container implements ContainerInterface, ArrayAccess
      * already performs. Its `compiled()` set is exactly what
      * `writeCompiledFactories()` returns for the same input.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      *
      * @param list<class-string> $classNames
      */
+    #[Override]
     public function compileReport(array $classNames): CompilationReport
     {
         return $this->compilerFor($classNames)->report();
@@ -368,6 +371,7 @@ final class Container implements ContainerInterface, ArrayAccess
      *
      * @param array<class-string, callable(): object> $factories
      */
+    #[Override]
     public function useCompiledFactories(array $factories): void
     {
         $this->compiledFactories = $factories;
@@ -437,14 +441,15 @@ final class Container implements ContainerInterface, ArrayAccess
      * per-environment layering a matter of loading base then overrides — except
      * for 'tags', which accumulate the way tag() does.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      *
      * @param array<array-key, mixed> $definitions
      *
      * @throws ContainerException when an entry names an unknown key, or a key's
      *                            value is not of the type it accepts
      */
+    #[Override]
     public function load(array $definitions): void
     {
         (new DefinitionLoader($this))->load($definitions);
@@ -460,11 +465,12 @@ final class Container implements ContainerInterface, ArrayAccess
      * $container->load(Yaml::parseFile('services.yaml'));
      * ```
      *
-     * Deliberately not on ContainerInterface — see load().
+     * On FullContainerInterface — see load().
      *
      * @throws ContainerException when the file is missing, unreadable, of an
      *                            unsupported type, or does not hold an array
      */
+    #[Override]
     public function loadFile(string $file): void
     {
         (new DefinitionLoader($this))->loadFile($file);
@@ -488,9 +494,10 @@ final class Container implements ContainerInterface, ArrayAccess
      * The target must be a concrete class either way — a lazy instance has to
      * be an instance of something.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      */
+    #[Override]
     public function lazy(string $abstract, string|callable|null $concrete = null): void
     {
         if ($concrete === null || is_string($concrete)) {
@@ -808,9 +815,10 @@ final class Container implements ContainerInterface, ArrayAccess
      * names the keys the tag does have. Ask taggedKeys() when the key is
      * genuinely optional.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      */
+    #[Override]
     public function taggedByKey(string $tag, string $key): mixed
     {
         $ids = $this->taggedIds($tag);
@@ -826,11 +834,12 @@ final class Container implements ContainerInterface, ArrayAccess
      * The keys $tag can be asked for, in insertion order. Entries registered
      * without a key are not listed: there is no key to ask with.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0.
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0.
      *
      * @return list<string>
      */
+    #[Override]
     public function taggedKeys(string $tag): array
     {
         return self::stringKeys($this->taggedIds($tag));
@@ -995,9 +1004,11 @@ final class Container implements ContainerInterface, ArrayAccess
      * backward compatibility, where the array's explicitly is not, and memory
      * comes back as an int rather than a string needing to be parsed.
      *
-     * Deliberately not on ContainerInterface — 1.x promises no method will be
-     * added there. It moves onto the interface in 2.0, replacing getStats().
+     * On FullContainerInterface rather than ContainerInterface, which 1.x
+     * promises not to extend. The two merge at 2.0, where this replaces
+     * getStats().
      */
+    #[Override]
     public function stats(): ContainerStats
     {
         $services = $this->getRegisteredServices();

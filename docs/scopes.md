@@ -242,10 +242,14 @@ scope exists to keep separate.
 
 ## Backward compatibility
 
-`createScope()` and `provides()` live on `Container`, not on
-`ContainerInterface` — 1.x promises no method will be added to that interface.
-Both move onto it in 2.0. This is the same carve-out
-[`stats()`](services.md#introspection) got in 1.2.0.
+`createScope()` and `provides()` are on
+[`FullContainerInterface`](api-reference.md#what-the-interface-guarantees), not
+on `ContainerInterface` — 1.x promises no method will be added to the latter.
+Both merge into it at 2.0.
+
+`createScope()` is typed `static` on the interface, so a scope of a full
+container is a full container: the feature set does not fall away one level
+down, and a decorator's scope is a decorator.
 
 ## Related
 

@@ -87,9 +87,9 @@ $stats->memoryUsageBytes;        // 2453667 — an int, so it can be compared
 $stats->memoryUsageFormatted();  // '2.34 MB'
 ```
 
-`stats()` lives on `Container` rather than `ContainerInterface`, because 1.x
-promises no method will be added to that interface. It moves onto the interface
-in 2.0.
+`stats()` is on [`FullContainerInterface`](api-reference.md#what-the-interface-guarantees)
+rather than `ContainerInterface`, because 1.x promises no method will be added
+to the latter. The two merge at 2.0.
 
 The older `getStats()` returns the same numbers as an array and keeps working for
 the whole of 1.x. Prefer `stats()`: the array's shape is
