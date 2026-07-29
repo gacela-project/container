@@ -9,6 +9,7 @@ use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\ContainerException;
 use ReflectionClass;
+use WeakReference;
 
 use function class_exists;
 use function count;
@@ -96,13 +97,14 @@ final class DependencyCacheManager
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
      * @param CompiledPlans $compiledPlans
+     * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param PlanCache|null $planCache a cache shared with unrelated containers
      */
     public function __construct(
         private array &$bindings = [],
         private array &$contextualBindings = [],
         array $compiledPlans = [],
-        private ?ContainerInterface $container = null,
+        private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
     ) {
         if ($planCache === null) {
@@ -402,7 +404,7 @@ final class DependencyCacheManager
                 $this->bindings,
                 $this->contextualBindings,
                 $this->planRegistry,
-                $this->container,
+                $this->containerRef,
                 $this->lazyClasses,
                 $this->lazyFactories,
             );

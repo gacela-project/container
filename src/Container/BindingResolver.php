@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use WeakReference;
+
 use function class_exists;
 use function is_callable;
 use function is_object;
@@ -24,10 +26,11 @@ final class BindingResolver
 
     /**
      * @param BindingsMap $bindings
+     * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      */
     public function __construct(
         private array &$bindings = [],
-        private ?ContainerInterface $container = null,
+        private ?WeakReference $containerRef = null,
     ) {
     }
 
@@ -61,7 +64,7 @@ final class BindingResolver
                 }
 
                 /** @var mixed $binding */
-                $binding = $binding($this->container);
+                $binding = $binding($this->containerRef?->get());
             }
 
             if (is_object($binding)) {

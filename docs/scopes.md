@@ -125,6 +125,14 @@ instance it owned is released with it; everything the parent owns stays put.
 Nothing needs to be closed or reset. (Constructor plans are the exception, and
 deliberately so — see [compiled plans](#compiled-plans-are-shared).)
 
+Release is immediate, by reference counting, and does not wait for the cycle
+collector — so a worker may run with `gc_disable()` without scopes piling up.
+Earlier releases had every container point back at its own collaborators, which
+made it a reference cycle and left disposal to whenever the collector next ran.
+
+The exception is an **uninitialized lazy instance**, which keeps the container
+that produced it alive until first touch — see [`#[Lazy]`](attributes.md#lazy).
+
 ```php
 foreach ($server->requests() as $request) {
     $scope = $app->createScope();

@@ -359,6 +359,30 @@ A file written by a different version of this package is refused with a
 `ContainerException` rather than half-read — it is a build artifact tied to the
 version that produced it.
 
+## Releasing a container
+
+Dropping the last reference to a container frees it and everything it owns
+immediately, by reference counting. Nothing waits for the cycle collector, so a
+long-running worker that creates a container or a [scope](scopes.md) per request
+does not accumulate them, and may run with `gc_disable()`.
+
+This was not always true: three collaborators used to hold a strong reference back
+to the container, making every container a cycle of nine objects. Cold containers
+built and dropped in a loop retained about 1.6kb each until the collector ran —
+1.51mb per thousand — and an explicit `gc_collect_cycles()` did not return all of
+it, leaving around 120kb per thousand behind. The same loop retains nothing now, at
+any count (PHP 8.5, `gc_disable()`, `memory_get_usage()` against a warmed baseline).
+
+None of the benchmarks on this page can see that difference — `phpbench` calls
+`gc_disable()` in its executor template, so a cycle simply accumulates for the
+length of the run. It is covered by tests asserting on `WeakReference::get()`
+instead, which is the only thing that distinguishes "released" from "unreachable
+but still allocated".
+
+The one deliberate hold is an **uninitialized lazy instance**: first touch is what
+resolves its dependencies, so it keeps its container alive until then. Touching it
+ends the hold.
+
 ## Reproducing the figures above
 
 ```bash

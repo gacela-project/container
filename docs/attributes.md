@@ -204,6 +204,12 @@ Registering both `#[Lazy]` and `lazy()` for the same class is not an error, and
 instance, constructed on first touch. A [scope](scopes.md) inherits the lazy
 registrations its parent had when the scope was created.
 
+An uninitialized lazy instance keeps the container that produced it alive, since
+first touch is what resolves its dependencies — the one thing that outlives the
+container reference the caller drops. Touching it releases the hold. This matters
+only if you hand lazy instances out and drop the container while they are still
+untouched; see [disposal](scopes.md#disposal-is-dropping-the-reference).
+
 See [bindings](bindings.md#deferred-registration).
 
 ### Combining with other attributes
