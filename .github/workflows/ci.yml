@@ -155,9 +155,14 @@ jobs:
   benchmarks:
     name: Benchmarks
     runs-on: ubuntu-latest
-    # Advisory for now. Shared runners are noisy, so watch the false-positive
-    # rate for a few weeks before making this required.
-    continue-on-error: true
+    # Required. It was advisory pending a measurement of the false-positive
+    # rate on shared runners; #132 supplied it — the suite reports under ±3.2%
+    # and the baseline comes from the merge base rather than the same commit.
+    # #150 then shipped a 12% regression with this job green, which is what an
+    # advisory gate is worth.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
 
@@ -187,8 +192,35 @@ jobs:
           git checkout HEAD -- src benchmarks
           git stash pop || true
 
+      # Written to a file first so the table can be posted to the PR whether the
+      # assertions passed or failed — a regression is exactly when a reviewer
+      # most wants to see the numbers, and a job log is not where they look.
       - name: Compare against the baseline
-        run: vendor/bin/phpbench run --ref=baseline --report=aggregate
+        id: compare
+        run: |
+          set +e
+          vendor/bin/phpbench run --ref=baseline --report=aggregate | tee benchmark-report.txt
+          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post the comparison on the pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo '<!-- gacela-benchmarks -->'
+            echo '### Benchmarks vs `${{ github.event.pull_request.base.ref }}`'
+            echo
+            echo '```'
+            # The table only; the progress lines above it are ANSI noise.
+            sed -n '/^+/,$p' benchmark-report.txt
+            echo '```'
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file comment.md --edit-last --create-if-none
+
+      - name: Fail if any subject regressed
+        run: exit ${{ steps.compare.outputs.status }}
 
   mutation-testing:
     name: Mutation Testing

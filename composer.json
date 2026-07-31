@@ -88,6 +88,7 @@
         "infection": "XDEBUG_MODE=coverage ./vendor/bin/infection --threads=max --no-interaction",
         "bench": "vendor/bin/phpbench run --report=aggregate",
         "bench-baseline": "vendor/bin/phpbench run --tag=baseline --store --progress=none",
+        "bench:compare": "tools/bench-compare.sh",
         "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
         "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
         "fix": "@csfix",

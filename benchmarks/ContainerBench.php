@@ -46,6 +46,20 @@ use PhpBench\Attributes\Warmup;
 #[Iterations(5)]
 #[Warmup(1)]
 #[RetryThreshold(5)]
+// Two gates, on every subject, because a subject with no gate is a number the
+// docs quote and nothing defends. Declared here rather than per subject so a
+// new benchmark is gated by existing: a contributor has to argue their way out
+// of a gate instead of into one, which is the wrong way round when 17 of 22
+// subjects were ungated and #150 shipped a 12% regression green.
+//
+// The cliff. Wide on purpose -- it catches a +17-41% collapse like #45, not
+// drift -- and the tighter budget on individual subjects below is what catches
+// drift on the ones steady enough to carry it.
+#[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+// Peak memory is deterministic: no scheduler, no cache state, no runner noise,
+// so it can be held far tighter than any timing. It is also what half the
+// recent performance work was actually about (#127, #131) and nothing gated it.
+#[Assert('mode(variant.mem.peak) <= mode(baseline.mem.peak) +/- 5%')]
 final class ContainerBench
 {
     /** How many sibling containers a modular application ends up with. */
@@ -134,7 +148,7 @@ final class ContainerBench
     }
 
     // Gated: catches a cliff like the +17-41% regression in #45, not drift.
-    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 7%')]
     #[BeforeMethods('setUpPlain')]
     public function benchResolveDeepChain(): void
     {
@@ -162,7 +176,7 @@ final class ContainerBench
      * cold subjects against each other, not against the warm ones.
      */
     // Gated: catches a cliff like the +17-41% regression in #45, not drift.
-    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 7%')]
     public function benchColdResolveDeepChain(): void
     {
         (new Container())->get(Level1::class);
@@ -180,7 +194,7 @@ final class ContainerBench
      */
     // Gated: this is the fastest documented path, so a regression here means
     // the generated file stopped being used rather than that it got slower.
-    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 7%')]
     #[BeforeMethods('setUpColdFactories')]
     public function benchColdResolveDeepChainGenerated(): void
     {
@@ -190,7 +204,7 @@ final class ContainerBench
     }
 
     // Gated: the compiled-plans figure documented in docs/performance.md.
-    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 7%')]
     #[BeforeMethods('setUpColdPlans')]
     public function benchColdResolveDeepChainCompiled(): void
     {
@@ -214,7 +228,7 @@ final class ContainerBench
      */
     // Gated: the PlanCache figure documented in docs/performance.md, and the
     // one most exposed to a change in what a plan holds.
-    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 20%')]
+    #[Assert('mode(variant.time.avg) < mode(baseline.time.avg) +/- 7%')]
     public function benchColdResolveAcrossSiblingsSharingPlans(): void
     {
         $plans = new PlanCache();
