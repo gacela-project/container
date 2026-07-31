@@ -92,7 +92,7 @@ See [introspection](services.md#introspection).
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
 | `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
 | `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
-| `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`) |
+| `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`). A class/interface id matches every resolved instance of it; any other id matches exactly |
 | `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
 | `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton. `FullContainerInterface` |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
