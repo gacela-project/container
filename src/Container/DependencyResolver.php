@@ -487,13 +487,21 @@ final class DependencyResolver
             return [false, null];
         }
 
+        $bindings = $this->contextualBindings[$declaringClass] ?? null;
+        if ($bindings === null) {
+            return [false, null];
+        }
+
+        // array_key_exists rather than isset: null is a value a caller can bind
+        // — "this consumer gets no logger" is a real answer — and isset() calls
+        // it absent.
         $key = '$' . $param['name'];
-        if (!isset($this->contextualBindings[$declaringClass][$key])) {
+        if (!array_key_exists($key, $bindings)) {
             return [false, null];
         }
 
         /** @var mixed $value */
-        $value = $this->contextualBindings[$declaringClass][$key];
+        $value = $bindings[$key];
         if (is_callable($value)) {
             /** @psalm-suppress MixedFunctionCall */
             return [true, $value($this->container())];
