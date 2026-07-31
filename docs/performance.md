@@ -293,6 +293,62 @@ if ($report->skipped() !== []) {
 }
 ```
 
+### Finding the classes to compile
+
+Everything above takes a `list<class-string>`, and nothing produces that list.
+Written by hand it costs maintenance proportional to the size of the
+application, and it fails quietly: a class you add and forget to list keeps
+resolving through reflection, no slower than before it existed and no faster
+than it needs to be. Nothing reports it.
+
+`ClassSource` is where the list comes from instead:
+
+```php
+use Gacela\Container\ClassSource;
+
+// Composer's own map — authoritative, no parsing, and already present in the
+// deployment where compiling is worth doing.
+$container->writeCompiledFactories(
+    ClassSource::fromComposerClassmap(),
+    'var/container-factories.php',
+    $commitSha,
+);
+
+// For a dev setup with no optimized autoloader.
+$report = $container->compileReport(ClassSource::fromDirectory('src/'));
+```
+
+`fromComposerClassmap()` reads `vendor/composer/autoload_classmap.php`, which
+Composer writes for `--optimize-autoloader`; pass a path to point at another
+one. `fromDirectory()` tokenises the tree rather than loading it, so a file that
+declares nothing is never included for whatever it does at the top level.
+`fromList()` wraps a list you already have, so one parameter covers every case.
+
+Interfaces, traits and enums are left out of a directory scan: none can ever be
+compiled, and listing them would pad every report with refusals you can do
+nothing about. Abstract classes are kept — `NotInstantiable` naming one is
+useful.
+
+#### Discovery describes; it never resolves
+
+`warmUp()` does **not** accept a `ClassSource`, and the asymmetry is deliberate
+rather than an oversight — the signatures are otherwise identical enough to
+invite the assumption.
+
+Warming resolves: it runs constructors, which is the point when you are warming
+a handful of services you were about to build anyway. Over a discovered set it
+is the wrong operation twice over. It would construct the whole application at
+build time, opening every connection those constructors open, and it would throw
+on the first class whose scalar nothing supplies — and a classmap is full of
+those. So a `ClassSource` goes through a describe-only path: reflection only, no
+constructor runs, and a class that cannot be planned is skipped rather than
+fatal, leaving the compiler as the one place that decides what is compilable.
+
+Passing a list is unchanged, warming included. The two paths differ only in
+which classes end up planned: resolving follows bindings, so a bound interface
+is planned through to its implementation, while describing follows declared
+types.
+
 ### Skipping work entirely
 
 The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether

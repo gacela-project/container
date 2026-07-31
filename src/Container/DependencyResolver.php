@@ -15,6 +15,7 @@ use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
+use Throwable;
 use WeakMap;
 use WeakReference;
 
@@ -203,6 +204,50 @@ final class DependencyResolver
     public function isInstantiable(string $className): bool
     {
         return class_exists($className) && $this->describeClass($className)['instantiable'];
+    }
+
+    /**
+     * Build the plan for $className and for everything its constructor reaches,
+     * without constructing any of it.
+     *
+     * warmUp() gets the same plans as a side effect of resolving, which is fine
+     * for a hand-picked list of services you were going to build anyway and
+     * wrong for a compile step: resolving runs constructors, so it opens the
+     * connections and throws on the first class whose scalar nothing supplies.
+     * Neither is acceptable when the input is a whole classmap.
+     *
+     * Reflection only, so an unplannable class is skipped rather than fatal —
+     * discovery hands over everything it finds and the compiler stays the one
+     * place that decides what is compilable.
+     *
+     * @param class-string $className
+     * @param array<class-string, true> $seen guards cycles across the recursion
+     */
+    public function planDeep(string $className, array &$seen = []): void
+    {
+        if (isset($seen[$className]) || !class_exists($className)) {
+            return;
+        }
+
+        $seen[$className] = true;
+
+        try {
+            $plan = $this->describeClass($className);
+        } catch (Throwable) {
+            // An unreadable class definition is one this build cannot compile,
+            // which is the compiler's answer to give, not a reason to abort.
+            return;
+        }
+
+        foreach ($plan['params'] as $param) {
+            $type = $param['type'];
+
+            if ($type === null || $param['isScalar'] || !class_exists($type)) {
+                continue;
+            }
+
+            $this->planDeep($type, $seen);
+        }
     }
 
     /**

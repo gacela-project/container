@@ -108,6 +108,35 @@ TXT;
         return new self($message);
     }
 
+    public static function classmapNotFound(?string $file): self
+    {
+        $where = $file === null
+            ? 'No vendor/composer/autoload_classmap.php was found above this installation.'
+            : "The classmap '{$file}' could not be read as a class => file array.";
+
+        $message = <<<TXT
+{$where}
+
+ClassSource::fromComposerClassmap() reads the map Composer generates. It is only
+written for an optimized autoloader, so run:
+  composer dump-autoload --optimize
+
+Or point at the file explicitly with fromComposerClassmap('/path/to/map.php'),
+or scan the source tree instead with ClassSource::fromDirectory('src/').
+TXT;
+        return new self($message);
+    }
+
+    public static function directoryNotFound(string $directory): self
+    {
+        $message = <<<TXT
+The directory '{$directory}' does not exist.
+
+ClassSource::fromDirectory() takes directories to scan for class declarations.
+TXT;
+        return new self($message);
+    }
+
     public static function definitionFileUnreadable(string $file): self
     {
         $message = <<<TXT
