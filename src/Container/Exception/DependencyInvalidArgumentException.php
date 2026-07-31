@@ -107,6 +107,48 @@ TXT;
     }
 
     /**
+     * @param list<string> $chainInfo
+     */
+    public static function staticMethodInjection(
+        string $className,
+        string $method,
+        array $chainInfo = [],
+    ): self {
+        $chain = self::formatResolutionChain($chainInfo);
+
+        $message = <<<TXT
+The method '{$className}::{$method}()' is static and cannot be injected.{$chain}
+Injection calls the method on an instance, and a static method has none.
+
+Drop the #[Inject], or make the method an instance method:
+  #[Inject]
+  public function {$method}(YourClass \$dependency): void { ... }
+TXT;
+        return new self($message);
+    }
+
+    /**
+     * @param list<string> $chainInfo
+     */
+    public static function nonPublicMethodInjection(
+        string $className,
+        string $method,
+        array $chainInfo = [],
+    ): self {
+        $chain = self::formatResolutionChain($chainInfo);
+
+        $message = <<<TXT
+The method '{$className}::{$method}()' is not public and cannot be injected.{$chain}
+The container calls the method from outside the class, so it has to be public.
+
+Make it public, or move the dependency to the constructor:
+  #[Inject]
+  public function {$method}(YourClass \$dependency): void { ... }
+TXT;
+        return new self($message);
+    }
+
+    /**
      * @param list<string> $chain
      */
     private static function formatResolutionChain(array $chain): string

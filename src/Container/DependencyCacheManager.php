@@ -78,6 +78,13 @@ final class DependencyCacheManager
      */
     private static array $hasInjectedProps = [];
 
+    /**
+     * The same, for #[Inject] methods. See $hasInjectedProps.
+     *
+     * @var array<class-string, bool>
+     */
+    private static array $hasInjectedMethods = [];
+
     /** @var array<class-string, true> Classes forced to behave as singletons at runtime */
     private array $forcedSingletons = [];
 
@@ -134,6 +141,7 @@ final class DependencyCacheManager
     {
         self::$instantiable = [];
         self::$hasInjectedProps = [];
+        self::$hasInjectedMethods = [];
         self::$attributeCache = [];
     }
 
@@ -280,6 +288,11 @@ final class DependencyCacheManager
             $resolver->injectPropertiesOn($instance, $class);
         }
 
+        // After the constructor and after the properties — the documented order.
+        if (self::$hasInjectedMethods[$class] ??= $resolver->hasInjectedMethods($class)) {
+            $resolver->callInjectedMethodsOn($instance, $class);
+        }
+
         return $instance;
     }
 
@@ -409,6 +422,11 @@ final class DependencyCacheManager
 
         if (self::$hasInjectedProps[$class] ??= $resolver->hasInjectedProperties($class)) {
             $resolver->injectPropertiesOn($instance, $class);
+        }
+
+        // After the constructor and after the properties — the documented order.
+        if (self::$hasInjectedMethods[$class] ??= $resolver->hasInjectedMethods($class)) {
+            $resolver->callInjectedMethodsOn($instance, $class);
         }
 
         return $instance;

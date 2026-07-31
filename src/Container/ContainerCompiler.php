@@ -171,6 +171,17 @@ final class ContainerCompiler
             );
         }
 
+        // Same reason as the properties above: the calls are a second thing a
+        // `new` expression cannot do, and doing them in the generated closure
+        // would make the file a resolver.
+        if (($plan['methods'] ?? []) !== []) {
+            return $this->skip(
+                $class,
+                CompilationSkipReason::InjectedMethod,
+                'it declares #[Inject] methods, which a `new` expression cannot call',
+            );
+        }
+
         $arguments = [];
         $stack[] = $class;
 

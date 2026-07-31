@@ -41,6 +41,11 @@ enum CompilationSkipReason: string
     case InjectedProperty = 'injected-property';
 
     /**
+     * A `new` expression cannot make the #[Inject] method calls.
+     */
+    case InjectedMethod = 'injected-method';
+
+    /**
      * An #[Inject] parameter is resolved at runtime.
      */
     case InjectedParameter = 'injected-parameter';
