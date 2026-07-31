@@ -35,6 +35,17 @@ final class BindingResolver
     }
 
     /**
+     * Change what a closure binding is handed. See
+     * Container::withSelfReference().
+     *
+     * @param WeakReference<ContainerInterface> $containerRef
+     */
+    public function useSelfReference(WeakReference $containerRef): void
+    {
+        $this->containerRef = $containerRef;
+    }
+
+    /**
      * Let a scope read the bindings of the container it was created from.
      */
     public function inheritFrom(self $parent): void
