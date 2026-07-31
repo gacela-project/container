@@ -25,6 +25,9 @@
     "support": {
         "issues": "https://github.com/gacela-project/container/issues"
     },
+    "bin": [
+        "bin/gacela-container"
+    ],
     "prefer-stable": true,
     "minimum-stability": "stable",
     "require": {
