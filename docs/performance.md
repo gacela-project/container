@@ -350,6 +350,59 @@ which classes end up planned: resolving follows bindings, so a bound interface
 is planned through to its implementation, while describing follows declared
 types.
 
+### Proving it resolves, before it runs
+
+An autowiring container tells you a dependency is missing when a request
+reaches it. `validate()` answers the same question at build time, so a deploy
+fails instead:
+
+```php
+$report = $container->validate([HomeController::class, ApiController::class]);
+
+if (!$report->isValid()) {
+    fwrite(STDERR, $report->render());
+    exit(1);
+}
+```
+
+```
+14 class(es) checked, 1 problem(s):
+
+[missing-class] App\Contract\Clock: it is an interface and nothing is bound to it
+    via App\HomeController -> App\ReportBuilder
+```
+
+Or from the command line, where it exits non-zero on any problem:
+
+```
+vendor/bin/gacela-container validate
+```
+
+**Nothing is constructed.** Classes are described rather than resolved, and
+whether an id can be satisfied is answered by `has()` on your container — the
+same question resolution asks. So validating cannot open a connection, and
+cannot drift from what resolution actually does by re-deriving any of it: a
+binding, an alias, a stored instance or a parent scope all count here because
+they count to `has()`.
+
+It reports what is decidable ahead of time:
+
+| Problem | Meaning |
+|---|---|
+| `MissingClass` | the class does not exist, or is an interface with nothing bound to it |
+| `NotInstantiable` | abstract, or a non-public constructor, with nothing bound |
+| `UnresolvableParameter` | untyped, or a scalar with no default and no contextual binding |
+| `DependencyCycle` | the class takes part in a constructor cycle |
+
+Each issue carries the `chain` that reached it, because "which of my entry
+points does this break" is the question a build is actually asking. A cycle is
+reported rather than thrown — the point is to list every problem, not stop at
+the first.
+
+It does not predict what a closure binding returns. Only running that can
+settle it, and guessing would make this a second resolver, which is the thing
+[the compiled file is careful not to be](#generated-constructor-code).
+
 ### Compiling from the command line
 
 Everything above needs a bootstrap script that builds a container, points it at

@@ -321,6 +321,45 @@ final class CliTest extends TestCase
         self::assertStringNotContainsString('could be loaded', $err);
     }
 
+    public function test_validate_passes_on_a_resolvable_set(): void
+    {
+        mkdir($this->workspace . '/clean3', 0o775, true);
+        file_put_contents($this->workspace . '/clean3/Clean.php', <<<PHP
+            <?php
+            namespace {$this->namespace};
+            class Fine {}
+            PHP);
+
+        [$status, $out] = $this->cli([
+            'validate',
+            '--source=' . $this->workspace . '/clean3',
+            $this->configFlag('no-source.php'),
+        ]);
+
+        self::assertSame(Cli::EXIT_OK, $status);
+        self::assertStringContainsString('no problems found', $out);
+    }
+
+    /**
+     * validate fails by default, unlike report: an unresolvable service is a
+     * broken build rather than a missed optimisation.
+     */
+    public function test_validate_fails_on_an_unresolvable_service(): void
+    {
+        [$status, $out] = $this->cli(['validate', $this->configFlag()]);
+
+        self::assertSame(Cli::EXIT_FAILURE, $status);
+        self::assertStringContainsString('unresolvable-parameter', $out);
+        self::assertStringContainsString('NeedsScalar', $out);
+    }
+
+    public function test_validate_is_listed_in_the_usage(): void
+    {
+        [, $out] = $this->cli(['help']);
+
+        self::assertStringContainsString('validate', $out);
+    }
+
     public function test_an_unknown_command_fails_and_says_so(): void
     {
         [$status, , $err] = $this->cli(['nope']);
@@ -487,7 +526,7 @@ final class CliTest extends TestCase
                    // 'unloadable' is excluded on purpose -- one test needs a
                    // class that cannot be loaded.
                    if (!str_starts_with(\$class, '{$this->namespace}\\\\')) { return; }
-                   foreach (glob(\$dir . '/{src,clean,clean2}/*.php', GLOB_BRACE) ?: [] as \$file) {
+                   foreach (glob(\$dir . '/{src,clean,clean2,clean3}/*.php', GLOB_BRACE) ?: [] as \$file) {
                        require_once \$file;
                    }
                });"
