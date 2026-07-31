@@ -163,6 +163,25 @@ $container->when(ReportService::class)
 The binding is scoped to the class named in `when()`; the same parameter name on
 another class is unaffected.
 
+`null` is a value like any other here — "this consumer gets no logger" is a real
+answer, and a nullable parameter with no default has no other way to say it:
+
+```php
+$container->when(ReportService::class)
+    ->needs('$logger')
+    ->give(null);
+```
+
+For a **type** need it is refused, with a message saying so. Not binding a type
+already means "nothing is bound", so `->needs(LoggerInterface::class)->give(null)`
+could only ever be a mistake — and a silent one, since it would behave exactly as
+though the call had not been made. Express an optional dependency on the class
+instead:
+
+```php
+public function __construct(private ?LoggerInterface $logger = null) { ... }
+```
+
 ## Service tagging
 
 Group services under a tag and resolve them together — ideal for collecting

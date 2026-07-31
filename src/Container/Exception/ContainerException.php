@@ -108,6 +108,23 @@ TXT;
         return new self($message);
     }
 
+    public static function contextualNullForType(string $abstract): self
+    {
+        $message = <<<TXT
+A contextual binding for the type '{$abstract}' cannot be null.
+
+Not binding it at all already means "nothing is bound", so this could only be a
+mistake. Did you mean to bind a parameter by name?
+
+  ->needs('\$parameterName')->give(null)
+
+Or to make the dependency optional on the class itself?
+
+  public function __construct(private ?{$abstract} \$dep = null) { ... }
+TXT;
+        return new self($message);
+    }
+
     public static function classmapNotFound(?string $file): self
     {
         $where = $file === null
