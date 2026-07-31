@@ -111,6 +111,22 @@ schema:
 $container->load(Yaml::parseFile('services.yaml'));
 ```
 
+## Knowing what a source registered
+
+`load()` and `loadFile()` take an optional listener, called with each id as it
+is registered, in definition order:
+
+```php
+$container->loadFile('config/services.php', static function (string $id) use ($events): void {
+    $events->dispatch(new BindingRegisteredEvent($id));
+});
+```
+
+This is the only reliable answer to "what did this file register". Reading the
+ids back off the container afterwards catches `bind()` and `set()` entries and
+**misses aliases**, which live in a third registry — an undercount a listener
+cannot see the shape of.
+
 ## Layering environments
 
 Later keys win, so per-environment configuration is two calls in the right

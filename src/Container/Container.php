@@ -69,6 +69,14 @@ final class Container implements FullContainerInterface, ArrayAccess
     /** @var array<string, list<Closure>> */
     private array $afterResolvingCallbacks = [];
 
+    /**
+     * What service closures are handed. This container unless a decorator said
+     * otherwise; see withSelfReference().
+     *
+     * @var WeakReference<ContainerInterface>
+     */
+    private WeakReference $selfReference;
+
     /** @var array<class-string, callable(): object> */
     private array $compiledFactories = [];
 
@@ -119,6 +127,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         // strong back-pointer made each container a reference cycle, so dropping
         // one freed it whenever the cycle collector next ran instead of at once.
         $containerRef = WeakReference::create($this);
+        $this->selfReference = $containerRef;
 
         $this->bindingResolver = new BindingResolver($this->bindings, $containerRef);
         $this->cacheManager = new DependencyCacheManager(
@@ -353,6 +362,49 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
+     * Hand $facade to service closures instead of this container.
+     *
+     * A closure binding is invoked with the container, which is right until
+     * someone wraps this one. `Container` is `final`, so a decorator composes
+     * — and then every user closure receives the *inner* container, missing
+     * whatever the decorator added. The wrapper's only recourse is to re-wrap
+     * each closure to substitute itself, which then breaks the closures
+     * `factory()` and `protect()` mark **by identity**, so it needs a second
+     * side-table to know which ones not to touch.
+     *
+     * ```php
+     * final class MyContainer implements ContainerInterface
+     * {
+     *     public function __construct(private Container $inner)
+     *     {
+     *         $inner->withSelfReference($this);
+     *     }
+     * }
+     * ```
+     *
+     * Every closure the container invokes is covered: bindings, contextual
+     * bindings, `lazy()` factories and `afterResolving()` hooks. Marks are
+     * untouched, because nothing is re-wrapped.
+     *
+     * The reference is **weak**, like the one it replaces — a decorator holds
+     * its inner container, so a strong pointer back would be the cycle #149
+     * removed. Set it and forget it; unset, behaviour is exactly as before.
+     *
+     * Scopes are not covered: `createScope()` builds its own collaborators, so
+     * call this on a scope too if the scope is also decorated.
+     */
+    public function withSelfReference(ContainerInterface $facade): self
+    {
+        $ref = WeakReference::create($facade);
+
+        $this->selfReference = $ref;
+        $this->bindingResolver->useSelfReference($ref);
+        $this->cacheManager->useSelfReference($ref);
+
+        return $this;
+    }
+
+    /**
      * Prove these classes resolve, without resolving them.
      *
      * An autowiring container normally tells you a dependency is missing when a
@@ -510,14 +562,18 @@ final class Container implements FullContainerInterface, ArrayAccess
      * promises not to extend. The two merge at 2.0.
      *
      * @param array<array-key, mixed> $definitions
+     * @param (callable(string): void)|null $onRegistered called with each id as it
+     *   is registered, in definition order — the answer to "what did this source
+     *   register", which reading the registries back cannot give because aliases
+     *   live in a third one
      *
      * @throws ContainerException when an entry names an unknown key, or a key's
      *                            value is not of the type it accepts
      */
     #[Override]
-    public function load(array $definitions): void
+    public function load(array $definitions, ?callable $onRegistered = null): void
     {
-        (new DefinitionLoader($this))->load($definitions);
+        (new DefinitionLoader($this))->load($definitions, null, $onRegistered);
     }
 
     /**
@@ -532,13 +588,15 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * On FullContainerInterface — see load().
      *
+     * @param (callable(string): void)|null $onRegistered see load()
+     *
      * @throws ContainerException when the file is missing, unreadable, of an
      *                            unsupported type, or does not hold an array
      */
     #[Override]
-    public function loadFile(string $file): void
+    public function loadFile(string $file, ?callable $onRegistered = null): void
     {
-        (new DefinitionLoader($this))->loadFile($file);
+        (new DefinitionLoader($this))->loadFile($file, $onRegistered);
     }
 
     /**
@@ -714,7 +772,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         // which is true for autowirable classes that have no stored instance.
         if ($this->instanceRegistry->has($id)) {
             /** @var mixed $instance */
-            $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this);
+            $instance = $this->instanceRegistry->get($id, $this->factoryManager, $this->forClosures());
         } elseif ($this->parent !== null && !$this->ownsLocally($id) && $this->parent->provides($id)) {
             // The ancestor owns it, so it resolves it: its own factory and
             // protected closures apply, and every scope gets the same instance.
@@ -1179,6 +1237,17 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
+     * What a service closure should be handed: the decorator if one registered
+     * itself, this container otherwise — and this container again if the
+     * decorator has since been dropped, since a closure still has to receive
+     * something.
+     */
+    private function forClosures(): ContainerInterface
+    {
+        return $this->selfReference->get() ?? $this;
+    }
+
+    /**
      * Inherited tags come first, so a scope adding to a tag appends to what the
      * parent already grouped under it rather than replacing it.
      *
@@ -1383,7 +1452,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         foreach ($this->afterResolvingCallbacks[$id] ?? [] as $callback) {
-            $callback($instance, $this);
+            $callback($instance, $this->forClosures());
         }
     }
 

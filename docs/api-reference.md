@@ -116,6 +116,7 @@ See [introspection](services.md#introspection).
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans. `Container` also takes a `ClassSource`, which describes instead of warming |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
 | `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `FullContainerInterface` |
+| `withSelfReference(ContainerInterface $facade): self` | Hand `$facade` to service closures instead of this container — for decorators. `Container` only |
 | `validate(array\|ClassSource $classNames): ValidationReport` | Prove these classes resolve without resolving them. `Container` only in 1.x |
 | `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why). `Container` also takes a `ClassSource` |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `FullContainerInterface` |

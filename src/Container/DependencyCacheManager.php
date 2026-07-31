@@ -313,6 +313,18 @@ final class DependencyCacheManager
     }
 
     /**
+     * Change what closures are handed, now and for the resolver built later.
+     * See Container::withSelfReference().
+     *
+     * @param WeakReference<ContainerInterface> $containerRef
+     */
+    public function useSelfReference(WeakReference $containerRef): void
+    {
+        $this->containerRef = $containerRef;
+        $this->dependencyResolver?->useSelfReference($containerRef);
+    }
+
+    /**
      * Plan $classNames and everything their constructors reach, constructing
      * nothing. See DependencyResolver::planDeep() for why compiling must not
      * resolve.

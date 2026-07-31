@@ -167,6 +167,17 @@ final class DependencyResolver
     }
 
     /**
+     * Change what a closure binding, a contextual closure or a lazy factory is
+     * handed. See Container::withSelfReference().
+     *
+     * @param WeakReference<ContainerInterface> $containerRef
+     */
+    public function useSelfReference(WeakReference $containerRef): void
+    {
+        $this->containerRef = $containerRef;
+    }
+
+    /**
      * Let a scope hand unresolved types to the container it was created from.
      */
     public function inheritFrom(Container $parent): void
