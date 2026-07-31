@@ -21,6 +21,7 @@ use GacelaTest\Fake\ServiceWithPrivateInjectedMethod;
 use GacelaTest\Fake\ServiceWithStaticInjectedMethod;
 use GacelaTest\Fake\ServiceWithTwoInjectedMethods;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 final class MethodInjectionTest extends TestCase
 {
@@ -136,6 +137,10 @@ final class MethodInjectionTest extends TestCase
      */
     public function test_a_lazy_class_defers_its_setters_until_first_touch(): void
     {
+        if (!method_exists(ReflectionClass::class, 'newLazyGhost')) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
         LazyServiceWithInjectedMethod::$calls = 0;
 
         $service = (new Container())->get(LazyServiceWithInjectedMethod::class);
