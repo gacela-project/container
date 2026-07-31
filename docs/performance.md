@@ -522,6 +522,59 @@ measures several times noisier than the second — up to ±40% relative standard
 deviation against ±8% on the same subject moments later — which is enough to
 swamp the differences this page reports. Run it twice and read the second.
 
+### Comparing a change against main
+
+```bash
+composer bench:compare              # against main
+composer bench:compare -- origin/main
+BENCH_FILTER=benchResolve composer bench:compare
+```
+
+Measures the merge base, then the working tree, and prints both columns — with
+the warm-up discard already in place, which is the step that matters. Comparing
+a cold run against a warm one reports a regression that is not there and hides
+one that is; every performance change here has hand-rolled this comparison, and
+the ones that skipped the warm-up read as much as 7% out.
+
+Uncommitted work is measured, not lost: the script stashes it, checks the ref
+out, and puts it back.
+
+### What is gated, and at what
+
+The benchmark job is **required**. It was advisory pending a measurement of the
+false-positive rate, which #132 supplied, and in the meantime a 12% regression
+landed with the job green.
+
+Every subject carries two assertions, declared on the class so that a new
+benchmark is gated by existing — a contributor has to argue their way *out* of a
+gate rather than into one:
+
+| Gate | Threshold | What it is for |
+|---|---|---|
+| `time.avg` | ±20% | The cliff. Wide on purpose: it catches a collapse like the +17–41% in #45, not drift. |
+| `mem.peak` | ±5% | Deterministic — no scheduler, no cache state — so it is held far tighter than any timing can be. |
+
+Five subjects carry a tighter time budget of **±7%**, roughly twice the measured
+noise floor, because they are the ones this page quotes figures for:
+
+- `benchResolveDeepChain`
+- `benchColdResolveDeepChain`
+- `benchColdResolveDeepChainGenerated`
+- `benchColdResolveDeepChainCompiled`
+- `benchColdResolveAcrossSiblingsSharingPlans`
+
+The cliff gate catches #45; the budget gate catches the kind of 12% regression
+that got through in #150. A figure on this page can be traced to the assertion
+defending it.
+
+The baseline comes from the merge base's `src` and `benchmarks`, not from a
+stored file — so it is always taken *after* whatever already landed, and a
+regression that was reviewed and accepted does not re-fire on the next PR.
+
+The comparison table is posted on the pull request itself, pass or fail. A
+regression is exactly when the numbers are worth reading, and a job log is not
+where anyone reads them.
+
 ## Related
 
 - [Resolving services](resolution.md)
