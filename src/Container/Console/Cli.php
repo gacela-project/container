@@ -182,12 +182,14 @@ final class Cli
             return;
         }
 
-        $this->write($this->err, sprintf(
-            "Warning: none of the %d discovered class(es) could be loaded, so nothing was\n"
-            . "compiled. The autoloader that maps them is usually missing — the config file\n"
-            . "is the place to require it.\n",
-            count($classNames),
-        ));
+        $count = count($classNames);
+
+        $this->write($this->err, <<<TXT
+            Warning: none of the {$count} discovered class(es) could be loaded, so nothing was
+            compiled. The autoloader that maps them is usually missing — the config file
+            is the place to require it.
+
+            TXT);
     }
 
     private function printReport(CompilationReport $report): void
