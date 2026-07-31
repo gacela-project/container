@@ -274,6 +274,7 @@ per branch that can refuse a class:
 | `NotInstantiable` | an interface, an abstract class, or a non-public constructor |
 | `LifetimeAttribute` | `#[Singleton]`, `#[Factory]` or `#[Lazy]` |
 | `InjectedProperty` | a `new` expression cannot assign `#[Inject]` properties |
+| `InjectedMethod` | a `new` expression cannot make the `#[Inject]` method calls |
 | `InjectedParameter` | an `#[Inject]` parameter is resolved at runtime |
 | `ScalarParameter` | a scalar or untyped constructor parameter |
 | `DependencyCycle` | the class takes part in a cycle |

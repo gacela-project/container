@@ -13,8 +13,27 @@ class UserController {
     ) {}
 }
 
-// Avoid setter injection (not supported)
 ```
+
+## When to reach for setter injection
+
+`#[Inject]` on a [property](attributes.md#on-properties) or a
+[method](attributes.md#on-methods) exists, and constructor injection is still
+the default. Setter injection permits partially-constructed objects, which is
+what the rest of this page steers away from: between `new` and the setter the
+object is valid to PHP and not to you.
+
+Reach for it when the constructor is genuinely not yours:
+
+- a framework base class, or vendor code you cannot change;
+- a dependency that is truly optional, where a nullable constructor parameter
+  would force every caller to think about it;
+- two collaborators that need each other after construction but not during it —
+  a constructor cannot express that, and a setter can;
+- an injection point declared on an interface, which a property cannot be.
+
+Not for taste, and not to break a dependency cycle: a cycle reached through a
+property or a setter still raises `CircularDependencyException`, deliberately.
 
 ## 2. Always use type hints
 

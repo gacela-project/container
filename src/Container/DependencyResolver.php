@@ -34,8 +34,9 @@ use function method_exists;
  *
  * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
  * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
- * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>}
- * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>}
+ * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
+ * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>}
+ * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>, methods?: list<MethodPlan>}
  * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
  *
  * @internal
@@ -64,6 +65,15 @@ final class DependencyResolver
      * @var array<class-string, list<PropPlan>>
      */
     private static array $propertyPlans = [];
+
+    /**
+     * The #[Inject] methods of a class, memoized process-wide for the same
+     * reason the property plans are: it is reflection output keyed on a class
+     * definition, which cannot change within a process.
+     *
+     * @var array<class-string, list<MethodPlan>>
+     */
+    private static array $methodPlans = [];
 
     /**
      * Whether a class carries #[Lazy], memoized process-wide.
@@ -151,6 +161,7 @@ final class DependencyResolver
     public static function resetCache(): void
     {
         self::$propertyPlans = [];
+        self::$methodPlans = [];
         self::$lazyAttribute = [];
         self::$lazyObjectsAvailable = null;
     }
@@ -329,6 +340,42 @@ final class DependencyResolver
             // The stack has to be unwound even when a property fails to
             // resolve, or the next resolution on this container reports a
             // resolution chain containing a class it never touched.
+            unset($this->resolvingStack[$className]);
+        }
+    }
+
+    /**
+     * Whether $className declares any #[Inject] method.
+     *
+     * Exists for the same reason hasInjectedProperties() does: almost no class
+     * has one, and being told "none" once per instantiation is measurable.
+     *
+     * @param class-string $className
+     */
+    public function hasInjectedMethods(string $className): bool
+    {
+        return $this->describeMethods($className) !== [];
+    }
+
+    /**
+     * Call the #[Inject] methods of an instance built outside this class.
+     *
+     * The counterpart to injectPropertiesOn(): nested instances go through
+     * instantiateFromPlan(), and this is the entry point for the ones the cache
+     * manager constructs itself.
+     *
+     * @param class-string $className
+     */
+    public function callInjectedMethodsOn(object $instance, string $className): void
+    {
+        $this->resolvingStack[$className] = true;
+
+        try {
+            $this->callInjectedMethods($instance, $className, $this->describeMethods($className));
+        } finally {
+            // Unwound even when a setter's argument fails to resolve, or the
+            // next resolution reports a chain containing a class it never
+            // touched.
             unset($this->resolvingStack[$className]);
         }
     }
@@ -587,6 +634,11 @@ final class DependencyResolver
             if ($this->hasInjectedProperties($className)) {
                 $this->injectPropertiesOn($instance, $className);
             }
+
+            // Inside the initializer with the constructor, for the same reason:
+            // running them at ghost creation would resolve the very graph
+            // laziness exists to defer.
+            $this->callInjectedMethods($instance, $className, $this->describeMethods($className));
         });
     }
 
@@ -653,6 +705,12 @@ final class DependencyResolver
                 $this->injectProperties($instance, $plan['props']);
             }
 
+            // After the constructor and after the properties, which is the
+            // documented order: a setter can read what the two of them set.
+            if ($plan['methods'] !== []) {
+                $this->callInjectedMethods($instance, $className, $plan['methods']);
+            }
+
             return $instance;
         } finally {
             unset($this->resolvingStack[$className]);
@@ -683,18 +741,21 @@ final class DependencyResolver
                 'instantiable' => $reflection->isInstantiable(),
                 'params' => $params,
                 'props' => $this->describeProperties($className),
+                'methods' => $this->describeMethods($className),
             ];
         }
 
-        // A cache written before property injection existed has no 'props'.
-        // Filling it in beats trusting it: a stale file would otherwise
-        // silently turn injection off in exactly the environment (production)
-        // where the cache is used.
-        if (!isset($plan['props'])) {
+        // A cache written before property injection existed has no 'props', and
+        // one written before method injection has no 'methods'. Filling them in
+        // beats trusting them: a stale file would otherwise silently turn
+        // injection off in exactly the environment (production) where the cache
+        // is used.
+        if (!isset($plan['props']) || !isset($plan['methods'])) {
             return $this->planRegistry->plans[$className] = [
                 'instantiable' => $plan['instantiable'],
                 'params' => $plan['params'],
-                'props' => $this->describeProperties($className),
+                'props' => $plan['props'] ?? $this->describeProperties($className),
+                'methods' => $plan['methods'] ?? $this->describeMethods($className),
             ];
         }
 
@@ -750,6 +811,124 @@ final class DependencyResolver
         }
 
         return $props;
+    }
+
+    /**
+     * The #[Inject] methods of $className, in declaration order.
+     *
+     * @param class-string $className
+     *
+     * @return list<MethodPlan>
+     */
+    private function describeMethods(string $className): array
+    {
+        return self::$methodPlans[$className] ??= $this->scanMethods($className);
+    }
+
+    /**
+     * Every #[Inject] method, including the ones that cannot be called.
+     *
+     * A static or non-public one is kept rather than filtered out so that
+     * callInjectedMethods() can refuse it by name, the way readonly property
+     * injection is refused: silently skipping an annotation someone wrote is
+     * the worse failure, because nothing anywhere says the dependency never
+     * arrived.
+     *
+     * @param class-string $className
+     *
+     * @return list<MethodPlan>
+     */
+    private function scanMethods(string $className): array
+    {
+        $reflection = new ReflectionClass($className);
+        $methods = [];
+
+        foreach ($reflection->getMethods() as $method) {
+            if ($method->getAttributes(Inject::class) === []) {
+                continue;
+            }
+
+            // The constructor is injected by being the constructor.
+            if ($method->isConstructor()) {
+                continue;
+            }
+
+            $params = [];
+            foreach ($method->getParameters() as $parameter) {
+                $params[] = $this->describeParameter($parameter);
+            }
+
+            /** @var class-string $declaringClass */
+            $declaringClass = $method->getDeclaringClass()->getName();
+
+            $methods[] = [
+                'name' => $method->getName(),
+                'params' => $params,
+                'isStatic' => $method->isStatic(),
+                'isPublic' => $method->isPublic(),
+                'declaringClass' => $declaringClass,
+            ];
+        }
+
+        return $methods;
+    }
+
+    /**
+     * Call the #[Inject] methods of $instance, in declaration order.
+     *
+     * Ordering is observable and therefore documented: after the constructor,
+     * after property injection, and among themselves in the order the class
+     * declares them.
+     *
+     * @param class-string $className the class being built, pushed onto the
+     *   build stack so a setter's arguments see the same contextual bindings a
+     *   constructor's would
+     * @param list<MethodPlan> $methods
+     */
+    private function callInjectedMethods(object $instance, string $className, array $methods): void
+    {
+        $this->buildStack[] = $className;
+
+        try {
+            $this->callEach($instance, $methods);
+        } finally {
+            array_pop($this->buildStack);
+        }
+    }
+
+    /**
+     * @param list<MethodPlan> $methods
+     */
+    private function callEach(object $instance, array $methods): void
+    {
+        foreach ($methods as $method) {
+            if ($method['isStatic']) {
+                throw DependencyInvalidArgumentException::staticMethodInjection(
+                    $method['declaringClass'],
+                    $method['name'],
+                    $this->getResolutionChain(),
+                );
+            }
+
+            if (!$method['isPublic']) {
+                throw DependencyInvalidArgumentException::nonPublicMethodInjection(
+                    $method['declaringClass'],
+                    $method['name'],
+                    $this->getResolutionChain(),
+                );
+            }
+
+            /** @var list<mixed> $args */
+            $args = [];
+
+            foreach ($method['params'] as $param) {
+                /** @psalm-suppress MixedAssignment */
+                $args[] = $this->resolveParameter($param);
+            }
+
+            /** @psalm-suppress MixedMethodCall */
+            $instance->{$method['name']}(...$args);
+        }
     }
 
     /**

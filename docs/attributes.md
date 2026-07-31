@@ -91,6 +91,83 @@ A class with injected properties is skipped by
 [`writeCompiledFactories()`](performance.md) — a generated `new` expression
 cannot assign them — and resolves through the normal path instead.
 
+### On methods
+
+`#[Inject]` on a public method has the container call it after construction:
+
+```php
+final class ReportBuilder extends FrameworkBaseClass
+{
+    private Clock $clock;
+
+    #[Inject]
+    public function setClock(Clock $clock): void
+    {
+        $this->clock = $clock;
+    }
+}
+```
+
+Arguments resolve through the same path a constructor's parameters do, so
+contextual bindings, defaults and a nested `#[Inject]` naming an implementation
+all behave identically:
+
+```php
+#[Inject]
+public function setRepository(
+    #[Inject(DatabaseRepository::class)] RepositoryInterface $repository,
+): void { ... }
+```
+
+Inherited methods are called. The constructor is never treated as one of these,
+whatever it is annotated with.
+
+#### What a property cannot do
+
+Property injection covers "the constructor is not mine to change" only for
+fields you can write to, and it writes the field directly. A method can do two
+things it cannot:
+
+- **run validation or derive state**, since it is a method body and not an
+  assignment;
+- **be declared on an interface** — a `ClockAwareInterface` with `setClock()` is
+  a shape a property cannot express at all.
+
+It is also the honest answer for two collaborators that need each other *after*
+construction but not during it. That is not a cycle in the resolution sense and
+a constructor cannot express it.
+
+#### Ordering
+
+Fixed, because it is observable and someone will depend on it:
+
+1. the constructor
+2. `#[Inject]` properties
+3. `#[Inject]` methods, in declaration order
+
+So a setter can read anything the constructor or the properties set.
+
+#### Errors
+
+Refused **by name**, rather than skipped — an annotation that is silently
+ignored means a dependency that never arrived and nothing anywhere saying so:
+
+| Method | Result |
+|---|---|
+| `static` | `DependencyInvalidArgumentException` — injection calls it on an instance |
+| `private` / `protected` | `DependencyInvalidArgumentException` — the container calls from outside |
+| Scalar or untyped parameter | `DependencyInvalidArgumentException`, exactly as on a constructor |
+
+#### Cost
+
+Nothing if you do not use it: the scan is memoized per class for the life of the
+process, and a class with no `#[Inject]` method never enters the call path.
+
+Under [`#[Lazy]`](#lazy) the calls sit inside the initializer with the
+constructor, so a lazy service still defers them until first touch. A class with
+injected methods is skipped by [`writeCompiledFactories()`](performance.md) —
+a `new` expression cannot make the calls — with the reason `InjectedMethod`.
+
 ## `#[Singleton]` — single instance
 
 Mark a class to be instantiated only once:

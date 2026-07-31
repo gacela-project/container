@@ -20,6 +20,7 @@ use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\LazyService;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithInjectedMethod;
 use GacelaTest\Fake\ServiceWithInjectedProperty;
 use GacelaTest\Fake\ServiceWithPromotedInject;
 use GacelaTest\Fake\ServiceWithRepository;
@@ -48,6 +49,7 @@ final class ContainerCompilerTest extends TestCase
         AbstractService::class,
         SingletonAttributeService::class,
         ServiceWithInjectedProperty::class,
+        ServiceWithInjectedMethod::class,
         ServiceWithPromotedInject::class,
         DatabaseRepository::class,
     ];
