@@ -353,6 +353,54 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
+     * Prove these classes resolve, without resolving them.
+     *
+     * An autowiring container normally tells you a dependency is missing when a
+     * request reaches it. This answers the same question at build time, so a
+     * deploy can fail instead of a request:
+     *
+     * ```php
+     * $report = $container->validate([HomeController::class, ApiController::class]);
+     *
+     * if (!$report->isValid()) {
+     *     fwrite(STDERR, $report->render());
+     *     exit(1);
+     * }
+     * ```
+     *
+     * Nothing is constructed: every class is *described* rather than resolved,
+     * and whether an id can be satisfied is answered by `has()` on this
+     * container — the same thing resolution would ask — so validating cannot
+     * open a connection or run a constructor, and cannot drift from what
+     * resolution does by re-deriving it.
+     *
+     * It reports what is decidable ahead of time: a class that does not exist,
+     * an abstract with nothing bound to it, a parameter nothing can supply, a
+     * cycle. It cannot predict what a closure binding returns, and does not try.
+     *
+     * On `Container` rather than either interface, which 1.x promises not to
+     * change; it moves onto the interface at 2.0.
+     *
+     * @param list<class-string>|ClassSource $classNames
+     */
+    public function validate(array|ClassSource $classNames): ValidationReport
+    {
+        $roots = $classNames instanceof ClassSource
+            ? $classNames->classNames()
+            : $classNames;
+
+        // Describe-only, exactly as a discovered compile does: this plans the
+        // whole reachable graph and constructs none of it.
+        $this->cacheManager->planAll($roots);
+
+        return (new ContainerValidator(
+            $this,
+            $this->cacheManager->exportCompiledPlans(),
+            $this->contextualBindings,
+        ))->validate($roots);
+    }
+
+    /**
      * What `writeCompiledFactories()` would make of these classes, and why it
      * refuses the ones it refuses.
      *

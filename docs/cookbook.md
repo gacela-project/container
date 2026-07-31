@@ -51,6 +51,41 @@ $container->when(TempExport::class)
     ->give(LocalStorage::class);
 ```
 
+## Let a package register its own services
+
+The Symfony answer to this is a compiler pass. There is nothing to pass over
+here — an autowiring container has no definition set until things resolve — so
+the answer is plainer: a package exposes definitions, and the application loads
+them.
+
+```php
+// vendor/acme/mailer/config/container.php
+return [
+    Acme\Mailer\TransportInterface::class => Acme\Mailer\SmtpTransport::class,
+    'acme.mailer' => ['singleton' => Acme\Mailer\Mailer::class, 'tags' => ['notifiers']],
+];
+```
+
+```php
+$container->loadFile(__DIR__ . '/../vendor/acme/mailer/config/container.php');
+$container->loadFile(__DIR__ . '/config/services.php');   // yours wins
+```
+
+Later keys override earlier ones, so the application always gets the last word,
+and load order is the whole precedence rule — no priority integers, no pass
+ordering. A package needing logic rather than data exposes a function instead:
+
+```php
+return static function (Container $container): void {
+    $container->bind(TransportInterface::class, SmtpTransport::class);
+    $container->when(Mailer::class)->needs('$retries')->give(3);
+};
+```
+
+This is explicit, ordered and debuggable — you can `var_dump` the array — which
+a pass that rewrites a definition set behind you is not. See
+[definitions](definitions.md).
+
 ## Build a plugin system
 
 Tag the implementations, then resolve them together. `tagged()` is lazy — it

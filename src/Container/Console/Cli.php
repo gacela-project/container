@@ -85,6 +85,7 @@ final class Cli
             return match ($command) {
                 'compile' => $this->compile($options),
                 'report' => $this->report($options),
+                'validate' => $this->validate($options),
                 'help', '--help', '-h' => $this->help(),
                 '--version', '-V' => $this->version(),
                 default => throw CliException::unknownCommand($command),
@@ -166,6 +167,27 @@ final class Cli
         }
 
         return self::EXIT_OK;
+    }
+
+    /**
+     * @param array<string, string|bool> $options
+     */
+    private function validate(array $options): int
+    {
+        $config = $this->configFrom($options);
+        $container = $config->container();
+        $source = $this->sourceFrom($options, $config);
+
+        $classNames = $source->classNames();
+        $report = $container->validate($source);
+
+        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
+        $this->warnIfNothingLoaded($classNames, count($report->checked()));
+        $this->write($this->out, $report->render() . "\n");
+
+        // Unlike report, this fails by default: an unresolvable service is a
+        // broken build, not a missed optimisation.
+        return $report->isValid() ? self::EXIT_OK : self::EXIT_FAILURE;
     }
 
     /**
@@ -341,6 +363,9 @@ final class Cli
         COMMANDS
           compile    Write plans and/or factories, and say what was written.
           report     Print what would be compiled and why the rest is refused.
+          validate   Prove the classes resolve, without resolving them. Exits
+                     non-zero on the first problem, so a deploy fails instead
+                     of a request.
 
         OPTIONS
           --plans=FILE       Where to write constructor plans.
@@ -353,6 +378,7 @@ final class Cli
                              directory to scan, or a path to a classmap file.
           --config=FILE      Defaults to ./gacela-container.php.
           --strict           report only: exit non-zero if anything was refused.
+                             (validate always exits non-zero on a problem.)
 
         CONFIGURATION
           The CLI builds *your* container, because a file generated against no

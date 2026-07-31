@@ -16,6 +16,7 @@ version:
 | `FullContainerInterface` | the same, plus everything 1.x could not add to it |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
+| `ValidationReport`, `ValidationIssue`, `ValidationProblem` | returned by `validate()` — see [performance](performance.md#proving-it-resolves-before-it-runs) |
 | `ClassSource` | where the compile calls find their classes — see [performance](performance.md#finding-the-classes-to-compile) |
 | `Console\Cli` | `vendor/bin/gacela-container`, `@internal` — see [performance](performance.md#compiling-from-the-command-line) |
 | `DependencyNode` | returned by `dependencyGraph()` |
@@ -115,6 +116,7 @@ See [introspection](services.md#introspection).
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans. `Container` also takes a `ClassSource`, which describes instead of warming |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
 | `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `FullContainerInterface` |
+| `validate(array\|ClassSource $classNames): ValidationReport` | Prove these classes resolve without resolving them. `Container` only in 1.x |
 | `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why). `Container` also takes a `ClassSource` |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `FullContainerInterface` |
 | `alias(string $alias, string $id): void` | Create an alias for a service |

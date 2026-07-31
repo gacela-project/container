@@ -96,7 +96,8 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | Definitions as data | ✅ arrays, PHP + JSON + YAML files | ❌ | ❌ | ✅ | ✅ |
 | YAML definition files | ✅ optional, via `symfony/yaml` — never a hard dependency | ❌ | ❌ | ✅ | ✅ |
 | XML definition files | ❌ [by design](https://github.com/gacela-project/container/issues/139) — parse it and `load()` the array | ❌ | ❌ | ❌ | ✅ |
-| Compiler passes / extensions | ❌ [by design](https://github.com/gacela-project/container/issues/140) | ❌ | ❌ | ❌ | ✅ |
+| Build-time validation | ✅ `validate()`, `gacela-container validate` | ❌ | ❌ | ❌ | ✅ via compiler passes |
+| Compiler passes / extensions | ❌ [by design](https://github.com/gacela-project/container/issues/140) — packages [expose definitions](docs/cookbook.md#let-a-package-register-its-own-services) instead | ❌ | ❌ | ❌ | ✅ |
 
 **Use this if** you want Pimple's footprint with real autowiring, or Laravel's
 container API without Laravel — plus lazy services, per-request scopes, and a
@@ -107,8 +108,11 @@ points. Both are deliberate boundaries rather than a backlog — XML has no
 canonical mapping to a definition array short of inventing a schema
 ([#139](https://github.com/gacela-project/container/issues/139)), and passes
 operate on a definition set an autowiring container mostly does not have
-([#140](https://github.com/gacela-project/container/issues/140)). Each issue
-records the reasoning and what would change it. YAML *is* supported, as a
+([#140](https://github.com/gacela-project/container/issues/140)) — the two
+things passes are actually reached for are covered instead: `validate()` gives
+the build-time feedback, and a package registers services by exposing
+definitions for `load()`. Each issue records the reasoning and what would change
+it. YAML *is* supported, as a
 `suggest` — install `symfony/yaml` and `loadFile()` reads it; the runtime
 requirement is still `psr/container` alone.
 
