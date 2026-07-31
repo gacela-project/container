@@ -196,4 +196,39 @@ final class KeyedTaggingTest extends TestCase
         self::assertInstanceOf(ClassWithoutDependencies::class, $resolved[0]);
         self::assertInstanceOf(Person::class, $resolved[1]);
     }
+
+    /**
+     * The decision recorded in docs/bindings.md: a keyed tag is a lookup table
+     * of ids, so the lifetime is whatever the *registration* said. A tag that
+     * pinned instances would silently change how a service behaves depending on
+     * whether it happens to be tagged.
+     */
+    public function test_a_keyed_tag_does_not_pin_an_instance(): void
+    {
+        $container = new Container();
+        $container->tag(['repository' => DatabaseRepository::class], 'services');
+
+        self::assertNotSame(
+            $container->taggedByKey('services', 'repository'),
+            $container->taggedByKey('services', 'repository'),
+        );
+    }
+
+    public function test_a_singleton_reached_through_a_keyed_tag_is_still_shared(): void
+    {
+        $container = new Container();
+        $container->singleton(DatabaseRepository::class);
+        $container->tag(['repository' => DatabaseRepository::class], 'services');
+
+        self::assertSame(
+            $container->taggedByKey('services', 'repository'),
+            $container->taggedByKey('services', 'repository'),
+        );
+        // ...and it is the same instance the container hands out directly,
+        // which is the point: one place, not a tag-local cache.
+        self::assertSame(
+            $container->get(DatabaseRepository::class),
+            $container->taggedByKey('services', 'repository'),
+        );
+    }
 }

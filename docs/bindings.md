@@ -215,6 +215,32 @@ $handler = $container->taggedByKey('notification.handlers', 'sms');
 - A scope inherits keyed entries and can override one for itself, exactly as it
   shadows a binding. See [scopes](scopes.md).
 
+#### A keyed tag does not pin an instance
+
+Asked directly, because a dispatch table built on top of one looks identical
+from outside: **no**, `taggedByKey()` does not promise the same instance twice.
+It hands back whatever `get()` hands back, so the lifetime is whatever the
+*registration* said — a `singleton()` is shared, a `bind()` or a `#[Factory]`
+class is rebuilt per call.
+
+That is deliberate. A tag that pinned instances would change the lifetime of a
+service depending on whether it happens to be tagged, which is the "second place
+instances live" this design avoids — and it would be silent, since nothing about
+`taggedByKey('handlers', 'sms')` suggests it overrides how `SmsHandler` was
+registered.
+
+If you want one handler per key for the container's lifetime, say so where
+lifetimes are said:
+
+```php
+$container->singleton(SmsHandler::class);
+$container->tag(['sms' => SmsHandler::class], 'notification.handlers');
+```
+
+Now the key resolves to one instance, because the *service* is shared — and it
+is shared everywhere, not only through the tag. That composes with scopes,
+`extend()` and freezing; a tag-local cache would not.
+
 ## Service aliasing
 
 Create multiple names for the same service:
