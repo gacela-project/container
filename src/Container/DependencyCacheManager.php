@@ -300,6 +300,23 @@ final class DependencyCacheManager
     }
 
     /**
+     * Plan $classNames and everything their constructors reach, constructing
+     * nothing. See DependencyResolver::planDeep() for why compiling must not
+     * resolve.
+     *
+     * @param list<class-string> $classNames
+     */
+    public function planAll(array $classNames): void
+    {
+        $resolver = $this->getDependencyResolver();
+        $seen = [];
+
+        foreach ($classNames as $className) {
+            $resolver->planDeep($className, $seen);
+        }
+    }
+
+    /**
      * @param class-string $class
      */
     public function instantiate(string $class): object

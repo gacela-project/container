@@ -280,14 +280,24 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Skips reflection at runtime when the plans are fed back via the
      * constructor's $compiledPlans argument.
      *
-     * @param list<class-string> $classNames
+     * @param list<class-string>|ClassSource $classNames
      *
      * @return CompiledPlans
      */
     #[Override]
-    public function compile(array $classNames): array
+    public function compile(array|ClassSource $classNames): array
     {
-        $this->warmUp($classNames);
+        // A hand-written list is the services you were going to build anyway,
+        // and warming resolves them — following bindings, so a bound interface
+        // is planned through to its implementation. That is worth keeping, and
+        // it is also why a *discovered* set cannot go through it: resolving a
+        // whole classmap would construct the application, and throw on the
+        // first class whose scalar nothing supplies. Discovery describes.
+        if ($classNames instanceof ClassSource) {
+            $this->cacheManager->planAll($classNames->classNames());
+        } else {
+            $this->warmUp($classNames);
+        }
 
         return $this->cacheManager->exportCompiledPlans();
     }
@@ -301,14 +311,14 @@ final class Container implements FullContainerInterface, ArrayAccess
      * loadCompiledCache() can tell a current plan from one whose constructor
      * has since changed.
      *
-     * @param list<class-string> $classNames
+     * @param list<class-string>|ClassSource $classNames
      * @param string|null $buildStamp a deploy id or commit sha identifying this
      *   build; pass the same value to loadCompiledCache() to validate the file
      *   in one comparison instead of one stat per class. Widening the
      *   implementation is safe where widening ContainerInterface would not be
      */
     #[Override]
-    public function writeCompiledCache(array $classNames, string $file, ?string $buildStamp = null): void
+    public function writeCompiledCache(array|ClassSource $classNames, string $file, ?string $buildStamp = null): void
     {
         CompiledCacheWriter::write($this->compile($classNames), $file, $buildStamp);
     }
@@ -327,13 +337,13 @@ final class Container implements FullContainerInterface, ArrayAccess
      * so a generated expression for a constructor that has since changed is
      * dropped on load rather than used.
      *
-     * @param list<class-string> $classNames
+     * @param list<class-string>|ClassSource $classNames
      * @param string|null $buildStamp see writeCompiledCache()
      *
      * @return list<class-string> the classes that were compiled
      */
     #[Override]
-    public function writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array
+    public function writeCompiledFactories(array|ClassSource $classNames, string $file, ?string $buildStamp = null): array
     {
         $compiler = $this->compilerFor($classNames);
 
@@ -365,10 +375,10 @@ final class Container implements FullContainerInterface, ArrayAccess
      * On FullContainerInterface rather than ContainerInterface, which 1.x
      * promises not to extend. The two merge at 2.0.
      *
-     * @param list<class-string> $classNames
+     * @param list<class-string>|ClassSource $classNames
      */
     #[Override]
-    public function compileReport(array $classNames): CompilationReport
+    public function compileReport(array|ClassSource $classNames): CompilationReport
     {
         return $this->compilerFor($classNames)->report();
     }
@@ -1284,9 +1294,9 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * @param list<class-string> $classNames
+     * @param list<class-string>|ClassSource $classNames
      */
-    private function compilerFor(array $classNames): ContainerCompiler
+    private function compilerFor(array|ClassSource $classNames): ContainerCompiler
     {
         return new ContainerCompiler(
             $this->compile($classNames),

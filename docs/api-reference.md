@@ -16,6 +16,7 @@ version:
 | `FullContainerInterface` | the same, plus everything 1.x could not add to it |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
+| `ClassSource` | where the compile calls find their classes — see [performance](performance.md#finding-the-classes-to-compile) |
 | `DependencyNode` | returned by `dependencyGraph()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
 | `Exception\ContainerException` | |
@@ -109,11 +110,11 @@ See [introspection](services.md#introspection).
 | `isFactory(string $id): bool` | Check if a service is a factory |
 | `isFrozen(string $id): bool` | Check if a service is frozen |
 | `getBindings(): array` | Get all bindings |
-| `warmUp(array $classNames): void` | Pre-resolve dependencies |
-| `compile(array $classNames): array` | Warm up and return compiled constructor plans |
+| `warmUp(array $classNames): void` | Pre-resolve dependencies. Takes a list only: warming resolves, so it deliberately does not accept a `ClassSource` |
+| `compile(array $classNames): array` | Warm up and return compiled constructor plans. `Container` also takes a `ClassSource`, which describes instead of warming |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
 | `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `FullContainerInterface` |
-| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why) |
+| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why). `Container` also takes a `ClassSource` |
 | `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `FullContainerInterface` |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes); a map gives entries keys |
