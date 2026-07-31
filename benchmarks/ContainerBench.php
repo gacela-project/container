@@ -286,6 +286,19 @@ final class ContainerBench
         $this->container->get('stored');
     }
 
+    /**
+     * `if ($c->has(X)) { $c->get(X); }` on a cold container — the shape that
+     * decides whether answering has() off the class plan is worth it. The two
+     * has() subjects below measure the probe in isolation, where a plan is pure
+     * overhead; here the plan is built once and used twice.
+     */
+    public function benchColdHasThenGet(): void
+    {
+        $container = new Container();
+        $container->has(Level1::class);
+        $container->get(Level1::class);
+    }
+
     #[BeforeMethods('setUpPlain')]
     public function benchHasHit(): void
     {
