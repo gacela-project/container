@@ -6,6 +6,8 @@ namespace Gacela\Container;
 
 use Gacela\Container\Exception\ContainerException;
 use JsonException;
+use Symfony\Component\Yaml\Yaml as SymfonyYaml;
+use Throwable;
 
 use function array_diff;
 use function array_intersect;
@@ -83,6 +85,7 @@ final class DefinitionLoader
         $definitions = match (strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
             'php' => $this->readPhpFile($file),
             'json' => $this->readJsonFile($file),
+            'yaml', 'yml' => $this->readYamlFile($file),
             default => throw ContainerException::definitionFileUnsupported($file),
         };
 
@@ -130,6 +133,39 @@ final class DefinitionLoader
             throw ContainerException::definitionFileInvalid($file, 'it does not contain a JSON object');
         }
 
+        return $definitions;
+    }
+
+    /**
+     * YAML, when a parser is already installed.
+     *
+     * Deliberately not a dependency. `psr/container` is the only thing this
+     * library requires at runtime and a container whose pitch is Pimple's
+     * footprint does not get to quietly add a parser. symfony/yaml is a
+     * `suggest`, and a .yaml file without it throws saying exactly that rather
+     * than failing on an undefined class — the `load()` one-liner has always
+     * worked and still does for anyone who would rather parse it themselves.
+     *
+     * @return array<string, mixed>
+     */
+    private function readYamlFile(string $file): array
+    {
+        if (!class_exists(SymfonyYaml::class)) {
+            throw ContainerException::yamlParserMissing($file);
+        }
+
+        try {
+            /** @var mixed $definitions */
+            $definitions = SymfonyYaml::parseFile($file);
+        } catch (Throwable $exception) {
+            throw ContainerException::definitionFileInvalid($file, $exception->getMessage());
+        }
+
+        if (!is_array($definitions)) {
+            throw ContainerException::definitionFileInvalid($file, 'it does not contain a YAML mapping');
+        }
+
+        /** @var array<string, mixed> */
         return $definitions;
     }
 

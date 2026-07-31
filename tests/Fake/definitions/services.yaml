@@ -1,2 +1,10 @@
-services:
-  GacelaTest\Fake\RepositoryInterface: GacelaTest\Fake\InMemoryRepository
+'GacelaTest\Fake\RepositoryInterface': 'GacelaTest\Fake\InMemoryRepository'
+repository.database:
+  singleton: 'GacelaTest\Fake\DatabaseRepository'
+db.dsn:
+  value: 'pgsql://localhost/app'
+repository:
+  alias: 'GacelaTest\Fake\RepositoryInterface'
+reporter:
+  singleton: 'GacelaTest\Fake\InMemoryRepository'
+  tags: [reporters]

@@ -79,10 +79,33 @@ return [
 `factory` needs a callable, so it is a PHP-file feature; a JSON file naming one
 is rejected with a message saying so.
 
-### There is no YAML parser here
+### YAML, if you already have a parser
 
-`psr/container` is this package's only runtime dependency, and it stays that
-way. Parse YAML yourself and hand over the array:
+`loadFile()` reads `.yaml` and `.yml` too, using `symfony/yaml`:
+
+```php
+$container->loadFile(__DIR__ . '/config/services.yaml');
+```
+
+```yaml
+'App\Contract\RepositoryInterface': 'App\Doctrine\Repository'
+db.dsn:
+  value: 'pgsql://localhost/app'
+mailer:
+  singleton: 'App\Mailer'
+  tags: [notifiers]
+```
+
+It is a **`suggest`, never a dependency**. `psr/container` is this package's
+only runtime requirement and it stays that way, so a `.yaml` file without a
+parser installed throws telling you what to install rather than failing on an
+undefined class. Nothing else changes: the parsed array goes through exactly the
+same `load()` every other format does.
+
+Not having it is still fine. Parsing it yourself has always worked, needs
+nothing, and is the answer for any other format — including XML, which has no
+canonical mapping to a definition array that would not amount to inventing a
+schema:
 
 ```php
 $container->load(Yaml::parseFile('services.yaml'));

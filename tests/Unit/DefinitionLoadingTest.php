@@ -242,7 +242,85 @@ final class DefinitionLoadingTest extends TestCase
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessage('no supported extension');
 
-        (new Container())->loadFile(self::fixture('services.yaml'));
+        (new Container())->loadFile(self::fixture('services.xml'));
+    }
+
+    public function test_it_reads_a_yaml_file(): void
+    {
+        $container = new Container();
+        $container->loadFile(self::fixture('services.yaml'));
+
+        self::assertInstanceOf(InMemoryRepository::class, $container->get(RepositoryInterface::class));
+        self::assertSame('pgsql://localhost/app', $container->get('db.dsn'));
+        self::assertInstanceOf(DatabaseRepository::class, $container->get('repository.database'));
+    }
+
+    public function test_a_yaml_singleton_is_shared_like_any_other(): void
+    {
+        $container = new Container();
+        $container->loadFile(self::fixture('services.yaml'));
+
+        self::assertSame($container->get('repository.database'), $container->get('repository.database'));
+    }
+
+    public function test_yaml_tags_behave_like_any_other(): void
+    {
+        $container = new Container();
+        $container->loadFile(self::fixture('services.yaml'));
+
+        $tagged = iterator_to_array($container->tagged('reporters'));
+
+        self::assertCount(1, $tagged);
+        self::assertInstanceOf(InMemoryRepository::class, $tagged[0]);
+    }
+
+    public function test_it_reads_a_yml_file_too(): void
+    {
+        $container = new Container();
+        $container->loadFile(self::fixture('services.yml'));
+
+        self::assertInstanceOf(InMemoryRepository::class, $container->get(RepositoryInterface::class));
+    }
+
+    public function test_it_rejects_invalid_yaml_naming_the_file(): void
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessageMatches('/invalid\.yaml/');
+
+        (new Container())->loadFile(self::fixture('invalid.yaml'));
+    }
+
+    public function test_it_rejects_yaml_that_is_not_a_mapping(): void
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessage('YAML mapping');
+
+        (new Container())->loadFile(self::fixture('scalar.yaml'));
+    }
+
+    /**
+     * A YAML sequence parses to a PHP list, which is an array — so it reaches
+     * load() and is refused there, with the same message a JSON list gets.
+     * Same input shape, same error, whichever format it arrived in.
+     */
+    public function test_a_yaml_sequence_is_refused_the_way_a_json_one_is(): void
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessage('list rather than a map');
+
+        (new Container())->loadFile(self::fixture('list-not-mapping.yaml'));
+    }
+
+    /**
+     * The message is the whole feature when the parser is absent: without it a
+     * .yaml file fails on an undefined class instead of saying what to install.
+     */
+    public function test_the_missing_parser_error_says_what_to_install(): void
+    {
+        $exception = ContainerException::yamlParserMissing('services.yaml');
+
+        self::assertStringContainsString('composer require symfony/yaml', $exception->getMessage());
+        self::assertStringContainsString('load()', $exception->getMessage());
     }
 
     public function test_it_rejects_a_php_file_that_returns_no_array(): void

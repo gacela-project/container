@@ -152,9 +152,26 @@ TXT;
         $message = <<<TXT
 The definitions file '{$file}' has no supported extension.
 
-loadFile() reads '.php' files returning an array and '.json' files. Anything
-else — YAML, XML — is a userland concern: parse it yourself and hand the array
-to load().
+loadFile() reads '.php' files returning an array, '.json' files, and '.yaml' /
+'.yml' when a YAML parser is installed. Anything else — XML — is a userland
+concern: parse it yourself and hand the array to load().
+TXT;
+        return new self($message);
+    }
+
+    public static function yamlParserMissing(string $file): self
+    {
+        $message = <<<TXT
+No YAML parser is installed, so '{$file}' cannot be read.
+
+YAML support is optional on purpose: psr/container is this library's only
+runtime dependency and it stays that way. Install the parser:
+
+  composer require symfony/yaml
+
+Or parse it yourself and hand the array to load(), which needs nothing:
+
+  \$container->load(Yaml::parseFile('{$file}'));
 TXT;
         return new self($message);
     }
