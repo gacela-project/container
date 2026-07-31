@@ -156,10 +156,14 @@ jobs:
     name: Benchmarks
     runs-on: ubuntu-latest
     # Required. It was advisory pending a measurement of the false-positive
-    # rate on shared runners; #132 supplied it — the suite reports under ±3.2%
-    # and the baseline comes from the merge base rather than the same commit.
-    # #150 then shipped a 12% regression with this job green, which is what an
-    # advisory gate is worth.
+    # rate on shared runners; #150 shipped a 12% regression with this job green,
+    # which is what an advisory gate is worth.
+    #
+    # The comparison only runs on a pull request. On a push to main the merge
+    # base *is* the commit, so it compared identical code against itself — and
+    # still reported +7.6% to +12.7% on four subjects, which is how the
+    # shared-runner noise floor was actually measured. See the gate thresholds
+    # in ContainerBench.
     permissions:
       contents: read
       pull-requests: write
@@ -184,8 +188,9 @@ jobs:
         run: vendor/bin/phpbench run --progress=none --iterations=1
 
       - name: Store a baseline from the merge base
+        if: github.event_name == 'pull_request'
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref || 'main' }} --depth=1
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
           git stash push --include-untracked || true
           git checkout FETCH_HEAD -- src benchmarks || true
           vendor/bin/phpbench run --tag=baseline --store --progress=none
@@ -197,10 +202,17 @@ jobs:
       # most wants to see the numbers, and a job log is not where they look.
       - name: Compare against the baseline
         id: compare
+        if: github.event_name == 'pull_request'
         run: |
           set +e
           vendor/bin/phpbench run --ref=baseline --report=aggregate | tee benchmark-report.txt
           echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # On a push there is nothing to compare against, so this only proves the
+      # suite still runs — a benchmark that throws is a real failure.
+      - name: Run the suite
+        if: github.event_name != 'pull_request'
+        run: vendor/bin/phpbench run --progress=none
 
       - name: Post the comparison on the pull request
         if: github.event_name == 'pull_request'
@@ -220,6 +232,7 @@ jobs:
             --body-file comment.md --edit-last --create-if-none
 
       - name: Fail if any subject regressed
+        if: github.event_name == 'pull_request'
         run: exit ${{ steps.compare.outputs.status }}
 
   mutation-testing:

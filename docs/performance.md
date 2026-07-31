@@ -589,6 +589,12 @@ a cold run against a warm one reports a regression that is not there and hides
 one that is; every performance change here has hand-rolled this comparison, and
 the ones that skipped the warm-up read as much as 7% out.
 
+For an effect under about 5%, run it several times and compare **pairs** rather
+than blocks: measure the base and the candidate back to back, repeatedly, and
+read the mean of the per-pair differences. A machine drifts over minutes, so
+comparing a block of base runs against a block of candidate runs lets the drift
+land on one side — which is how a 4.4% regression was first reported as 7%.
+
 Uncommitted work is measured, not lost: the script stashes it, checks the ref
 out, and puts it back.
 
@@ -604,21 +610,19 @@ gate rather than into one:
 
 | Gate | Threshold | What it is for |
 |---|---|---|
-| `time.avg` | ±20% | The cliff. Wide on purpose: it catches a collapse like the +17–41% in #45, not drift. |
-| `mem.peak` | ±5% | Deterministic — no scheduler, no cache state — so it is held far tighter than any timing can be. |
+| `time.avg` | ±20% | The cliff: a collapse like the +17–41% in #45. It cannot catch drift, and does not pretend to. |
+| `mem.peak` | ±5% | Deterministic — no scheduler, no cache state, no neighbours — so it is held far tighter than any timing can be, and it is what half the recent performance work was actually about. |
 
-Five subjects carry a tighter time budget of **±7%**, roughly twice the measured
-noise floor, because they are the ones this page quotes figures for:
+**Timing on a shared runner cannot be gated tighter than that**, and the number
+comes from the runner rather than a laptop. A tighter per-subject budget of ±7%
+was tried and removed: a push to `main` compared a commit against *itself* —
+byte-identical code — and still reported **+7.6% to +12.7%** on four subjects.
+Any time gate under roughly ±20% here fires on the machine, not on the change.
 
-- `benchResolveDeepChain`
-- `benchColdResolveDeepChain`
-- `benchColdResolveDeepChainGenerated`
-- `benchColdResolveDeepChainCompiled`
-- `benchColdResolveAcrossSiblingsSharingPlans`
-
-The cliff gate catches #45; the budget gate catches the kind of 12% regression
-that got through in #150. A figure on this page can be traced to the assertion
-defending it.
+So a 12%-scale drift like #150's is **not** caught by CI. The honest ways to
+catch that are the memory gate above, which is deterministic, and measuring it
+deliberately with `composer bench:compare` — paired and interleaved, which is
+what makes a small effect legible at all.
 
 The baseline comes from the merge base's `src` and `benchmarks`, not from a
 stored file — so it is always taken *after* whatever already landed, and a
