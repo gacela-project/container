@@ -17,6 +17,7 @@ version:
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `ClassSource` | where the compile calls find their classes — see [performance](performance.md#finding-the-classes-to-compile) |
+| `Console\Cli` | `vendor/bin/gacela-container`, `@internal` — see [performance](performance.md#compiling-from-the-command-line) |
 | `DependencyNode` | returned by `dependencyGraph()` |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | the PHP 8 attributes |
 | `Exception\ContainerException` | |

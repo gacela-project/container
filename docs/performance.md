@@ -349,6 +349,74 @@ which classes end up planned: resolving follows bindings, so a bound interface
 is planned through to its implementation, while describing follows declared
 types.
 
+### Compiling from the command line
+
+Everything above needs a bootstrap script that builds a container, points it at
+some classes and calls the write methods with a stamp. That script is the same
+in every application, so it ships as one:
+
+```
+vendor/bin/gacela-container compile \
+    --plans=var/container-plans.php \
+    --factories=var/container-factories.php \
+    --stamp=$(git rev-parse HEAD)
+
+vendor/bin/gacela-container report --strict
+```
+
+`compile` writes either file or both and says what it wrote — how many classes
+were discovered, how many factories were generated, how many were refused.
+`report` prints the same verdict `compileReport()` returns, one line per refusal
+with its `CompilationSkipReason`, and `--strict` exits non-zero if anything was
+refused, so a build can assert that a class it expects to be compiled actually
+is.
+
+#### It has to build *your* container
+
+```php
+<?php // gacela-container.php
+
+use Gacela\Container\ClassSource;
+
+return [
+    'container' => static fn () => require __DIR__ . '/config/container.php',
+    'source'    => ClassSource::fromDirectory(__DIR__ . '/src'),
+    'plans'     => 'var/container-plans.php',
+    'factories' => 'var/container-factories.php',
+];
+```
+
+The `container` key is the part that cannot be inferred, and it is not a
+convenience. The generator [refuses a bound class](#what-it-will-not-compile)
+precisely because a binding can change after compilation — so a container built
+without your `bind()` calls does not refuse them. It generates a `new` for a
+class your application binds, writes it out, and that file is then installed into
+a container that *does* bind it. Naming a callable that returns the configured
+container is what stops that.
+
+Everything in the file is a default the command line can override, so CI and a
+developer's shell run the same thing without repeating the flags.
+
+#### It does not guess
+
+Two failure modes this replaces are silent, so the command is deliberately loud
+about both:
+
+- **An unknown option is an error.** `--factorys=…` does not quietly write no
+  factories and exit 0; it names the option and fails.
+- **Classes that could not be autoloaded are reported.** Discovery reads
+  declarations off disk, planning needs them loaded, and a `report` that finds
+  200 classes and can load none of them otherwise prints a cheerful zero having
+  done nothing. It says so instead.
+
+Omitting `--stamp` is legal and mentioned in the output, since the per-entry
+mtime check that replaces it is the slower of the two — see
+[staleness](#staleness).
+
+No console framework: the argv parsing is thirty lines, and `psr/container`
+stays the only runtime dependency. The CLI is `@internal` — a build tool, not
+part of the API surface.
+
 ### Skipping work entirely
 
 The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether

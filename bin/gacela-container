@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Gacela\Container\Console\Cli;
+
+// Installed as a dependency the autoloader is three levels up (vendor/bin is
+// where Composer links this); in this repository it is alongside. Both, in that
+// order, so a checkout used as a path repository still finds the right one.
+$autoloaders = [
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+];
+
+$loaded = false;
+
+foreach ($autoloaders as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+        $loaded = true;
+        break;
+    }
+}
+
+if (!$loaded) {
+    fwrite(STDERR, "Could not find the Composer autoloader. Run 'composer install'.\n");
+    exit(1);
+}
+
+exit(Cli::main($argv));
