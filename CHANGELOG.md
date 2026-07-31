@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `loadFile()` reads `.yaml` and `.yml`, using `symfony/yaml` when it is installed. It is a **`suggest`, never a dependency** — `psr/container` remains the only runtime requirement, and a `.yaml` file without a parser throws naming what to install instead of failing on an undefined class. The parsed array goes through the same `load()` as every other format, so laziness, freezing, tags and scope semantics are unchanged. Parsing it yourself still works and is still the answer for XML, which has no canonical mapping to a definition array short of inventing a schema. See [definitions](docs/definitions.md#yaml-if-you-already-have-a-parser)
+
 ## [1.5.0](https://github.com/gacela-project/container/compare/1.4.0...1.5.0) - 2026-08-01
 
 ### Added

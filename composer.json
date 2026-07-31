@@ -42,7 +42,11 @@
         "symfony/var-dumper": "^6.4 || ^7.0",
         "vimeo/psalm": "^6.16",
         "phpbench/phpbench": "^1.4",
-        "infection/infection": "^0.31"
+        "infection/infection": "^0.31",
+        "symfony/yaml": "^6.4 || ^7.0"
+    },
+    "suggest": {
+        "symfony/yaml": "To load container definitions from .yaml/.yml files with loadFile(); not required — parse it yourself and use load()"
     },
     "autoload": {
         "psr-4": {

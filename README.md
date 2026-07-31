@@ -93,20 +93,24 @@ Need interfaces, singletons, attributes, or a compiled cache? See the docs below
 | Circular dependencies | ✅ named exception + path | ❌ | ✅ | ✅ | ✅ at compile time |
 | Introspection | ✅ `stats()`, dependency tree, `compileReport()`, typo hints | ❌ | ❌ | limited | ✅ via console |
 | Array access | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Definitions as data | ✅ arrays, PHP + JSON files | ❌ | ❌ | ✅ | ✅ |
-| YAML/XML definition files | ❌ [by design](https://github.com/gacela-project/container/issues/139) — parse it and `load()` the array | ❌ | ❌ | ✅ | ✅ |
+| Definitions as data | ✅ arrays, PHP + JSON + YAML files | ❌ | ❌ | ✅ | ✅ |
+| YAML definition files | ✅ optional, via `symfony/yaml` — never a hard dependency | ❌ | ❌ | ✅ | ✅ |
+| XML definition files | ❌ [by design](https://github.com/gacela-project/container/issues/139) — parse it and `load()` the array | ❌ | ❌ | ❌ | ✅ |
 | Compiler passes / extensions | ❌ [by design](https://github.com/gacela-project/container/issues/140) | ❌ | ❌ | ❌ | ✅ |
 
 **Use this if** you want Pimple's footprint with real autowiring, or Laravel's
 container API without Laravel — plus lazy services, per-request scopes, and a
 compiled cache that skips reflection entirely.
 
-**Look elsewhere if** you need container definitions in YAML/XML, or
-compiler-pass style extension points. Both are deliberate boundaries rather than
-a backlog — a YAML parser would be a second runtime dependency ([#139](https://github.com/gacela-project/container/issues/139)),
-and passes operate on a definition set an autowiring container mostly does not
-have ([#140](https://github.com/gacela-project/container/issues/140)). Each
-issue records the reasoning and what would change it.
+**Look elsewhere if** you need XML definitions or compiler-pass style extension
+points. Both are deliberate boundaries rather than a backlog — XML has no
+canonical mapping to a definition array short of inventing a schema
+([#139](https://github.com/gacela-project/container/issues/139)), and passes
+operate on a definition set an autowiring container mostly does not have
+([#140](https://github.com/gacela-project/container/issues/140)). Each issue
+records the reasoning and what would change it. YAML *is* supported, as a
+`suggest` — install `symfony/yaml` and `loadFile()` reads it; the runtime
+requirement is still `psr/container` alone.
 
 ## Documentation
 
