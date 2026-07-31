@@ -51,8 +51,25 @@ $container->afterResolving(Logger::class, function (Logger $logger, Container $c
 });
 ```
 
-Only callbacks registered for the resolved id fire; unrelated resolutions are
-untouched.
+When the id is a **class or interface**, the callback fires for every resolved
+instance of it — so cross-cutting wiring is one registration rather than one per
+implementation:
+
+```php
+$container->afterResolving(LoggerAwareInterface::class, function (object $s, Container $c): void {
+    $s->setLogger($c->get(LoggerInterface::class));
+});
+```
+
+Any other id matches exactly, so `afterResolving('db.primary', …)` fires for that
+id and nothing else. Both kinds fire in registration order, interleaved.
+
+Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with
+overridden arguments.
+
+A callback that throws **removes the instance from the container**: a service
+whose post-construction wiring failed should not be handed to the next caller as
+though it had succeeded. The exception propagates either way.
 
 ## Introspection
 

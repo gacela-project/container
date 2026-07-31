@@ -9,10 +9,13 @@ use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
+use Throwable;
 use WeakReference;
 
+use function class_exists;
 use function count;
 use function in_array;
+use function interface_exists;
 use function is_callable;
 use function is_int;
 use function is_object;
@@ -66,7 +69,13 @@ final class Container implements FullContainerInterface, ArrayAccess
     /** @var ContextualBindingsMap */
     private array $contextualBindings = [];
 
-    /** @var array<string, list<Closure>> */
+    /**
+     * One ordered list rather than a map keyed by id, because a hook may match
+     * on the *type* of what was resolved and the two kinds still have to fire
+     * in the order they were registered.
+     *
+     * @var list<array{id: string, byType: bool, callback: Closure}>
+     */
     private array $afterResolvingCallbacks = [];
 
     /**
@@ -791,6 +800,16 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Register a callback to run after the given id is resolved, receiving the
      * resolved instance and the container. Callbacks run in registration order.
      *
+     * When $id names a **class or interface**, the callback fires for every
+     * resolved instance of it — so the registration people actually reach for,
+     * "after anything implementing LoggerAwareInterface is built, hand it the
+     * logger", is one call rather than one per implementation. Any other id
+     * matches exactly, as before.
+     *
+     * A callback that throws **removes the instance from the container**, so a
+     * service whose post-construction wiring failed is not handed to the next
+     * caller as though it had succeeded. The exception propagates either way.
+     *
      * Callbacks fire for the resolutions their own container performs. A scope
      * resolving an id its parent registered is a resolution the parent
      * performs, so callbacks registered up there still fire; one the scope
@@ -800,7 +819,12 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function afterResolving(string $id, Closure $callback): void
     {
         $id = $this->aliasRegistry->resolve($id);
-        $this->afterResolvingCallbacks[$id][] = $callback;
+
+        $this->afterResolvingCallbacks[] = [
+            'id' => $id,
+            'byType' => class_exists($id) || interface_exists($id),
+            'callback' => $callback,
+        ];
     }
 
     /**
@@ -839,8 +863,14 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $this->getOrFail($className);
         }
 
-        /** @var T */
-        return $this->cacheManager->instantiateWith($className, $parameters);
+        /** @var T $instance */
+        $instance = $this->cacheManager->instantiateWith($className, $parameters);
+
+        // get() fires for every other path; without this, overriding an
+        // argument silently skipped the hooks.
+        $this->fireAfterResolving($className, $instance);
+
+        return $instance;
     }
 
     /**
@@ -1445,15 +1475,45 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->dependencyTreeAnalyzer ??= new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
+    /**
+     * A container with no hooks pays one comparison — this runs on every
+     * resolution, and almost no container registers any.
+     */
     private function fireAfterResolving(string $id, mixed $instance): void
     {
         if ($this->afterResolvingCallbacks === []) {
             return;
         }
 
-        foreach ($this->afterResolvingCallbacks[$id] ?? [] as $callback) {
-            $callback($instance, $this->forClosures());
+        $container = $this->forClosures();
+
+        foreach ($this->afterResolvingCallbacks as $hook) {
+            if (!$this->hookMatches($hook, $id, $instance)) {
+                continue;
+            }
+
+            try {
+                $hook['callback']($instance, $container);
+            } catch (Throwable $exception) {
+                // Wiring that failed halfway leaves an object the application
+                // believes is configured. Drop it rather than serve it again.
+                $this->remove($id);
+
+                throw $exception;
+            }
         }
+    }
+
+    /**
+     * @param array{id: string, byType: bool, callback: Closure} $hook
+     */
+    private function hookMatches(array $hook, string $id, mixed $instance): bool
+    {
+        if ($hook['byType']) {
+            return $instance instanceof $hook['id'];
+        }
+
+        return $hook['id'] === $id;
     }
 
     /**

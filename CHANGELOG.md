@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Changed
+
+- `afterResolving()` on a **class or interface** id now fires for every resolved instance of it, rather than only when that exact id was the one asked for. The registration people reach for — "after anything implementing `LoggerAwareInterface` is built, hand it the logger" — was impossible to express and had to be reimplemented on top; it is one call now. Any other id still matches exactly. Two smaller corrections come with it: hooks fire for `make()` with overridden arguments, which took its own path and skipped them entirely, and a callback that **throws now removes the instance from the container** — a service whose post-construction wiring failed should not be handed to the next caller as though it had succeeded. The exception propagates either way. A container with no hooks still pays a single comparison per resolution
+
 ### Added
 
 - `Container::withSelfReference()` tells the container what to hand service closures, which is what a container designed to be wrapped owes its wrapper. `Container` is `final`, so a decorator composes — and then every user closure receives the *inner* container, missing whatever the decorator added. The only recourse was to re-wrap every closure to substitute the decorator, which then silently drops the marks `factory()` and `protect()` set **by identity**, so it also needed a side-table of closures not to touch. One call replaces all of that, and nothing is re-wrapped so no mark is lost. Covers bindings, `set()` closures, contextual bindings, `lazy()` factories and `afterResolving()` hooks. The reference is **weak**, like the one it replaces, so a decorator holding its inner container does not rebuild the cycle removed in 1.5.0; if it is dropped, closures fall back to the container. Scopes build their own collaborators, so a decorated scope needs its own call
