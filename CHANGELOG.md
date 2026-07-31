@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [1.5.0](https://github.com/gacela-project/container/compare/1.4.0...1.5.0) - 2026-08-01
+
 ### Added
 
 - `FullContainerInterface` — the whole of what a `Container` does, as a contract. Eleven methods were reachable only through the concrete `final class Container`, so following the library's own advice and depending on the interface cost you scopes, definitions-as-data, lazy registration, keyed tags, typed stats and everything about compiled factories. **`ContainerInterface` is untouched**, so the 1.x promise that nothing is added to it holds literally and no existing implementor is affected. `createScope()` is typed `static`, so a decorator's scope is a decorator. These move onto `ContainerInterface` at 2.0 and this name stays as a deprecated alias, so code written against it now does not migrate twice. See [api reference](docs/api-reference.md#what-the-interface-guarantees)
