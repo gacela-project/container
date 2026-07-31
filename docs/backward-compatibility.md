@@ -15,8 +15,13 @@ Only classes marked `@api`. Every class in `src/` carries either `@api` or
 |---|---|
 | `Container` | the container itself, `final` |
 | `ContainerInterface` | the contract to type-hint |
+| `FullContainerInterface` | everything `Container` does, as a contract (1.5) |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
+| `ValidationReport`, `ValidationIssue`, `ValidationProblem` | returned by `validate()` |
+| `DependencyNode` | returned by `dependencyGraph()` |
+| `ClassSource` | where the compile calls find their classes |
+| `PlanCache` | one plan cache shared between unrelated containers |
 | `Attribute\Inject`, `Attribute\Singleton`, `Attribute\Factory`, `Attribute\Lazy` | |
 | `Exception\ContainerException` | |
 | `Exception\CircularDependencyException` | |
@@ -30,16 +35,25 @@ For these, within 1.x:
 - `Container::__construct()` keeps its three optional parameters, in order.
 - No method will be added to `ContainerInterface`. That is why the interface was
   brought to its full shape before 1.0. Anything that would otherwise belong
-  there lands on `Container` instead until 2.0 — currently `stats()`,
-  `createScope()`, `provides()`, `lazy()`, `load()` and `loadFile()`.
+  there lands on `Container` instead until 2.0 — currently `withSelfReference()`
+  and `validate()`.
+- **The same applies to `FullContainerInterface`.** It exists so you can depend
+  on the whole surface rather than the `final` class, and it can only serve that
+  purpose if implementing it stays safe — so nothing is added to it, and no
+  signature on it changes, within 1.x either. That is why `validate()` and
+  `withSelfReference()` are on `Container` alone, and why `load()` keeps its
+  `void` return and reports registrations through an optional callback instead.
+  At 2.0 both interfaces merge and this name stays as a deprecated alias.
 - Exception **classes** and the PSR-11 interfaces they implement are stable.
 
 ## What is not covered
 
-**`@internal` classes.** `AliasRegistry`, `BindingResolver`, `DefinitionLoader`,
-`DependencyCacheManager`, `DependencyResolver`, `DependencyTreeAnalyzer`,
-`FactoryManager`, `FuzzyMatcher`, `InstanceRegistry`, `PlanRegistry`, and
-`TagRegistry` are implementation details. They may change signature, behaviour,
+**`@internal` classes.** `AliasRegistry`, `BindingResolver`, `ContainerCompiler`,
+`ContainerValidator`, `DefinitionLoader`, `DependencyCacheManager`,
+`DependencyResolver`, `DependencyTreeAnalyzer`, `FactoryManager`,
+`FuzzyMatcher`, `InstanceRegistry`, `PlanRegistry`, `TagRegistry` and everything
+under `Console\` — including the `gacela-container` CLI, which is a build tool
+rather than API surface — are implementation details. They may change signature, behaviour,
 or be deleted in **any** release, including a patch. Do not import them.
 
 **Exception messages.** Only the class is stable. Messages carry fuzzy-match
