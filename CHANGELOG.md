@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- `factory()` and `protect()` marked closures in a structure that held them **strongly**, and nothing ever removed an entry — there is no hook for a binding being overwritten or removed, and `factory()` marks a closure before anyone decides whether to register it. A container therefore retained every closure it was ever handed, and everything each one closed over: a factory closure capturing a connection, a buffer or a request object pinned all of it for the container's lifetime, whether the binding still existed or ever existed at all. 5000 never-registered `factory()` closures held 2.3mb against zero live bindings. Both marks are `WeakMap`s now, so a mark lasts exactly as long as the closure it marks is reachable — which is exactly as long as anyone can still ask whether it is marked. This is the same defect 1.5.0 fixed one level up for containers, and it survived that fix: dropping the container released these, but a long-lived container that re-registers never did — and a long-lived parent with per-request scopes is the documented pattern
+
 ### Changed
 
 - `afterResolving()` on a **class or interface** id now fires for every resolved instance of it, rather than only when that exact id was the one asked for. The registration people reach for — "after anything implementing `LoggerAwareInterface` is built, hand it the logger" — was impossible to express and had to be reimplemented on top; it is one call now. Any other id still matches exactly. Two smaller corrections come with it: hooks fire for `make()` with overridden arguments, which took its own path and skipped them entirely, and a callback that **throws now removes the instance from the container** — a service whose post-construction wiring failed should not be handed to the next caller as though it had succeeded. The exception propagates either way. A container with no hooks still pays a single comparison per resolution

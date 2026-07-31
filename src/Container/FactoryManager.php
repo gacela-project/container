@@ -6,7 +6,7 @@ namespace Gacela\Container;
 
 use Closure;
 use Gacela\Container\Exception\ContainerException;
-use SplObjectStorage;
+use WeakMap;
 
 use function is_array;
 use function is_callable;
@@ -15,20 +15,31 @@ use function is_object;
 /**
  * Manages factory instances, protected closures, and service extensions.
  *
- * Note: SplObjectStorage is accessed via offsetSet()/offsetUnset() instead of
- * attach()/detach(), which are deprecated as of PHP 8.5. Behavior is identical.
- *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
  * detail of Container and may change or disappear in any release
  */
 final class FactoryManager
 {
-    /** @var SplObjectStorage<Closure, null> */
-    private SplObjectStorage $factoryInstances;
+    /**
+     * Weak, because a mark need only outlive the closure it marks.
+     *
+     * SplObjectStorage holds its keys strongly and nothing ever removed an
+     * entry: there is no hook for a binding being overwritten or removed, and
+     * factory() marks a closure before anyone decides whether to register it.
+     * A long-lived container therefore retained every closure ever handed to
+     * factory() or protect() — and everything each one closed over — whether
+     * the binding still existed or ever existed at all.
+     *
+     * A WeakMap entry lasts exactly as long as anyone can still hold the
+     * closure to ask about it, which is the real lifetime of the question.
+     *
+     * @var WeakMap<Closure, true>
+     */
+    private WeakMap $factoryInstances;
 
-    /** @var SplObjectStorage<Closure, null> */
-    private SplObjectStorage $protectedInstances;
+    /** @var WeakMap<Closure, true> */
+    private WeakMap $protectedInstances;
 
     private ?string $currentlyExtending = null;
 
@@ -38,8 +49,13 @@ final class FactoryManager
     public function __construct(
         private array $instancesToExtend = [],
     ) {
-        $this->factoryInstances = new SplObjectStorage();
-        $this->protectedInstances = new SplObjectStorage();
+        /** @var WeakMap<Closure, true> $factoryInstances */
+        $factoryInstances = new WeakMap();
+        $this->factoryInstances = $factoryInstances;
+
+        /** @var WeakMap<Closure, true> $protectedInstances */
+        $protectedInstances = new WeakMap();
+        $this->protectedInstances = $protectedInstances;
     }
 
     /**
@@ -47,7 +63,7 @@ final class FactoryManager
      */
     public function markAsFactory(Closure $instance): void
     {
-        $this->factoryInstances->offsetSet($instance, null);
+        $this->factoryInstances[$instance] = true;
     }
 
     /**
@@ -55,7 +71,7 @@ final class FactoryManager
      */
     public function markAsProtected(Closure $instance): void
     {
-        $this->protectedInstances->offsetSet($instance, null);
+        $this->protectedInstances[$instance] = true;
     }
 
     public function isFactory(mixed $instance): bool
@@ -111,8 +127,8 @@ final class FactoryManager
     public function transferFactoryStatus(mixed $from, Closure $to): void
     {
         if ($from instanceof Closure && isset($this->factoryInstances[$from])) {
-            $this->factoryInstances->offsetUnset($from);
-            $this->factoryInstances->offsetSet($to, null);
+            unset($this->factoryInstances[$from]);
+            $this->factoryInstances[$to] = true;
         }
     }
 
