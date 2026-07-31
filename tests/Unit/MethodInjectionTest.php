@@ -11,6 +11,7 @@ use GacelaTest\Fake\ChildInheritingAnInjectedMethod;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\LazyServiceWithInjectedMethod;
+use GacelaTest\Fake\OuterHoldingMethodInjectedService;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceOrderingConstructorPropertyAndMethod;
 use GacelaTest\Fake\ServiceWhoseSetterDerivesState;
@@ -186,6 +187,27 @@ final class MethodInjectionTest extends TestCase
         $service = (new Container([], [], $legacy))->get(ServiceWithInjectedMethod::class);
 
         self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency);
+    }
+
+    /**
+     * The same, reached as a nested dependency — which is the path that reads
+     * 'methods' off the stored plan at all. A top-level get() answers off the
+     * process-wide method memo and so cannot see a half-described plan, which
+     * is why the test above passes either way.
+     */
+    public function test_a_nested_class_from_a_pre_method_cache_still_has_its_setters_called(): void
+    {
+        $plans = (new Container())->compile([OuterHoldingMethodInjectedService::class]);
+
+        $legacy = [];
+        foreach ($plans as $class => $plan) {
+            unset($plan['methods']);
+            $legacy[$class] = $plan;
+        }
+
+        $outer = (new Container([], [], $legacy))->get(OuterHoldingMethodInjectedService::class);
+
+        self::assertInstanceOf(ClassWithoutDependencies::class, $outer->inner->dependency);
     }
 
     public function test_a_class_with_no_injected_methods_is_unaffected(): void
