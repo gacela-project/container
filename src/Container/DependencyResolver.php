@@ -10,6 +10,7 @@ use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionNamedType;
@@ -285,7 +286,7 @@ final class DependencyResolver
         }
 
         return isset($this->lazyClasses[$className])
-            || (self::$lazyAttribute[$className] ??= (new ReflectionClass($className))->getAttributes(Lazy::class) !== []);
+            || (self::$lazyAttribute[$className] ??= (new ReflectionClass($className))->getAttributes(Lazy::class, ReflectionAttribute::IS_INSTANCEOF) !== []);
     }
 
     /**
@@ -863,7 +864,7 @@ final class DependencyResolver
         $methods = [];
 
         foreach ($reflection->getMethods() as $method) {
-            if ($method->getAttributes(Inject::class) === []) {
+            if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) === []) {
                 continue;
             }
 
@@ -955,7 +956,7 @@ final class DependencyResolver
      */
     private function describeProperty(ReflectionProperty $property): ?array
     {
-        $attributes = $property->getAttributes(Inject::class);
+        $attributes = $property->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
         if ($attributes === []) {
             return null;
         }
@@ -1136,7 +1137,7 @@ final class DependencyResolver
      */
     private function readInjectImplementation(ReflectionParameter $parameter): ?string
     {
-        $attributes = $parameter->getAttributes(Inject::class);
+        $attributes = $parameter->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
         if (count($attributes) === 0) {
             return null;
         }

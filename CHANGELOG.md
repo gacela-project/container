@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- The four attributes are **no longer `final`**, and every attribute read passes `ReflectionAttribute::IS_INSTANCEOF`, so a consumer can subclass `#[Inject]`, `#[Singleton]`, `#[Factory]` or `#[Lazy]` to re-present them under its own namespace instead of asking its users to import a vendor one. Six read sites across three files were exact-FQN matches, which follow neither a subclass nor a `class_alias()` — and the failure was silent, the parameter simply not injected with nothing to say why. Exact-FQN attributes behave exactly as before, and the memoized verdicts still key on the class carrying the attribute, so a subclass costs no extra reflection. See [attributes](docs/attributes.md#re-presenting-these-under-your-own-namespace)
+
 ### Performance
 
 - Warm resolution of a four-level chain is **~4.4% slower than 1.4.0** (1.615μs → 1.692μs; 20 paired samples, 19 of 20 slower, t = 7.15), and this records it rather than leaving it to be rediscovered. There is no single change to blame: both versions make the *same* calls per warm resolve — 48 against 49 — and two candidate causes were built and measured neutral. What grew is the compiled code those identical calls live in, by 14%, of which `DependencyResolver` is 62%; almost all of it is surface a plain `get()` never executes. Splitting that out is worth roughly 1% by the same ratio, which is at the edge of measurable, so it is documented instead of chased. See [performance](docs/performance.md#what-1-5-0-cost-the-warm-path)
