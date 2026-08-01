@@ -32,13 +32,12 @@ use function method_exists;
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- *
- * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
- * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
- * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
- * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>}
- * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>, methods?: list<MethodPlan>}
- * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
+ * @psalm-import-type ParamPlan from PlanRegistry
+ * @psalm-import-type PropPlan from PlanRegistry
+ * @psalm-import-type MethodPlan from PlanRegistry
+ * @psalm-import-type ClassPlan from PlanRegistry
+ * @psalm-import-type StoredClassPlan from PlanRegistry
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation

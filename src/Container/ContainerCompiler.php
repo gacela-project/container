@@ -29,7 +29,7 @@ use function var_export;
  * the same decision render() acted on rather than re-deriving it.
  *
  * @psalm-import-type BindingsMap from ContainerInterface
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation

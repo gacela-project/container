@@ -42,7 +42,7 @@ use function count;
  * as a constructor default if you expect per-instance state — fragile with or
  * without a shared cache.
  *
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @api
  */

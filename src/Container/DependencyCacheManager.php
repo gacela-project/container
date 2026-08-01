@@ -21,7 +21,7 @@ use function count;
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
