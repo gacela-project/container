@@ -59,9 +59,6 @@ final class DefinitionLoader
     /**
      * @param array<array-key, mixed> $definitions
      * @param string|null $file the file the definitions came from, for error messages
-     */
-    /**
-     * @param array<array-key, mixed> $definitions
      * @param (callable(string): void)|null $onRegistered called with each id as
      *   it is registered, in definition order
      *

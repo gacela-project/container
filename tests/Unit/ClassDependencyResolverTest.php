@@ -7,6 +7,7 @@ namespace GacelaTest\Unit;
 use Gacela\Container\DependencyResolver;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
+use Gacela\Container\PlanRegistry;
 use GacelaTest\Fake\AbstractService;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithObjectDependencies;
@@ -110,10 +111,13 @@ final class ClassDependencyResolverTest extends TestCase
     {
         // The point of the check living here: the plan it consults is the same
         // one resolveDependencies() needs, so asking costs no extra reflection.
-        $resolver = new DependencyResolver();
+        $bindings = [];
+        $contextualBindings = [];
+        $planRegistry = new PlanRegistry();
+        $resolver = new DependencyResolver($bindings, $contextualBindings, $planRegistry);
 
         self::assertTrue($resolver->isInstantiable(ClassWithoutDependencies::class));
-        self::assertArrayHasKey(ClassWithoutDependencies::class, $resolver->exportPlans());
+        self::assertArrayHasKey(ClassWithoutDependencies::class, $planRegistry->plans);
     }
 
     public function test_an_abstract_class_is_not_instantiable(): void

@@ -241,7 +241,7 @@ final class Cli
         // there is no unreachable "unknown" branch to defend.
         $this->write($this->out, "\nRefused:\n");
         foreach ($report->reasons() as $class => $reason) {
-            $why = $explanations[$class] ?? '';
+            $why = $explanations[$class];
             $this->write($this->out, "  {$class}\n    [{$reason->value}] {$why}\n");
         }
     }
@@ -359,6 +359,7 @@ final class Cli
         USAGE
           gacela-container compile [options]
           gacela-container report [options]
+          gacela-container validate [options]
 
         COMMANDS
           compile    Write plans and/or factories, and say what was written.

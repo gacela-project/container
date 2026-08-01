@@ -7,7 +7,6 @@ namespace Gacela\Container\Exception;
 use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
-use function count;
 use function sprintf;
 
 /**
@@ -27,7 +26,7 @@ Did you forget to bind this interface to a concrete class?
 
 TXT;
 
-        if (count($suggestions) > 0) {
+        if ($suggestions !== []) {
             $message .= "\nDid you mean one of these?\n";
             foreach ($suggestions as $suggestion) {
                 $message .= "  - {$suggestion}\n";

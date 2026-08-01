@@ -242,7 +242,7 @@ final class ContainerCompiler
                 "parameter \$%s needs '%s', which cannot be compiled: %s",
                 $param['name'],
                 $type,
-                $this->explanations[$type] ?? 'reason unknown',
+                $this->explanations[$type],
             ));
         }
 

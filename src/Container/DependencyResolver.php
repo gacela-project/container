@@ -421,16 +421,6 @@ final class DependencyResolver
     }
 
     /**
-     * The compiled constructor plans gathered so far, for persisting to a cache.
-     *
-     * @return CompiledPlans
-     */
-    public function exportPlans(): array
-    {
-        return $this->planRegistry->plans;
-    }
-
-    /**
      * Whether $className declares any #[Inject] property.
      *
      * Lets a caller skip injectPropertiesOn() outright. Almost no class has
@@ -1403,7 +1393,7 @@ final class DependencyResolver
     private function readInjectImplementation(ReflectionParameter $parameter): ?string
     {
         $attributes = $parameter->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
-        if (count($attributes) === 0) {
+        if ($attributes === []) {
             return null;
         }
 

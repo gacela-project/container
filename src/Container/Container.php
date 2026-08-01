@@ -26,6 +26,7 @@ use function max;
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type StatsArray from ContainerInterface
  * @psalm-import-type CompiledPlans from DependencyResolver
  *
  * @implements ArrayAccess<string, mixed>
@@ -589,16 +590,16 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Load definitions from a '.php' file returning an array, or a '.json' file.
+     * Load definitions from a '.php' file returning an array, a '.json' file,
+     * or a '.yaml'/'.yml' one.
      *
-     * YAML stays a userland concern — there is no parser here, and adding one
-     * would mean a second runtime dependency:
+     * YAML needs a parser, and this library will not add a second runtime
+     * dependency to get one: symfony/yaml is a `suggest`, and a '.yaml' file
+     * without it throws saying exactly that. Parsing it yourself needs nothing:
      *
      * ```php
      * $container->load(Yaml::parseFile('services.yaml'));
      * ```
-     *
-     * On FullContainerInterface — see load().
      *
      * @param (callable(string): void)|null $onRegistered see load()
      *
@@ -1013,8 +1014,9 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Every class reachable from $className, flat and deduplicated.
      *
      * Despite the name this is a list, not a tree. It stays that way — it is on
-     * ContainerInterface, which 1.x does not change, and a flat list is what
-     * some callers want. Use dependencyGraph() for depth, parents and cycles.
+     * ContainerInterface, whose shape 2.x does not change, and a flat list is
+     * what some callers want. Use dependencyGraph() for depth, parents and
+     * cycles.
      *
      * @param class-string $className
      *
@@ -1245,19 +1247,13 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Superseded by stats(), which is typed. Kept for the whole of 1.x.
+     * Superseded by stats(), which is typed. Kept for the whole of 2.x and
+     * removed at 3.0.
      *
      * 'memory_usage' is the PHP process, not this container — see
      * ContainerStats.
      *
-     * @return array{
-     *     registered_services: int,
-     *     frozen_services: int,
-     *     factory_services: int,
-     *     bindings: int,
-     *     cached_dependencies: int,
-     *     memory_usage: string
-     * }
+     * @return StatsArray
      */
     #[Override]
     public function getStats(): array
