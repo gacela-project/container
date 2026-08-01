@@ -10,6 +10,11 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Changed
+
+- ⚠ **`ContainerInterface` declares the whole surface.** `createScope()`, `provides()`, `stats()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`, `taggedKeys()`, `dependencyGraph()`, `compileReport()`, `writeCompiledFactories()`, `useCompiledFactories()`, `validate()` and `withSelfReference()` are on it now. 1.x promised nothing would be added, which is why most of the 1.2–1.5 feature set was reachable only through the concrete `final class Container` and why 1.5 answered additively with `FullContainerInterface`; this is the merge that promise was deferring. **Callers are unaffected** — only code that *implements* the interface must declare the new methods, and the compiler names them. `FullContainerInterface` survives as a **deprecated** empty alias so a 1.5 type-hint keeps compiling and keeps accepting a `Container`; it goes at 3.0. See [UPGRADE.md](UPGRADE.md)
+- ⚠ **`load()` and `loadFile()` return the ids they registered** rather than `void` — the only reliable answer to "what did this source register", since reading the ids back off the container misses aliases, which live in a third registry. Ignoring a return value is always valid, so nothing breaks for a caller; only an implementor changes a signature. The optional listener added alongside it still works for a consumer that wants them one at a time
+
 ### Added
 
 - The four attributes are **no longer `final`**, and every attribute read passes `ReflectionAttribute::IS_INSTANCEOF`, so a consumer can subclass `#[Inject]`, `#[Singleton]`, `#[Factory]` or `#[Lazy]` to re-present them under its own namespace instead of asking its users to import a vendor one. Six read sites across three files were exact-FQN matches, which follow neither a subclass nor a `class_alias()` — and the failure was silent, the parameter simply not injected with nothing to say why. Exact-FQN attributes behave exactly as before, and the memoized verdicts still key on the class carrying the attribute, so a subclass costs no extra reflection. See [attributes](docs/attributes.md#re-presenting-these-under-your-own-namespace)

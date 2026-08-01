@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace GacelaTest\Fake;
 
 use Closure;
+use Gacela\Container\ClassSource;
 use Gacela\Container\CompilationReport;
+use Gacela\Container\ContainerInterface;
 use Gacela\Container\ContainerStats;
 use Gacela\Container\ContextualBindingBuilder;
 use Gacela\Container\DependencyNode;
 use Gacela\Container\FullContainerInterface;
+use Gacela\Container\ValidationReport;
 use Override;
 
 /**
@@ -51,15 +54,15 @@ final class ForwardingContainer implements FullContainerInterface
     }
 
     #[Override]
-    public function load(array $definitions): void
+    public function load(array $definitions): array
     {
-        $this->inner->load($definitions);
+        return $this->inner->load($definitions);
     }
 
     #[Override]
-    public function loadFile(string $file): void
+    public function loadFile(string $file): array
     {
-        $this->inner->loadFile($file);
+        return $this->inner->loadFile($file);
     }
 
     #[Override]
@@ -300,5 +303,19 @@ final class ForwardingContainer implements FullContainerInterface
     public function offsetUnset(mixed $offset): void
     {
         $this->inner->offsetUnset($offset);
+    }
+
+    #[Override]
+    public function withSelfReference(ContainerInterface $facade): self
+    {
+        $this->inner->withSelfReference($facade);
+
+        return $this;
+    }
+
+    #[Override]
+    public function validate(array|ClassSource $classNames): ValidationReport
+    {
+        return $this->inner->validate($classNames);
     }
 }
