@@ -180,6 +180,28 @@ final class ContainerBench
         (new Container())->get(Level1::class);
     }
 
+    /**
+     * A cold container resolving a class it has a binding for.
+     *
+     * The three cold subjects above all resolve classes the arg builders
+     * accept, which hid #181: the builder is composed, used once and thrown
+     * away with the container, so the cost lands on whoever is refused. A bound
+     * class is refused, and this is the shape a framework resolves most.
+     */
+    public function benchColdResolveWithBinding(): void
+    {
+        (new Container([LoggerInterface::class => ConsoleLogger::class]))
+            ->get(WithBinding::class);
+    }
+
+    /**
+     * The same, for the other refusal a real graph hits: an #[Inject] override.
+     */
+    public function benchColdResolveWithInject(): void
+    {
+        (new Container())->get(WithInject::class);
+    }
+
     public function setUpColdFactories(): void
     {
         $file = sys_get_temp_dir() . '/phpbench-compiled-factories.php';

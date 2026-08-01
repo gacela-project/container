@@ -50,10 +50,11 @@ final class DependencyResolver
     private array $resolvingStack = [];
 
     /**
-     * Per-class constructors that bypass the resolution path, or false for a
-     * class proven ineligible. See argBuilderFor().
+     * Per-class constructors that bypass the resolution path; false for a class
+     * proven ineligible, true for one constructed once and not yet worth
+     * composing. See argBuilderFor().
      *
-     * @var array<class-string, (Closure(): object)|false>
+     * @var array<class-string, (Closure(): object)|bool>
      */
     private array $argBuilders = [];
 
@@ -289,33 +290,19 @@ final class DependencyResolver
             return null;
         }
 
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        // A cycle has no leaf to build upwards from, and the recursion below
-        // would not terminate on one.
-        if (isset($this->buildingBuilders[$className])) {
-            return null;
-        }
-
-        $this->buildingBuilders[$className] = true;
-
-        try {
-            $builder = $this->composeBuilder($className);
-        } finally {
-            unset($this->buildingBuilders[$className]);
-        }
-
-        if ($builder === null) {
-            $this->argBuilders[$className] = false;
+        // The first construction of a class only records that it happened.
+        // Composing a builder walks the whole graph below the class and
+        // allocates a closure per node, which costs more than the single
+        // construction it would replace — so a container that builds a class
+        // once never earns it back, and a fresh container per request is how a
+        // framework uses this (#181). The second construction is what pays.
+        if ($cached === null) {
+            $this->argBuilders[$className] = true;
 
             return null;
         }
 
-        $this->argBuilders[$className] = $builder;
-
-        return $builder;
+        return $this->composeFor($className);
     }
 
     /**
@@ -496,6 +483,56 @@ final class DependencyResolver
     }
 
     /**
+     * The builder for $className, composing it now if it has no builder yet.
+     *
+     * Recursion enters here rather than through argBuilderFor(), because the
+     * first-construction deferral must not apply to it: once a composition has
+     * started the walk is already being paid for, and a nested class being seen
+     * for the first time would otherwise refuse and have its *parent* cached as
+     * permanently ineligible.
+     *
+     * @infection-ignore-all see argBuilderFor()
+     *
+     * @param class-string $className
+     *
+     * @return (Closure(): object)|null
+     */
+    private function composeFor(string $className): ?Closure
+    {
+        $cached = $this->argBuilders[$className] ?? null;
+
+        if ($cached === false) {
+            return null;
+        }
+
+        if ($cached instanceof Closure) {
+            return $cached;
+        }
+
+        // A cycle has no leaf to build upwards from, and the recursion below
+        // would not terminate on one.
+        if (isset($this->buildingBuilders[$className])) {
+            return null;
+        }
+
+        $this->buildingBuilders[$className] = true;
+
+        try {
+            $builder = $this->composeBuilder($className);
+        } finally {
+            unset($this->buildingBuilders[$className]);
+        }
+
+        if ($builder === null) {
+            $this->argBuilders[$className] = false;
+
+            return null;
+        }
+
+        return $this->argBuilders[$className] = $builder;
+    }
+
+    /**
      * Whether *this container* can use builders at all.
      *
      * Every one of these is an array the resolver holds by reference, so a
@@ -576,7 +613,7 @@ final class DependencyResolver
             }
 
             /** @var class-string $type */
-            $nested = $this->argBuilderFor($type);
+            $nested = $this->composeFor($type);
 
             if ($nested === null) {
                 return null;

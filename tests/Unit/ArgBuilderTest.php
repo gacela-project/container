@@ -6,6 +6,7 @@ namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
 use Gacela\Container\ContainerInterface;
+use Gacela\Container\DependencyResolver;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
@@ -66,8 +67,8 @@ final class ArgBuilderTest extends TestCase
     }
 
     /**
-     * The builder is installed on the first resolution, so the second is the
-     * one that takes the new path. Both must agree.
+     * The builder is composed on the second resolution, so the third is the
+     * one that takes the new path. All of them must agree.
      */
     public function test_the_second_resolution_matches_the_first(): void
     {
@@ -176,8 +177,11 @@ final class ArgBuilderTest extends TestCase
 
     public function test_an_injected_property_is_still_assigned(): void
     {
-        $outer = (new Container())->get(OuterHoldingInjectedService::class);
-        $outer = (new Container())->get(OuterHoldingInjectedService::class);
+        // One container: a fresh one per call never reaches the builder path,
+        // which is the path this is here to hold to the same behaviour.
+        $container = new Container();
+        $container->get(OuterHoldingInjectedService::class);
+        $outer = $container->get(OuterHoldingInjectedService::class);
 
         self::assertInstanceOf(ClassWithoutDependencies::class, $outer->inner->dependency());
     }
@@ -518,6 +522,74 @@ final class ArgBuilderTest extends TestCase
 
         self::assertInstanceOf(ClassWithoutDependencies::class, $first->inner->dependency());
         self::assertInstanceOf(ClassWithoutDependencies::class, $second->inner->dependency());
+    }
+
+    // ---------------------------------------------------------------
+    // When the builder is composed (#181). Composing walks the whole graph
+    // below a class and allocates a closure per node, so a container that
+    // constructs the class once must never pay for it.
+    // ---------------------------------------------------------------
+
+    public function test_the_first_construction_does_not_compose_a_builder(): void
+    {
+        $resolver = new DependencyResolver();
+
+        self::assertNull($resolver->argBuilderFor(ClassWithoutDependencies::class));
+    }
+
+    public function test_the_second_construction_composes_one(): void
+    {
+        $resolver = new DependencyResolver();
+        $resolver->argBuilderFor(ClassWithoutDependencies::class);
+
+        $builder = $resolver->argBuilderFor(ClassWithoutDependencies::class);
+
+        self::assertNotNull($builder);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $builder());
+    }
+
+    /**
+     * The deferral applies to the class asked for, never to the recursion
+     * underneath it: a nested class seen for the first time during composition
+     * must not refuse, or its parent is cached as permanently ineligible and
+     * the builder is never installed at all.
+     */
+    public function test_composing_a_parent_does_not_defer_on_its_dependencies(): void
+    {
+        $resolver = new DependencyResolver();
+        $resolver->argBuilderFor(ClassWithDependencyWithoutDependencies::class);
+
+        $builder = $resolver->argBuilderFor(ClassWithDependencyWithoutDependencies::class);
+
+        self::assertNotNull($builder);
+        $built = $builder();
+        self::assertInstanceOf(ClassWithDependencyWithoutDependencies::class, $built);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $built->classWithoutDependencies);
+    }
+
+    /**
+     * A never-composed class and a refused one are both "no builder", and the
+     * refusal must survive: re-composing a class already proven ineligible on
+     * every construction is the cost this whole change is removing.
+     */
+    public function test_a_refused_class_stays_refused(): void
+    {
+        $resolver = new DependencyResolver();
+
+        self::assertNull($resolver->argBuilderFor(PersonWithoutParamType::class));
+        self::assertNull($resolver->argBuilderFor(PersonWithoutParamType::class));
+        self::assertNull($resolver->argBuilderFor(PersonWithoutParamType::class));
+    }
+
+    public function test_dropping_the_memo_restarts_the_deferral(): void
+    {
+        $resolver = new DependencyResolver();
+        $resolver->argBuilderFor(ClassWithoutDependencies::class);
+        self::assertNotNull($resolver->argBuilderFor(ClassWithoutDependencies::class));
+
+        $resolver->dropArgBuilders();
+
+        self::assertNull($resolver->argBuilderFor(ClassWithoutDependencies::class));
     }
 
     public function test_a_closure_binding_is_never_bypassed(): void
