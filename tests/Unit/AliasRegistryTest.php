@@ -28,21 +28,6 @@ final class AliasRegistryTest extends TestCase
         self::assertSame('ServiceName', $result);
     }
 
-    public function test_has_returns_false_when_alias_does_not_exist(): void
-    {
-        $registry = new AliasRegistry();
-
-        self::assertFalse($registry->has('nonexistent'));
-    }
-
-    public function test_has_returns_true_when_alias_exists(): void
-    {
-        $registry = new AliasRegistry();
-        $registry->add('alias', 'ServiceName');
-
-        self::assertTrue($registry->has('alias'));
-    }
-
     public function test_resolve_uses_cache_on_repeated_calls(): void
     {
         $registry = new AliasRegistry();

@@ -421,16 +421,6 @@ final class DependencyResolver
     }
 
     /**
-     * The compiled constructor plans gathered so far, for persisting to a cache.
-     *
-     * @return CompiledPlans
-     */
-    public function exportPlans(): array
-    {
-        return $this->planRegistry->plans;
-    }
-
-    /**
      * Whether $className declares any #[Inject] property.
      *
      * Lets a caller skip injectPropertiesOn() outright. Almost no class has
