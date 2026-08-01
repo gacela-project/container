@@ -66,9 +66,4 @@ final class AliasRegistry
         // cached by the ancestor, which is also where add() invalidates it.
         return $this->parent?->resolve($id) ?? $id;
     }
-
-    public function has(string $alias): bool
-    {
-        return isset($this->aliases[$alias]);
-    }
 }
