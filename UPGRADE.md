@@ -2,9 +2,9 @@
 
 ## 1.x → 2.0
 
-Three changes can require action. The first two affect only code that
+Four changes can require action. The first two affect only code that
 **implements** a container interface; the third changes runtime behaviour for
-**callers**, with no code change on their side.
+**callers**, with no code change on their side; the fourth is a rename.
 
 ---
 
@@ -106,6 +106,25 @@ Two smaller changes come with it:
 **What to check:** any `afterResolving()` call whose first argument is a class or
 interface name. If the hook is idempotent — the usual case, since it is wiring —
 there is nothing to do.
+
+---
+
+### 4. `ContainerStats::memoryUsageBytes` is `processMemoryBytes`
+
+A rename, announced in 1.5. The value is unchanged — it always was
+`memory_get_usage(true)` for the whole PHP process, never this container's
+footprint, and the old name invited the wrong reading.
+
+```php
+$container->stats()->memoryUsageBytes;        // 1.x
+$container->stats()->processMemoryBytes;      // 2.0
+
+$container->stats()->memoryUsageFormatted();  // 1.x
+$container->stats()->processMemoryFormatted();// 2.0
+```
+
+`getStats()` is untouched and keeps its `memory_usage` key — that array shape has
+never been covered by semver, so nothing there moves.
 
 ---
 
