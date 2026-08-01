@@ -10,32 +10,32 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
-**Breaking changes are marked ⚠, so this is a major release** — `release.sh`
-auto-bumps the *minor*, so it needs the version passed explicitly. Only code
-that *implements* a container interface has to act; see
-[UPGRADE.md](UPGRADE.md). Callers are unaffected.
+**This is a major release** — `release.sh` auto-bumps the *minor*, so the
+version has to be passed explicitly. The two interface changes affect only code
+that *implements* a container interface; the `afterResolving()` change affects
+**callers**, with no code change on their side. See [UPGRADE.md](UPGRADE.md).
 
 ### Changed
 
 - ⚠ **`ContainerInterface` declares the whole surface**: `createScope()`, `provides()`, `stats()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`, `taggedKeys()`, `dependencyGraph()`, `compileReport()`, `writeCompiledFactories()`, `useCompiledFactories()`, `validate()` and `withSelfReference()`. 1.x promised nothing would be added, which is why most of the 1.2–1.5 feature set was concrete-class-only and why 1.5 answered additively with `FullContainerInterface`; this is the merge that promise deferred. The compiler names what an implementor is missing. `FullContainerInterface` remains as a **deprecated** empty alias — a 1.5 type-hint keeps compiling and keeps accepting a `Container` — and goes at 3.0
 - ⚠ **`load()` and `loadFile()` return the ids they registered** rather than `void`: the only reliable answer to "what did this source register", since reading the ids back misses aliases, which live in a third registry. Ignoring a return value is valid, so nothing breaks for a caller. The optional listener still works for a consumer that wants them one at a time
-- ⚠ `afterResolving()` on a **class or interface** id fires for every resolved instance of it, not only when that exact id was asked for — so "after anything implementing `LoggerAwareInterface` is built, hand it the logger" is one registration instead of one per implementation. Other ids still match exactly. Hooks also fire for `make()` with overridden arguments, which skipped them, and a callback that **throws now removes the instance** rather than leaving half-wired state for the next caller
+- ⚠ `afterResolving()` on a **class or interface** id fires for every resolved instance of it, not only when that exact id was asked for — so "after anything implementing `LoggerAwareInterface` is built, hand it the logger" is one registration instead of one per implementation. Other ids still match exactly. **This one changes behaviour for callers**, with no code change on their side: an existing hook on a class or interface id now fires more often. See [services](docs/services.md#resolution-hooks)
+- A subclass of `#[Inject]`, `#[Singleton]`, `#[Factory]` or `#[Lazy]` is now honoured, so a consumer can re-present the attributes under its own namespace: the four are no longer `final` and every read matches on instance rather than exact FQN. An exact-FQN match follows neither a subclass nor a `class_alias()`, and the failure was silent. See [attributes](docs/attributes.md#re-presenting-these-under-your-own-namespace)
 
 ### Added
 
 - `Container::validate()` proves a set of classes resolves **without resolving them**, so broken wiring fails a deploy instead of a request. Reports a missing class, an unbound interface or abstract, an unsuppliable parameter or a cycle — each with the chain that reached it, all of them rather than the first. Nothing is constructed, and satisfiability is answered by `has()` on your own container, so it cannot drift from resolution. `vendor/bin/gacela-container validate` exits non-zero on any problem. See [performance](docs/performance.md#proving-it-resolves-before-it-runs)
-- `Container::withSelfReference()` tells the container what to hand service closures — what a `final` container owes a decorator, which otherwise sees every user closure receive the *inner* container. The workaround was re-wrapping each closure, which silently drops the marks `factory()` and `protect()` set by identity. Held weakly, so no cycle
+- `Container::withSelfReference()` tells the container what to hand service closures — what a `final` container owes a decorator, which otherwise sees every user closure receive the *inner* container. The workaround was re-wrapping each closure, which silently drops the marks `factory()` and `protect()` set by identity; one call replaces it and nothing is re-wrapped, so no mark is lost. The facade is held weakly, so a decorator holding its inner container does not form a cycle
 - `loadFile()` reads `.yaml` and `.yml` when `symfony/yaml` is installed: a **`suggest`, never a dependency**, so `psr/container` remains the only runtime requirement and a `.yaml` file without a parser throws naming what to install. See [definitions](docs/definitions.md#yaml-if-you-already-have-a-parser)
-- The four attributes are **no longer `final`**, and every read passes `ReflectionAttribute::IS_INSTANCEOF`, so a consumer can subclass `#[Inject]`, `#[Singleton]`, `#[Factory]` or `#[Lazy]` to re-present them under its own namespace. An exact-FQN match follows neither a subclass nor a `class_alias()`, and the failure was silent. See [attributes](docs/attributes.md#re-presenting-these-under-your-own-namespace)
 
 ### Performance
 
 - Warm resolution memoizes a per-class constructor once a class is proven statically buildable: a warm four-level chain **1.475μs → 0.656μs (−54%)**, past what generated factories achieve with the same reflection cached, and `make()` without runtime arguments −53%. Cold paths pay **+7 to +11%** for it — building the closures is work a thrown-away container never amortises — so a long-lived container halves its resolution and a per-request one pays about 8%. A builder is refused for anything configuration can influence, and every wrong answer falls back to the resolution path rather than producing a wrong object. See [performance](docs/performance.md#the-warm-path-builds-straight-to-new)
-- Recorded rather than fixed, and partly offset by the above: 1.5.0 was **~4.4% slower than 1.4.0** on the warm path (20 paired samples, t = 7.15) with *no single cause* — identical call counts, 14% more compiled code in the loaded set, 62% of it `DependencyResolver`. Splitting that out is worth about 1%, at the edge of measurable. See [performance](docs/performance.md#what-150-cost-the-warm-path)
+- Recorded rather than fixed, and measured against a different baseline than the entry above — the two do not net: 1.5.0 was **~4.4% slower than 1.4.0** on the warm path (20 paired samples, t = 7.15) with *no single cause* — identical call counts, 14% more compiled code in the loaded set, 62% of it `DependencyResolver`. Splitting that out is worth about 1%, at the edge of measurable. See [performance](docs/performance.md#what-150-cost-the-warm-path)
 
 ### Fixed
 
-- `factory()` and `protect()` held their closure marks **strongly** and never removed one — there is no hook for a binding being overwritten, and `factory()` marks before anyone decides to register. A container retained every closure it was ever handed and everything each closed over: 5000 never-registered ones held 2.3mb against zero live bindings. Both are `WeakMap`s now
+- `factory()` and `protect()` held their closure marks **strongly** and never removed one — there is no hook for a binding being overwritten, and `factory()` marks before anyone decides to register. A container retained every closure it was ever handed and everything each closed over: 5000 never-registered ones held 2.3mb against zero live bindings. Both are `WeakMap`s now, so a mark lasts exactly as long as the closure it marks
 - `give(null)` threw instead of injecting `null`. Every other value worked; the lookup used `isset()`, which reports a bound `null` as absent — so the one binding meaning "this consumer gets nothing" was the only one that could not be expressed. For a **type** need it is now refused with a message saying why. See [bindings](docs/bindings.md#named-scalar-contextual-bindings)
 
 ### Internal

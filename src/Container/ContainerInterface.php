@@ -277,23 +277,28 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * 'tags', which accumulate the way tag() does.
      *
      * @param array<array-key, mixed> $definitions
+     * @param (callable(string): void)|null $onRegistered called with each id as
+     *   it is registered, for a listener that wants them one at a time
      *
      * @throws ContainerException when an entry names an unknown key, or a key's
      *                            value is not of the type it accepts
      *
      * @return list<string> every id registered, in definition order
      */
-    public function load(array $definitions): array;
+    public function load(array $definitions, ?callable $onRegistered = null): array;
 
     /**
-     * Load definitions from a '.php' file returning an array, or a '.json' file.
+     * Load definitions from a '.php' file returning an array, a '.json' file, or
+     * a '.yaml'/'.yml' one when a YAML parser is installed.
+     *
+     * @param (callable(string): void)|null $onRegistered see load()
      *
      * @throws ContainerException when the file is missing, unreadable, of an
      *                            unsupported type, or does not hold an array
      *
      * @return list<string> every id registered, in definition order
      */
-    public function loadFile(string $file): array;
+    public function loadFile(string $file, ?callable $onRegistered = null): array;
 
     /**
      * Defer the construction of a service until it is first used, without

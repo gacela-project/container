@@ -2,8 +2,9 @@
 
 ## 1.x → 2.0
 
-Two changes can require action, and both only affect code that **implements**
-a container interface. Callers are unaffected: every existing call keeps working.
+Three changes can require action. The first two affect only code that
+**implements** a container interface; the third changes runtime behaviour for
+**callers**, with no code change on their side.
 
 ---
 
@@ -71,6 +72,40 @@ one at a time as they are registered rather than as a list:
 ```php
 $container->loadFile($file, static fn (string $id) => $events->dispatch(new Registered($id)));
 ```
+
+---
+
+### 3. `afterResolving()` on a class or interface matches every instance
+
+This one has no compiler error to guide you — it changes behaviour at runtime.
+
+A hook registered against a **class or interface** id now fires for every
+resolved instance of it, where 1.x fired only when that exact id was the one
+asked for:
+
+```php
+$container->afterResolving(LoggerAwareInterface::class, $hook);
+
+$container->get(FileLogger::class);   // 1.x: hook does not fire
+                                      // 2.0: hook fires
+```
+
+That is the point — it is what makes "after anything implementing X is built, do
+this" expressible at all. But if you registered a hook against a class id and
+relied on it firing only for a direct `get()` of that id, it now runs more often.
+Ids that are not a class or interface are unchanged and still match exactly.
+
+Two smaller changes come with it:
+
+- Hooks fire for `make()` with overridden arguments, which previously skipped
+  them entirely.
+- A callback that **throws now removes the instance from the container**, rather
+  than leaving a half-wired service for the next caller. The exception
+  propagates either way.
+
+**What to check:** any `afterResolving()` call whose first argument is a class or
+interface name. If the hook is idempotent — the usual case, since it is wiring —
+there is nothing to do.
 
 ---
 

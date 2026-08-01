@@ -54,15 +54,15 @@ final class ForwardingContainer implements FullContainerInterface
     }
 
     #[Override]
-    public function load(array $definitions): array
+    public function load(array $definitions, ?callable $onRegistered = null): array
     {
-        return $this->inner->load($definitions);
+        return $this->inner->load($definitions, $onRegistered);
     }
 
     #[Override]
-    public function loadFile(string $file): array
+    public function loadFile(string $file, ?callable $onRegistered = null): array
     {
-        return $this->inner->loadFile($file);
+        return $this->inner->loadFile($file, $onRegistered);
     }
 
     #[Override]

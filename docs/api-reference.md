@@ -13,7 +13,7 @@ version:
 |---|---|
 | `Container` | the container itself (`final`) |
 | `ContainerInterface` | the contract to type-hint against |
-| `FullContainerInterface` | the same, plus everything 1.x could not add to it |
+| `FullContainerInterface` | deprecated empty alias of `ContainerInterface`; removed at 3.0 |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `ValidationReport`, `ValidationIssue`, `ValidationProblem` | returned by `validate()` — see [performance](performance.md#proving-it-resolves-before-it-runs) |
@@ -38,39 +38,27 @@ patch. Do not import them.
 
 ## What the interface guarantees
 
-Almost every instance method below is declared on `ContainerInterface`; the
-twelve that are not are marked `FullContainerInterface`, the additive
-interface that carries them. Type-hint whichever of the two you need.
-
-`ContainerInterface` also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`,
-assignment, and `unset()` are part of the contract rather than a concrete-class
-convenience.
-
-Twelve methods are **not** on `ContainerInterface` and never will be within
-1.x, which promises nothing will be added to it: `stats()`, `createScope()`,
-`provides()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`,
-`taggedKeys()`, `dependencyGraph()`, `writeCompiledFactories()`,
-`useCompiledFactories()` and `compileReport()`.
-
-They are on **`FullContainerInterface`**, which extends `ContainerInterface` and
-adds exactly those twelve. Adding a new interface breaks nothing — nothing is
-added to `ContainerInterface`, so the 1.x promise holds literally and no
-existing implementor of it is affected. Type-hint it when you want the whole
-surface without coupling to the `final` class:
+**Every instance method below is declared on `ContainerInterface`.** Type-hint
+it and you get the whole surface — there is nothing left that only the concrete
+class can do:
 
 ```php
 public function __construct(
-    private FullContainerInterface $container,
+    private ContainerInterface $container,
 ) {
 }
 ```
 
-`createScope()` is typed `static` there, so a scope of a full container is a
-full container, and a decorator's scope is a decorator.
+It also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`, assignment and
+`unset()` are part of the contract rather than a concrete-class convenience.
+`createScope()` is typed `static`, so a scope of a decorator is a decorator.
 
-At **2.0** these methods move onto `ContainerInterface` itself and
-`FullContainerInterface` stays as a deprecated alias, so code written against it
-now does not migrate twice.
+Through 1.x the interface was frozen — nothing could be added to it — which left
+twelve methods reachable only through `final class Container`, and 1.5 answered
+that additively with `FullContainerInterface`. 2.0 merged them.
+`FullContainerInterface` is now a **deprecated** empty alias, kept so a 1.5
+type-hint keeps compiling and keeps accepting a `Container`; it is removed at
+3.0. Nothing is added to `ContainerInterface` within 2.x.
 
 What remains on `Container` alone is what an instance contract cannot express:
 the constructor, and the static methods `create()`, `loadCompiledCache()`,
@@ -94,14 +82,14 @@ See [introspection](services.md#introspection).
 | `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
 | `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`). A class/interface id matches every resolved instance of it; any other id matches exactly |
 | `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
-| `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton. `FullContainerInterface` |
+| `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
 | `singletonIf(string $abstract, string\|callable\|object\|null $concrete = null): void` | Singleton-bind only if not already bound |
 | `bind(string $abstract, string\|callable\|object $concrete): void` | Register a binding after construction |
 | `singleton(string $abstract, string\|callable\|object\|null $concrete = null): void` | Register a binding resolved once and reused |
-| `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use. `FullContainerInterface` — see [bindings](bindings.md#deferred-registration) |
-| `load(array $definitions): void` | Register services from a definitions array. `FullContainerInterface` — see [definitions](definitions.md) |
-| `loadFile(string $file): void` | Load definitions from a `.php` file returning an array, or a `.json` file. `FullContainerInterface` |
+| `lazy(string $abstract, string\|callable\|null $concrete = null): void` | Register a binding whose construction is deferred to first use — see [bindings](bindings.md#deferred-registration) |
+| `load(array $definitions, ?callable $onRegistered = null): array` | Register services from a definitions array; returns the ids it registered — see [definitions](definitions.md) |
+| `loadFile(string $file, ?callable $onRegistered = null): array` | Load definitions from a `.php` file returning an array, a `.json` file, or a `.yaml`/`.yml` one when a YAML parser is installed; returns the ids it registered |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
@@ -115,19 +103,19 @@ See [introspection](services.md#introspection).
 | `warmUp(array $classNames): void` | Pre-resolve dependencies. Takes a list only: warming resolves, so it deliberately does not accept a `ClassSource` |
 | `compile(array $classNames): array` | Warm up and return compiled constructor plans. `Container` also takes a `ClassSource`, which describes instead of warming |
 | `writeCompiledCache(array $classNames, string $file): void` | Compile plans and write them to a PHP cache file, fingerprinted against the files they came from — see [staleness](performance.md#staleness). `Container` takes an optional third `?string $buildStamp` |
-| `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled. `FullContainerInterface` |
-| `withSelfReference(ContainerInterface $facade): self` | Hand `$facade` to service closures instead of this container — for decorators. `Container` only |
-| `validate(array\|ClassSource $classNames): ValidationReport` | Prove these classes resolve without resolving them. `Container` only in 1.x |
-| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest. `FullContainerInterface` — see [performance](performance.md#asking-why). `Container` also takes a `ClassSource` |
-| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path. `FullContainerInterface` |
+| `writeCompiledFactories(array $classNames, string $file, ?string $buildStamp = null): array` | Generate `new` expressions for statically-decidable classes; returns those compiled |
+| `withSelfReference(ContainerInterface $facade): self` | Hand `$facade` to service closures instead of this container — for decorators |
+| `validate(array\|ClassSource $classNames): ValidationReport` | Prove these classes resolve without resolving them |
+| `compileReport(array $classNames): CompilationReport` | What the generator makes of these classes, and why it refuses the rest — see [performance](performance.md#asking-why). `Container` also takes a `ClassSource` |
+| `useCompiledFactories(array $factories): void` | Use generated factories as a fast path |
 | `alias(string $alias, string $id): void` | Create an alias for a service |
 | `tag(string\|array $ids, string $tag): void` | Group service ids under a tag (accumulates, dedupes); a map gives entries keys |
 | `tagged(string $tag): iterable` | Lazily resolve all services under a tag, in insertion order; keyed entries under their key |
-| `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none. `FullContainerInterface` — see [tags](bindings.md#keyed-tags) |
-| `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order. `FullContainerInterface` |
-| `dependencyGraph(string $className): DependencyNode` | The dependency graph as a tree — depth, the parameter each child satisfies, and cycles marked rather than thrown. `FullContainerInterface` — see [cookbook](cookbook.md#work-out-why-something-resolves-to-the-wrong-thing) |
-| `createScope(): static` | A child container inheriting this one's registration without copying it. `FullContainerInterface` — see [scopes](scopes.md) |
-| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `memoryUsageBytes` is **process** memory, not this container's — see [introspection](services.md#introspection). `FullContainerInterface` |
+| `taggedByKey(string $tag, string $key): mixed` | Resolve the one entry under `$key`; throws naming the known keys if there is none — see [tags](bindings.md#keyed-tags) |
+| `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order |
+| `dependencyGraph(string $className): DependencyNode` | The dependency graph as a tree — depth, the parameter each child satisfies, and cycles marked rather than thrown — see [cookbook](cookbook.md#work-out-why-something-resolves-to-the-wrong-thing) |
+| `createScope(): static` | A child container inheriting this one's registration without copying it — see [scopes](scopes.md) |
+| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `memoryUsageBytes` is **process** memory, not this container's — see [introspection](services.md#introspection) |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | Every class a given class depends on, flat and deduplicated — despite the name, a list rather than a tree. Use `dependencyGraph()` for structure |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
