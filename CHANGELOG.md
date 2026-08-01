@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Performance
+
+- Cold resolution is no longer 9-19% slower than 1.5.0. 2.0.0 composed a constructor closure on a class's *first* construction, so a container built per request paid for a builder it used once; it is composed on the second now, and nothing on the settled path calls into the resolver to ask. Cold is within +2-5% of 1.5.0, warm resolution of a four-level chain stays ~57% faster, and a class with no dependencies is 17% faster ([#181](https://github.com/gacela-project/container/issues/181), [docs](docs/performance.md#the-warm-path-builds-straight-to-new))
+
 ## [2.0.0](https://github.com/gacela-project/container/compare/1.5.0...2.0.0) - 2026-08-01
 
 Upgrading from 1.x? See [UPGRADE.md](UPGRADE.md). **This is a major release** —
