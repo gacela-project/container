@@ -87,6 +87,10 @@ final class ContextualBindingBuilder
         }
 
         foreach ($this->concrete as $concreteClass) {
+            // A no-op at runtime — assigning into $map[$class][$needs] would
+            // vivify the inner array anyway. It stays because this isset() is
+            // the only place the by-reference map is *read*, and without a read
+            // the property is indistinguishable from a write-only one.
             if (!isset($this->contextualBindings[$concreteClass])) {
                 /** @psalm-suppress PropertyTypeCoercion */
                 $this->contextualBindings[$concreteClass] = [];
