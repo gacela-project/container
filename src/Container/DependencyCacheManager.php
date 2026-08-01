@@ -440,11 +440,32 @@ final class DependencyCacheManager
         // the constructors alone. Deliberately here rather than earlier: the
         // lifetime, the instance registry and the compiled factories have all
         // had their say by now, so this only ever replaces the *construction*.
-        $builder = $resolver->argBuilderFor($class);
+        //
+        // Read inline rather than through argBuilderFor(), because once a class
+        // is decided — a builder or a refusal — that call is a method call per
+        // construction to learn something already known, and at ~1μs a
+        // resolution that is measurable on its own (#181). The call is made
+        // only while the answer is still open, which is twice per class.
+        $builder = $resolver->argBuilders[$class] ?? null;
 
-        if ($builder !== null) {
+        if ($builder instanceof Closure) {
             /** @var object */
             return $builder();
+        }
+
+        if ($builder === null) {
+            // First construction of this class: record the sighting inline.
+            // Composing is deferred to the second one (see argBuilderFor()),
+            // and a container that builds the class once — a fresh container
+            // per request — must not pay even the call to find that out.
+            $resolver->argBuilders[$class] = true;
+        } elseif ($builder === true) {
+            $builder = $resolver->argBuilderFor($class);
+
+            if ($builder !== null) {
+                /** @var object */
+                return $builder();
+            }
         }
 
         $dependencies = $resolver->resolveDependencies($class);

@@ -590,12 +590,20 @@ That is **−54%**, and past what generated factories achieve with the same
 reflection already cached — which confirms the remaining cost was dispatch
 rather than work.
 
-**It is not free.** Building the closures is work a container that is thrown
-away never amortises, so cold resolution is **7–11% slower**, and a class that
-*refuses* a builder pays the check without ever benefiting (+5–12%). A
-long-lived container halves its resolution; a container built per request pays
-about 8%. If that is your shape, [generated
-factories](#generated-constructor-code) remain the answer.
+**A builder is composed on the second construction, not the first.** Composing
+one walks the whole graph below a class and allocates a closure per node, which
+costs more than the single construction it would replace — so a container that
+builds a class once never earns it back, and a fresh container per request is a
+shape this has to be free for. The first construction records that it happened
+and takes the ordinary path; the second composes; the third onwards is the
+figure above.
+
+That was not so in 2.0.0, where composition happened on the first construction
+and cold resolution paid **+9–19%** for a builder it used once
+([#181](https://github.com/gacela-project/container/issues/181)). Cold
+resolution is now within **+2–5%** of 1.5.0, and a class that *refuses* a
+builder within **+2–3%**. Nothing on the settled path calls into the resolver to
+ask: a composed builder and a refusal are both read inline.
 
 A builder is only installed when nothing about the graph can be influenced by
 configuration. It is refused for a class that is bound, `lazy()`-registered or
