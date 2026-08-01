@@ -49,6 +49,17 @@ final class DependencyResolver
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
+    /**
+     * Per-class constructors that bypass the resolution path, or false for a
+     * class proven ineligible. See argBuilderFor().
+     *
+     * @var array<class-string, (Closure(): object)|false>
+     */
+    private array $argBuilders = [];
+
+    /** @var array<class-string, true> guards the recursion in composeBuilder() */
+    private array $buildingBuilders = [];
+
     /** @var array<string, bool> Memoized class_exists()/interface_exists() checks */
     private array $typeExistsCache = [];
 
@@ -230,6 +241,88 @@ final class DependencyResolver
     }
 
     /**
+     * A closure that constructs $className and its whole subtree with plain
+     * `new`, or null when anything about the graph is not statically knowable.
+     *
+     * The resolution path is a dozen calls deep before the first `new` runs,
+     * and it recurses per node — so a four-level graph pays it four times over.
+     * Generated factories beat a warm resolve by a wide margin with the same
+     * reflection already cached, which says the remaining cost is dispatch
+     * rather than work. This is that saving without a build step.
+     *
+     * It is only ever installed when the answer cannot depend on configuration,
+     * and the guard is deliberately structural rather than a set of memos to
+     * invalidate. Everything it reads is either a fact about a class
+     * definition, which cannot change within a process, or one of the arrays
+     * checked in eligibleForBuilders() on every call — so registering anything
+     * takes the whole mechanism out of play at once, and there is no
+     * "remember to drop the memo" for a future change to get wrong.
+     *
+     * @param class-string $className
+     *
+     * @return (Closure(): object)|null
+     */
+    public function argBuilderFor(string $className): ?Closure
+    {
+        $cached = $this->argBuilders[$className] ?? null;
+
+        // The refusal is checked first and without the container gate, because
+        // it is the common case and it can never become wrong: every reason a
+        // class is refused is a fact about its own declaration, and falling
+        // back to the resolution path is always correct anyway. A class that
+        // *is* eligible still has the gate applied below.
+        if ($cached === false) {
+            return null;
+        }
+
+        if (!$this->eligibleForBuilders()) {
+            return null;
+        }
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // A cycle has no leaf to build upwards from, and the recursion below
+        // would not terminate on one.
+        if (isset($this->buildingBuilders[$className])) {
+            return null;
+        }
+
+        $this->buildingBuilders[$className] = true;
+
+        try {
+            $builder = $this->composeBuilder($className);
+        } finally {
+            unset($this->buildingBuilders[$className]);
+        }
+
+        if ($builder === null) {
+            $this->argBuilders[$className] = false;
+
+            return null;
+        }
+
+        $this->argBuilders[$className] = $builder;
+
+        return $builder;
+    }
+
+    /**
+     * Forget every builder.
+     *
+     * Called for any registration, because a binding, an alias or a stored
+     * instance can change what a class resolves to anywhere in a graph that a
+     * builder has already flattened. Registration is a bootstrap-time
+     * operation and resolution is not, so throwing the memos away on write is
+     * the right way round.
+     */
+    public function dropArgBuilders(): void
+    {
+        $this->argBuilders = [];
+    }
+
+    /**
      * Build the plan for $className and for everything its constructor reaches,
      * without constructing any of it.
      *
@@ -390,6 +483,85 @@ final class DependencyResolver
             // touched.
             unset($this->resolvingStack[$className]);
         }
+    }
+
+    /**
+     * Whether *this container* can use builders at all.
+     *
+     * Every one of these is an array the resolver holds by reference, so a
+     * `bind()`, a `when()` or a `lazy()` anywhere disables the mechanism on the
+     * next call without anything having to be invalidated. A scope is excluded
+     * outright: its ancestors can start providing a type at any time.
+     */
+    private function eligibleForBuilders(): bool
+    {
+        return !$this->hasParent
+            && $this->contextualBindings === []
+            && $this->lazyClasses === []
+            && $this->lazyFactories === [];
+    }
+
+    /**
+     * @param class-string $className
+     *
+     * @return (Closure(): object)|null
+     */
+    private function composeBuilder(string $className): ?Closure
+    {
+        $plan = $this->describeClass($className);
+
+        // Anything the constructor alone does not settle: an abstract, a class
+        // whose properties or setters are injected after construction, or one
+        // deferred by #[Lazy].
+        if (!$plan['instantiable'] || $plan['props'] !== [] || $plan['methods'] !== []) {
+            return null;
+        }
+
+        if ($this->isLazy($className)) {
+            return null;
+        }
+
+        // A bound class is whatever its binding says, now or after the next
+        // call to bind(). Registration drops every builder (see
+        // dropArgBuilders()), so this only has to be right at build time.
+        if (isset($this->bindings[$className])) {
+            return null;
+        }
+
+        $arguments = [];
+
+        foreach ($plan['params'] as $param) {
+            $type = $param['type'];
+
+            // A scalar, an untyped parameter or an #[Inject] override can all
+            // be answered by configuration, which is exactly what this may not
+            // decide ahead of time. A default is no better: reading it here
+            // would pin the value the plan happened to capture.
+            if (!$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $type === null) {
+                return null;
+            }
+
+            /** @var class-string $type */
+            $nested = $this->argBuilderFor($type);
+
+            if ($nested === null) {
+                return null;
+            }
+
+            $arguments[] = $nested;
+        }
+
+        /** @var list<Closure(): object> $arguments */
+        return static function () use ($className, $arguments): object {
+            $args = [];
+
+            foreach ($arguments as $build) {
+                $args[] = $build();
+            }
+
+            /** @psalm-suppress MixedMethodCall */
+            return new $className(...$args);
+        };
     }
 
     /**

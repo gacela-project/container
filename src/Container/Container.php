@@ -500,6 +500,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function useCompiledFactories(array $factories): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $this->compiledFactories = $factories;
 
         $this->pushCompiledFactories($factories);
@@ -513,6 +515,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function bind(string $abstract, string|callable|object $concrete): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         /**
          * @psalm-suppress PropertyTypeCoercion
          *
@@ -529,6 +533,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function singleton(string $abstract, string|callable|object|null $concrete = null): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $concrete ??= $abstract;
 
         if (is_object($concrete) && !$concrete instanceof Closure) {
@@ -632,6 +638,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function lazy(string $abstract, string|callable|null $concrete = null): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         if ($concrete === null || is_string($concrete)) {
             $target = $this->assertLazyTarget($abstract, $concrete ?? $abstract);
 
@@ -674,6 +682,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function bindIf(string $abstract, string|callable|object $concrete): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         if (!$this->bound($abstract)) {
             $this->bind($abstract, $concrete);
         }
@@ -687,6 +697,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function singletonIf(string $abstract, string|callable|object|null $concrete = null): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         if (!$this->bound($abstract)) {
             $this->singleton($abstract, $concrete);
         }
@@ -760,6 +772,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function set(string $id, mixed $instance): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $this->instanceRegistry->set($id, $instance);
 
         if ($this->factoryManager->isCurrentlyExtending($id)) {
@@ -904,6 +918,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function remove(string $id): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $id = $this->aliasRegistry->resolve($id);
         $this->instanceRegistry->remove($id);
     }
@@ -911,6 +927,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function alias(string $alias, string $id): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $this->aliasRegistry->add($alias, $id);
     }
 
@@ -934,6 +952,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function tag(string|array $ids, string $tag): void
     {
+        $this->cacheManager->dropArgBuilders();
+
         $this->tagRegistry()->tag($ids, $tag);
     }
 
@@ -1054,6 +1074,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function extend(string $id, Closure $instance): Closure
     {
+        $this->cacheManager->dropArgBuilders();
+
         $id = $this->aliasRegistry->resolve($id);
 
         // Deliberately not has(): that asks whether get() would resolve the id,
@@ -1176,6 +1198,8 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function when(string|array $concrete): ContextualBindingBuilder
     {
+        $this->cacheManager->dropArgBuilders();
+
         $builder = new ContextualBindingBuilder(
             $this->contextualBindings,
             function (string $concrete, string $needs, mixed $implementation): void {
