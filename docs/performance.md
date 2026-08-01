@@ -575,6 +575,39 @@ measures several times noisier than the second — up to ±40% relative standard
 deviation against ±8% on the same subject moments later — which is enough to
 swamp the differences this page reports. Run it twice and read the second.
 
+### The warm path builds straight to `new`
+
+Once a class has been proven buildable from its constructor alone, the container
+memoizes a closure that constructs it and its whole subtree directly, and the
+resolution path comes off the graph:
+
+| | |
+|---|---|
+| warm four-level chain, before | 1.475μs |
+| warm four-level chain, now | **0.656μs** |
+
+That is **−54%**, and past what generated factories achieve with the same
+reflection already cached — which confirms the remaining cost was dispatch
+rather than work.
+
+**It is not free.** Building the closures is work a container that is thrown
+away never amortises, so cold resolution is **7–11% slower**, and a class that
+*refuses* a builder pays the check without ever benefiting (+5–12%). A
+long-lived container halves its resolution; a container built per request pays
+about 8%. If that is your shape, [generated
+factories](#generated-constructor-code) remain the answer.
+
+A builder is only installed when nothing about the graph can be influenced by
+configuration. It is refused for a class that is bound, `lazy()`-registered or
+`#[Lazy]`, abstract, has `#[Inject]` parameters, properties or methods, or takes
+a scalar or untyped parameter — and refusal propagates, so one unbuildable class
+disqualifies everything above it. A scope never uses one, and any contextual
+binding disables the mechanism outright.
+
+Registering anything drops every builder. And every wrong answer falls back to
+the ordinary resolution path rather than producing a wrong object, which is what
+makes a second construction path defensible at all.
+
 ### What 1.5.0 cost the warm path
 
 Warm resolution of a four-level chain is **~4.4% slower in 1.5.0 than in 1.4.0**

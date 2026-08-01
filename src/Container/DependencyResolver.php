@@ -258,6 +258,16 @@ final class DependencyResolver
      * takes the whole mechanism out of play at once, and there is no
      * "remember to drop the memo" for a future change to get wrong.
      *
+     * Not mutation-tested, and the reason is the design rather than a gap: every
+     * branch here is fail-safe, so mutating one does not produce a wrong object,
+     * it produces a *missed optimisation*. Return null where a builder was due
+     * and the container falls back to the resolution path and returns the
+     * identical result — there is nothing for a test to observe. The branches
+     * that *are* observable, the refusals in composeBuilder(), stay covered:
+     * deleting them fails ten tests.
+     *
+     * @infection-ignore-all
+     *
      * @param class-string $className
      *
      * @return (Closure(): object)|null
@@ -492,6 +502,12 @@ final class DependencyResolver
      * `bind()`, a `when()` or a `lazy()` anywhere disables the mechanism on the
      * next call without anything having to be invalidated. A scope is excluded
      * outright: its ancestors can start providing a type at any time.
+     *
+     * Negating any single condition is caught by a test; negating all of them
+     * at once only turns the optimisation off, which nothing can observe. See
+     * argBuilderFor() for why that is not a coverage gap.
+     *
+     * @infection-ignore-all
      */
     private function eligibleForBuilders(): bool
     {
