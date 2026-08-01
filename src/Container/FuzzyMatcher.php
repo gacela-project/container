@@ -60,6 +60,32 @@ final class FuzzyMatcher
     }
 
     /**
+     * The suggestions as the block that goes into an exception message, or an
+     * empty string when there are none.
+     *
+     * Here rather than in each exception: two classes rendered the same list by
+     * hand, so the wording a user sees was two literals to keep in step. The
+     * matcher that produced the names is where the way they are presented
+     * belongs.
+     *
+     * @param list<string> $suggestions
+     */
+    public static function renderSuggestions(array $suggestions): string
+    {
+        if ($suggestions === []) {
+            return '';
+        }
+
+        $block = "\nDid you mean one of these?\n";
+
+        foreach ($suggestions as $suggestion) {
+            $block .= "  - {$suggestion}\n";
+        }
+
+        return $block;
+    }
+
+    /**
      * Calculate similarity between two strings (0.0 to 1.0).
      */
     private static function calculateSimilarity(string $a, string $b): float

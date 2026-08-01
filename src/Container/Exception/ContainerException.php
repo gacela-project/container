@@ -67,14 +67,7 @@ TXT;
             return new self($message);
         }
 
-        $suggestions = FuzzyMatcher::findSimilar($key, $knownKeys);
-
-        if ($suggestions !== []) {
-            $message .= "\nDid you mean one of these?\n";
-            foreach ($suggestions as $suggestion) {
-                $message .= "  - {$suggestion}\n";
-            }
-        }
+        $message .= FuzzyMatcher::renderSuggestions(FuzzyMatcher::findSimilar($key, $knownKeys));
 
         $message .= "\nKeys registered under '{$tag}':\n";
         foreach ($knownKeys as $knownKey) {

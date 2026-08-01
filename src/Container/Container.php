@@ -14,7 +14,6 @@ use WeakReference;
 
 use function class_exists;
 use function count;
-use function in_array;
 use function interface_exists;
 use function is_callable;
 use function is_int;
@@ -1306,21 +1305,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $own;
         }
 
-        $merged = $this->parent->taggedIds($tag);
-
-        foreach ($own as $key => $id) {
-            if (!is_int($key)) {
-                $merged[$key] = $id;
-
-                continue;
-            }
-
-            if (!in_array($id, $merged, true)) {
-                $merged[] = $id;
-            }
-        }
-
-        return $merged;
+        return TagRegistry::merge($this->parent->taggedIds($tag), $own);
     }
 
     /**

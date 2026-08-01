@@ -90,11 +90,11 @@ final class Cli
                 '--version', '-V' => $this->version(),
                 default => throw CliException::unknownCommand($command),
             };
-        } catch (CliException $exception) {
-            return $this->fail($exception->getMessage());
         } catch (Throwable $exception) {
-            // A broken container factory or an unwritable path surfaces here.
-            // The message is the useful part; the trace is not, for a build tool.
+            // Everything the user can act on arrives as a CliException; a broken
+            // container factory or an unwritable path arrives as anything at
+            // all. Both end the same way, because for a build tool the message
+            // is the useful part and the trace is not.
             return $this->fail($exception->getMessage());
         }
     }
@@ -117,8 +117,7 @@ final class Cli
         }
 
         $classNames = $source->classNames();
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($container->compile($source)));
+        $this->reportDiscovery($classNames, count($container->compile($source)));
 
         if ($plans !== null) {
             $this->ensureDirectory($plans);
@@ -156,8 +155,7 @@ final class Cli
         $classNames = $source->classNames();
         $report = $container->compileReport($source);
 
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($report->compiled()) + count($report->skipped()));
+        $this->reportDiscovery($classNames, count($report->compiled()) + count($report->skipped()));
         $this->printReport($report);
 
         $skipped = count($report->skipped());
@@ -181,8 +179,7 @@ final class Cli
         $classNames = $source->classNames();
         $report = $container->validate($source);
 
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($report->checked()));
+        $this->reportDiscovery($classNames, count($report->checked()));
         $this->write($this->out, $report->render() . "\n");
 
         // Unlike report, this fails by default: an unresolvable service is a
@@ -191,15 +188,22 @@ final class Cli
     }
 
     /**
+     * Say how many classes discovery found, and call it out when none of them
+     * could be loaded. Every command opens with this, which is why it is one
+     * call rather than the same two lines three times.
+     *
      * Discovery reads declarations off disk; planning needs the classes
      * *loaded*. When every one of them failed to load, the run reports a
      * cheerful zero and has in fact done nothing — the exact silent failure this
      * command exists to remove, so it is called out.
      *
      * @param list<class-string> $classNames
+     * @param int $planned how many of them the command was able to act on
      */
-    private function warnIfNothingLoaded(array $classNames, int $planned): void
+    private function reportDiscovery(array $classNames, int $planned): void
     {
+        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
+
         if ($classNames === [] || $planned > 0) {
             return;
         }

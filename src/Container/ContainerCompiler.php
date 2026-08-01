@@ -30,6 +30,7 @@ use function var_export;
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type ParamPlan from DependencyResolver
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -47,6 +48,13 @@ final class ContainerCompiler
 
     /** @var array<string, string> */
     private array $explanations = [];
+
+    /**
+     * The verdict, computed once. See expressions().
+     *
+     * @var array<class-string, string>|null
+     */
+    private ?array $expressions = null;
 
     /**
      * @param CompiledPlans $plans
@@ -74,13 +82,7 @@ final class ContainerCompiler
         $entries = [];
         $stamps = [];
 
-        foreach (array_keys($this->plans) as $class) {
-            $expression = $this->expressionFor($class, []);
-
-            if ($expression === null) {
-                continue;
-            }
-
+        foreach ($this->expressions() as $class => $expression) {
             $entries[] = '        ' . var_export($class, true) . ' => static fn (): object => ' . $expression . ',';
             $stamps[$class] = CacheStamp::of($class);
         }
@@ -95,15 +97,7 @@ final class ContainerCompiler
      */
     public function compilable(): array
     {
-        $compilable = [];
-
-        foreach (array_keys($this->plans) as $class) {
-            if ($this->expressionFor($class, []) !== null) {
-                $compilable[] = $class;
-            }
-        }
-
-        return $compilable;
+        return array_keys($this->expressions());
     }
 
     /**
@@ -127,6 +121,39 @@ final class ContainerCompiler
         }
 
         return new CompilationReport($compilable, $reasons, $explanations);
+    }
+
+    /**
+     * The `new` expression for every class that has one, keyed by class and in
+     * plan order.
+     *
+     * Both public callers ask the same question of the same immutable inputs —
+     * writeCompiledFactories() calls render() and then compilable(), which used
+     * to walk the plans and generate every expression twice — so the answer is
+     * computed once. Nothing can change it afterwards: the plans, the bindings
+     * and the lazy registrations are given at construction and never written,
+     * and skip() is first-writer-wins, so a second pass could only re-derive
+     * what the first recorded.
+     *
+     * @return array<class-string, string>
+     */
+    private function expressions(): array
+    {
+        if ($this->expressions !== null) {
+            return $this->expressions;
+        }
+
+        $expressions = [];
+
+        foreach (array_keys($this->plans) as $class) {
+            $expression = $this->expressionFor($class, []);
+
+            if ($expression !== null) {
+                $expressions[$class] = $expression;
+            }
+        }
+
+        return $this->expressions = $expressions;
     }
 
     /**
@@ -201,7 +228,7 @@ final class ContainerCompiler
 
     /**
      * @param class-string $class the class whose constructor declares $param
-     * @param array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null} $param
+     * @param ParamPlan $param
      * @param list<class-string> $stack
      */
     private function argumentFor(string $class, array $param, array $stack): ?string

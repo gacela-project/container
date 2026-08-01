@@ -16,6 +16,7 @@ use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
+use ReflectionType;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -1221,21 +1222,13 @@ final class DependencyResolver
      */
     private function describeProperty(ReflectionProperty $property): ?array
     {
-        $attributes = $property->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
-        if ($attributes === []) {
+        $inject = self::injectAttributeOf($property);
+        if ($inject === null) {
             return null;
         }
 
-        /** @var Inject $inject */
-        $inject = $attributes[0]->newInstance();
-
         $type = $property->getType();
-        $typeName = null;
-        $isScalar = false;
-        if ($type instanceof ReflectionNamedType) {
-            $typeName = $type->getName();
-            $isScalar = $this->isScalar($typeName);
-        }
+        [$typeName, $isScalar] = $this->describeType($type);
 
         /** @var class-string|null $implementation */
         $implementation = $inject->implementation;
@@ -1374,14 +1367,7 @@ final class DependencyResolver
      */
     private function describeParameter(ReflectionParameter $parameter): array
     {
-        $type = $parameter->getType();
-
-        $typeName = null;
-        $isScalar = false;
-        if ($type instanceof ReflectionNamedType) {
-            $typeName = $type->getName();
-            $isScalar = $this->isScalar($typeName);
-        }
+        [$typeName, $isScalar] = $this->describeType($parameter->getType());
 
         $hasDefault = $parameter->isDefaultValueAvailable();
 
@@ -1402,18 +1388,55 @@ final class DependencyResolver
      */
     private function readInjectImplementation(ReflectionParameter $parameter): ?string
     {
-        $attributes = $parameter->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
-        if (count($attributes) === 0) {
+        /** @var class-string|null */
+        return self::injectAttributeOf($parameter)?->implementation;
+    }
+
+    /**
+     * The #[Inject] a parameter or a property carries, or null when it carries
+     * none.
+     *
+     * One place rather than two: the parameter path wanted only the
+     * implementation and the property path wanted the whole attribute, so the
+     * same three steps were written twice — and disagreed on how to test for
+     * "no attribute". Runs while a plan is being built, which is once per class
+     * per process, never per resolution.
+     *
+     * IS_INSTANCEOF is what makes a consumer's own subclass of Inject count;
+     * see the attribute's docblock.
+     */
+    private static function injectAttributeOf(ReflectionParameter|ReflectionProperty $target): ?Inject
+    {
+        $attributes = $target->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
+
+        if ($attributes === []) {
             return null;
         }
 
-        /** @var Inject $inject */
-        $inject = $attributes[0]->newInstance();
+        /** @var Inject */
+        return $attributes[0]->newInstance();
+    }
 
-        /** @var class-string|null $implementation */
-        $implementation = $inject->implementation;
+    /**
+     * A type's name, and whether it is a scalar — the two things a parameter
+     * plan and a property plan describe identically.
+     *
+     * A union or intersection type yields [null, false], the same as no type at
+     * all: neither plan can pick a class out of one. The two plans still differ
+     * on `hasType`, which is why that stays with each caller — a parameter
+     * reports a union as typed, a property does not.
+     *
+     * @return array{string|null, bool}
+     */
+    private function describeType(?ReflectionType $type): array
+    {
+        if (!$type instanceof ReflectionNamedType) {
+            return [null, false];
+        }
 
-        return $implementation;
+        $typeName = $type->getName();
+
+        return [$typeName, $this->isScalar($typeName)];
     }
 
     /**
