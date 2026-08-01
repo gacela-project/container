@@ -326,6 +326,14 @@ final class DependencyCacheManager
     }
 
     /**
+     * See DependencyResolver::dropArgBuilders().
+     */
+    public function dropArgBuilders(): void
+    {
+        $this->dependencyResolver?->dropArgBuilders();
+    }
+
+    /**
      * Plan $classNames and everything their constructors reach, constructing
      * nothing. See DependencyResolver::planDeep() for why compiling must not
      * resolve.
@@ -426,6 +434,17 @@ final class DependencyCacheManager
 
         if ($resolver->isLazy($class)) {
             return $resolver->newLazyInstance($class);
+        }
+
+        // Straight to `new` when the whole graph below this class is settled by
+        // the constructors alone. Deliberately here rather than earlier: the
+        // lifetime, the instance registry and the compiled factories have all
+        // had their say by now, so this only ever replaces the *construction*.
+        $builder = $resolver->argBuilderFor($class);
+
+        if ($builder !== null) {
+            /** @var object */
+            return $builder();
         }
 
         $dependencies = $resolver->resolveDependencies($class);
