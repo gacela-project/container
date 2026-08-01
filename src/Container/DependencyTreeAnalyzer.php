@@ -118,7 +118,6 @@ final readonly class DependencyTreeAnalyzer
             /** @var class-string $paramTypeName */
             $paramTypeName = $type->getName();
 
-            // Resolve binding if it's an interface
             $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
 
             $childCut = false;

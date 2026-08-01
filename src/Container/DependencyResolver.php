@@ -797,7 +797,6 @@ final class DependencyResolver
                 return $contextualBinding;
             }
 
-            // It's a class string - use it instead of the interface
             /** @var class-string $contextualBinding */
             $paramTypeName = $contextualBinding;
         }

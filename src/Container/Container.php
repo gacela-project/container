@@ -480,7 +480,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * already performs. Its `compiled()` set is exactly what
      * `writeCompiledFactories()` returns for the same input.
      *
-     *
      * @param list<class-string>|ClassSource $classNames
      */
     #[Override]
@@ -569,7 +568,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * equivalent would give you. Later calls override earlier keys, which makes
      * per-environment layering a matter of loading base then overrides — except
      * for 'tags', which accumulate the way tag() does.
-     *
      *
      * @param array<array-key, mixed> $definitions
      * @param (callable(string): void)|null $onRegistered called with each id as
@@ -814,7 +812,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * resolved instance of it — so the registration people actually reach for,
      * "after anything implementing LoggerAwareInterface is built, hand it the
      * logger", is one call rather than one per implementation. Any other id
-     * matches exactly, as before.
+     * matches exactly.
      *
      * A callback that throws **removes the instance from the container**, so a
      * service whose post-construction wiring failed is not handed to the next
@@ -1000,7 +998,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * The keys $tag can be asked for, in insertion order. Entries registered
      * without a key are not listed: there is no key to ask with.
      *
-     *
      * @return list<string>
      */
     #[Override]
@@ -1047,7 +1044,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * a debugging call, and a broken graph is precisely when it is reached for.
      * Bindings are resolved as it is built, so an interface shows up as the
      * concrete it maps to.
-     *
      *
      * @param class-string $className
      */
@@ -1343,7 +1339,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * The scopes of this container that are still alive, dropping the handles
      * of those that are not. Weak, so a scope is collected when it goes out of
-     * scope exactly as it was before its parent kept a handle at all.
+     * scope exactly as if its parent kept no handle at all.
      *
      * @return list<self>
      */

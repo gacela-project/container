@@ -87,11 +87,9 @@ final class ContainerStatsTest extends TestCase
     {
         $container = new Container();
 
-        // Before warmup
         $statsBefore = $container->getStats();
         self::assertSame(0, $statsBefore['cached_dependencies']);
 
-        // After warmup
         $container->warmUp([ClassWithoutDependencies::class, Person::class]);
         $statsAfter = $container->getStats();
 

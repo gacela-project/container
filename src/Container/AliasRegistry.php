@@ -38,7 +38,6 @@ final class AliasRegistry
     public function add(string $alias, string $id): void
     {
         $this->aliases[$alias] = $id;
-        // Clear cached resolutions when aliases change
         $this->resolvedCache = [];
     }
 
