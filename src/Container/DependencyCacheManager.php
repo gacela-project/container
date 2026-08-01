@@ -440,7 +440,19 @@ final class DependencyCacheManager
         // the constructors alone. Deliberately here rather than earlier: the
         // lifetime, the instance registry and the compiled factories have all
         // had their say by now, so this only ever replaces the *construction*.
-        $builder = $resolver->argBuilderFor($class);
+        //
+        // Read inline rather than through argBuilderFor(), because once a class
+        // is decided — a builder or a refusal — that call is a method call per
+        // construction to learn something already known, and at ~1μs a
+        // resolution that is measurable on its own (#181). The call is made
+        // only while the answer is still open, which is twice per class.
+        $builder = $resolver->argBuilders[$class] ?? null;
+
+        if ($builder === false) {
+            $builder = null;
+        } elseif (!$builder instanceof Closure) {
+            $builder = $resolver->argBuilderFor($class);
+        }
 
         if ($builder !== null) {
             /** @var object */

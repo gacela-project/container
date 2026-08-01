@@ -46,17 +46,25 @@ use function method_exists;
  */
 final class DependencyResolver
 {
-    /** @var array<class-string, bool> */
-    private array $resolvingStack = [];
-
     /**
      * Per-class constructors that bypass the resolution path; false for a class
      * proven ineligible, true for one constructed once and not yet worth
      * composing. See argBuilderFor().
      *
+     * Public for the same reason PlanRegistry::$plans is: DependencyCacheManager
+     * reads it once per construction, and going through a method to learn an
+     * answer already recorded here costs more than the lookup does.
+     *
+     * A Closure in here is always safe to call: everything that could change
+     * what a class resolves to — a binding, an alias, a stored instance, a
+     * contextual binding, lazy(), becoming a scope — drops the whole map first.
+     *
      * @var array<class-string, (Closure(): object)|bool>
      */
-    private array $argBuilders = [];
+    public array $argBuilders = [];
+
+    /** @var array<class-string, bool> */
+    private array $resolvingStack = [];
 
     /** @var array<class-string, true> guards the recursion in composeBuilder() */
     private array $buildingBuilders = [];
@@ -197,6 +205,13 @@ final class DependencyResolver
     {
         $this->parent = $parent;
         $this->hasParent = true;
+
+        // A scope resolves through its parent, which eligibleForBuilders()
+        // refuses — and the inline read in DependencyCacheManager::construct()
+        // trusts a stored Closure without re-testing eligibility. Today this is
+        // called before the resolver has built anything; dropping here makes
+        // that a property of the code rather than of the call order.
+        $this->argBuilders = [];
     }
 
     /**
