@@ -10,12 +10,14 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
-**Breaking changes are marked ⚠.** Only code that *implements* a container
-interface has to act — see [UPGRADE.md](UPGRADE.md). Callers are unaffected.
+**Breaking changes are marked ⚠, so this is a major release** — `release.sh`
+auto-bumps the *minor*, so it needs the version passed explicitly. Only code
+that *implements* a container interface has to act; see
+[UPGRADE.md](UPGRADE.md). Callers are unaffected.
 
 ### Changed
 
-- ⚠ **`ContainerInterface` declares the whole surface**: `createScope()`, `provides()`, `stats()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`, `taggedKeys()`, `dependencyGraph()`, `compileReport()`, `writeCompiledFactories()`, `useCompiledFactories()`, `validate()` and `withSelfReference()`. 1.x promised nothing would be added, which is why most of the 1.2–1.5 feature set was concrete-class-only and why 1.5 answered additively with `FullContainerInterface`; this is the merge that promise deferred. Only an implementor acts, and the compiler names what is missing. `FullContainerInterface` remains as a **deprecated** empty alias — a 1.5 type-hint keeps compiling and keeps accepting a `Container` — and goes at 3.0
+- ⚠ **`ContainerInterface` declares the whole surface**: `createScope()`, `provides()`, `stats()`, `lazy()`, `load()`, `loadFile()`, `taggedByKey()`, `taggedKeys()`, `dependencyGraph()`, `compileReport()`, `writeCompiledFactories()`, `useCompiledFactories()`, `validate()` and `withSelfReference()`. 1.x promised nothing would be added, which is why most of the 1.2–1.5 feature set was concrete-class-only and why 1.5 answered additively with `FullContainerInterface`; this is the merge that promise deferred. The compiler names what an implementor is missing. `FullContainerInterface` remains as a **deprecated** empty alias — a 1.5 type-hint keeps compiling and keeps accepting a `Container` — and goes at 3.0
 - ⚠ **`load()` and `loadFile()` return the ids they registered** rather than `void`: the only reliable answer to "what did this source register", since reading the ids back misses aliases, which live in a third registry. Ignoring a return value is valid, so nothing breaks for a caller. The optional listener still works for a consumer that wants them one at a time
 - ⚠ `afterResolving()` on a **class or interface** id fires for every resolved instance of it, not only when that exact id was asked for — so "after anything implementing `LoggerAwareInterface` is built, hand it the logger" is one registration instead of one per implementation. Other ids still match exactly. Hooks also fire for `make()` with overridden arguments, which skipped them, and a callback that **throws now removes the instance** rather than leaving half-wired state for the next caller
 
@@ -28,7 +30,7 @@ interface has to act — see [UPGRADE.md](UPGRADE.md). Callers are unaffected.
 
 ### Performance
 
-- Warm resolution memoizes a per-class constructor once a class is proven statically buildable: a warm four-level chain **1.475μs → 0.656μs (−54%)**, past what generated factories achieve with the same reflection cached, and `make()` without runtime arguments −53%. Cold paths pay **+7 to +11%** for it — building the closures is work a thrown-away container never amortises — so a long-lived container halves its resolution and a per-request one pays about 8%. A builder is refused for anything configuration can influence, refusal propagates, registration drops every builder, and every wrong answer falls back to the resolution path. See [performance](docs/performance.md#the-warm-path-builds-straight-to-new)
+- Warm resolution memoizes a per-class constructor once a class is proven statically buildable: a warm four-level chain **1.475μs → 0.656μs (−54%)**, past what generated factories achieve with the same reflection cached, and `make()` without runtime arguments −53%. Cold paths pay **+7 to +11%** for it — building the closures is work a thrown-away container never amortises — so a long-lived container halves its resolution and a per-request one pays about 8%. A builder is refused for anything configuration can influence, and every wrong answer falls back to the resolution path rather than producing a wrong object. See [performance](docs/performance.md#the-warm-path-builds-straight-to-new)
 - Recorded rather than fixed, and partly offset by the above: 1.5.0 was **~4.4% slower than 1.4.0** on the warm path (20 paired samples, t = 7.15) with *no single cause* — identical call counts, 14% more compiled code in the loaded set, 62% of it `DependencyResolver`. Splitting that out is worth about 1%, at the edge of measurable. See [performance](docs/performance.md#what-150-cost-the-warm-path)
 
 ### Fixed
