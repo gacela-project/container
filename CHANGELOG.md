@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [2.0.0](https://github.com/gacela-project/container/compare/1.5.0...2.0.0) - 2026-08-01
+
 Upgrading from 1.x? See [UPGRADE.md](UPGRADE.md). **This is a major release** —
 `release.sh` auto-bumps the minor, so pass the version explicitly.
 
