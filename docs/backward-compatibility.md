@@ -15,7 +15,7 @@ Only classes marked `@api`. Every class in `src/` carries either `@api` or
 |---|---|
 | `Container` | the container itself, `final` |
 | `ContainerInterface` | the contract to type-hint |
-| `FullContainerInterface` | everything `Container` does, as a contract (1.5) |
+| `FullContainerInterface` | **deprecated** empty alias of `ContainerInterface`; removed at 3.0 |
 | `ContextualBindingBuilder` | returned by `when()` |
 | `CompilationReport`, `CompilationSkipReason` | returned by `compileReport()` |
 | `ValidationReport`, `ValidationIssue`, `ValidationProblem` | returned by `validate()` |

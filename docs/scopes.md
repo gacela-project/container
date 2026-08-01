@@ -250,10 +250,9 @@ scope exists to keep separate.
 
 ## Backward compatibility
 
-`createScope()` and `provides()` are on
-[`FullContainerInterface`](api-reference.md#what-the-interface-guarantees), not
-on `ContainerInterface` — 1.x promises no method will be added to the latter.
-Both merge into it at 2.0.
+`createScope()` and `provides()` are declared on
+[`ContainerInterface`](api-reference.md#what-the-interface-guarantees), so
+type-hinting the interface is enough to reach them.
 
 `createScope()` is typed `static` on the interface, so a scope of a full
 container is a full container: the feature set does not fall away one level

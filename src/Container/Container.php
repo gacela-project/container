@@ -245,9 +245,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Two things deliberately do not fall through. remove() only forgets what
      * the scope itself stored, and extend() refuses to reach into an ancestor
      * — see the exception it throws for the way to decorate a scope-locally.
-     *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      */
     #[Override]
     public function createScope(): static
@@ -287,9 +284,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * and wider than bound(), which does not see a singleton that no binding
      * introduced. A scope asks this to decide whether to delegate upwards or
      * build its own.
-     *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      */
     #[Override]
     public function provides(string $id): bool
@@ -446,9 +440,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * an abstract with nothing bound to it, a parameter nothing can supply, a
      * cycle. It cannot predict what a closure binding returns, and does not try.
      *
-     * On `Container` rather than either interface, which 1.x promises not to
-     * change; it moves onto the interface at 2.0.
-     *
      * @param list<class-string>|ClassSource $classNames
      */
     #[Override]
@@ -489,8 +480,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * already performs. Its `compiled()` set is exactly what
      * `writeCompiledFactories()` returns for the same input.
      *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      *
      * @param list<class-string>|ClassSource $classNames
      */
@@ -581,8 +570,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * per-environment layering a matter of loading base then overrides — except
      * for 'tags', which accumulate the way tag() does.
      *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      *
      * @param array<array-key, mixed> $definitions
      * @param (callable(string): void)|null $onRegistered called with each id as
@@ -643,9 +630,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * The target must be a concrete class either way — a lazy instance has to
      * be an instance of something.
-     *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      */
     #[Override]
     public function lazy(string $abstract, string|callable|null $concrete = null): void
@@ -999,9 +983,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * handler it has no entry for is a misconfiguration, and the exception
      * names the keys the tag does have. Ask taggedKeys() when the key is
      * genuinely optional.
-     *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      */
     #[Override]
     public function taggedByKey(string $tag, string $key): mixed
@@ -1019,8 +1000,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * The keys $tag can be asked for, in insertion order. Entries registered
      * without a key are not listed: there is no key to ask with.
      *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      *
      * @return list<string>
      */
@@ -1069,8 +1048,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Bindings are resolved as it is built, so an interface shows up as the
      * concrete it maps to.
      *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0.
      *
      * @param class-string $className
      */
@@ -1233,12 +1210,10 @@ final class Container implements FullContainerInterface, ArrayAccess
      * comes back as an int rather than a string needing to be parsed.
      *
      * One caveat about that memory figure, which the type does not convey:
-     * memoryUsageBytes is the PHP *process*, not this container. See
+     * processMemoryBytes is the PHP *process*, not this container. See
      * ContainerStats.
      *
-     * On FullContainerInterface rather than ContainerInterface, which 1.x
-     * promises not to extend. The two merge at 2.0, where this replaces
-     * getStats().
+     * Supersedes getStats(), whose array shape is not covered.
      */
     #[Override]
     public function stats(): ContainerStats
@@ -1265,7 +1240,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             // Process-wide, deliberately: measuring this container's own
             // footprint would mean accounting code on the registration paths to
             // feed a debug field. Named for what it is at 2.0.
-            memoryUsageBytes: memory_get_usage(true),
+            processMemoryBytes: memory_get_usage(true),
         );
     }
 
@@ -1298,7 +1273,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             'factory_services' => $stats->factoryServices,
             'bindings' => $stats->bindings,
             'cached_dependencies' => $stats->cachedDependencies,
-            'memory_usage' => $stats->memoryUsageFormatted(),
+            'memory_usage' => $stats->processMemoryFormatted(),
         ];
     }
 

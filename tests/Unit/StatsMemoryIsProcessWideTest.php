@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use function memory_get_usage;
 
 /**
- * ContainerStats::memoryUsageBytes is the PHP process, not the container.
+ * ContainerStats::processMemoryBytes is the PHP process, not the container.
  *
  * Five of the object's six fields are container-scoped counters, so the sixth
  * reads as "what this container costs" — which is not the question it answers.
@@ -35,7 +35,7 @@ final class StatsMemoryIsProcessWideTest extends TestCase
 
         // If this were container-scoped, the one holding a singleton and two
         // resolved graphs could not match the one holding nothing.
-        self::assertSame($empty->stats()->memoryUsageBytes, $busy->stats()->memoryUsageBytes);
+        self::assertSame($empty->stats()->processMemoryBytes, $busy->stats()->processMemoryBytes);
     }
 
     public function test_the_container_scoped_fields_do_differ(): void
@@ -58,7 +58,7 @@ final class StatsMemoryIsProcessWideTest extends TestCase
 
         // memory_get_usage(true) — real memory handed to the process by the
         // allocator, which moves in pages and so is stable across these calls.
-        self::assertSame(memory_get_usage(true), $container->stats()->memoryUsageBytes);
+        self::assertSame(memory_get_usage(true), $container->stats()->processMemoryBytes);
     }
 
     public function test_a_scope_reports_the_same_number_as_its_parent(): void
@@ -68,7 +68,7 @@ final class StatsMemoryIsProcessWideTest extends TestCase
 
         $scope->get(ClassWithObjectDependencies::class);
 
-        self::assertSame($container->stats()->memoryUsageBytes, $scope->stats()->memoryUsageBytes);
+        self::assertSame($container->stats()->processMemoryBytes, $scope->stats()->processMemoryBytes);
     }
 
     public function test_the_legacy_array_carries_the_same_figure(): void
@@ -76,6 +76,6 @@ final class StatsMemoryIsProcessWideTest extends TestCase
         $container = new Container();
         $stats = $container->stats();
 
-        self::assertSame($stats->memoryUsageFormatted(), $container->getStats()['memory_usage']);
+        self::assertSame($stats->processMemoryFormatted(), $container->getStats()['memory_usage']);
     }
 }

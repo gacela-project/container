@@ -36,7 +36,7 @@ final class ContainerStatsObjectTest extends TestCase
         self::assertSame(1, $stats->factoryServices);
         self::assertSame(1, $stats->bindings);
         self::assertGreaterThan(0, $stats->cachedDependencies);
-        self::assertGreaterThan(0, $stats->memoryUsageBytes);
+        self::assertGreaterThan(0, $stats->processMemoryBytes);
     }
 
     public function test_it_reports_memory_as_a_number(): void
@@ -45,14 +45,14 @@ final class ContainerStatsObjectTest extends TestCase
         // parsed back before it can be compared or summed.
         $stats = (new Container())->stats();
 
-        self::assertIsInt($stats->memoryUsageBytes);
+        self::assertIsInt($stats->processMemoryBytes);
     }
 
     public function test_it_formats_memory_on_demand(): void
     {
         $stats = new ContainerStats(0, 0, 0, 0, 0, 5_242_880);
 
-        self::assertSame('5 MB', $stats->memoryUsageFormatted());
+        self::assertSame('5 MB', $stats->processMemoryFormatted());
     }
 
     public function test_the_formatted_value_matches_the_array_version(): void
@@ -62,7 +62,7 @@ final class ContainerStatsObjectTest extends TestCase
         $object = $container->stats();
         $array = $container->getStats();
 
-        self::assertSame($array['memory_usage'], $object->memoryUsageFormatted());
+        self::assertSame($array['memory_usage'], $object->processMemoryFormatted());
     }
 
     public function test_both_apis_agree_on_every_shared_field(): void

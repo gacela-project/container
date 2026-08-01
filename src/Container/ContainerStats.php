@@ -28,14 +28,14 @@ final readonly class ContainerStats
      * @param int $bindings abstract-to-concrete mappings registered here
      * @param int $cachedDependencies classes this container has resolved at
      *   least once
-     * @param int $memoryUsageBytes **the whole PHP process**, not this
+     * @param int $processMemoryBytes **the whole PHP process**, not this
      *   container — memory_get_usage(true), the real memory the allocator has
      *   handed the process. It moves when anything anywhere allocates, and two
      *   containers in the same process report the same number. Every other
      *   field here is container-scoped, so this one is the odd one out: read it
      *   as ambient context for the counters beside it, never as what this
-     *   container costs. Renamed to processMemoryBytes in 2.0, where the name
-     *   will say so.
+     *   container costs. It was `memoryUsageBytes` through 1.x, a name that
+     *   invited exactly the wrong reading.
      */
     public function __construct(
         public int $registeredServices,
@@ -43,16 +43,16 @@ final readonly class ContainerStats
         public int $factoryServices,
         public int $bindings,
         public int $cachedDependencies,
-        public int $memoryUsageBytes,
+        public int $processMemoryBytes,
     ) {
     }
 
     /**
-     * memoryUsageBytes as a human-readable string. Process memory — see the
+     * processMemoryBytes as a human-readable string. Process memory — see the
      * constructor.
      */
-    public function memoryUsageFormatted(): string
+    public function processMemoryFormatted(): string
     {
-        return ByteFormatter::format($this->memoryUsageBytes);
+        return ByteFormatter::format($this->processMemoryBytes);
     }
 }

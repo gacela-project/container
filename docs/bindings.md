@@ -102,9 +102,9 @@ The target must be a concrete, instantiable class; anything else throws a
 on first touch. See [`#[Lazy]`](attributes.md#lazy) for what triggers
 initialization and for the PHP 8.4 requirement.
 
-`lazy()` is on [`FullContainerInterface`](api-reference.md#what-the-interface-guarantees),
-not on `ContainerInterface` — 1.x adds no methods to the latter. The two merge
-at 2.0.
+`lazy()` is declared on
+[`ContainerInterface`](api-reference.md#what-the-interface-guarantees), so
+type-hinting the interface is enough to reach it.
 
 ### Registration as data
 

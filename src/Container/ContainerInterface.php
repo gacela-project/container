@@ -211,8 +211,8 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * Entries are stamped with the files they were compiled from, so a plan for
      * a constructor that has since changed is dropped when the file is loaded
      * rather than used. Container adds an optional third argument, a build
-     * stamp; the signature here stays as it is, because widening an interface
-     * 1.x promises not to extend would break every implementation of it.
+     * stamp; the signature here stays as it is, because widening it would break
+     * every implementation of the interface.
      *
      * @param list<class-string> $classNames
      */

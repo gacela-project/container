@@ -100,11 +100,11 @@ $stats->frozenServices;          // 15
 $stats->factoryServices;         // 3
 $stats->bindings;                // 8
 $stats->cachedDependencies;      // 25
-$stats->memoryUsageBytes;        // 2453667 — an int, so it can be compared
-$stats->memoryUsageFormatted();  // '2.34 MB'
+$stats->processMemoryBytes;        // 2453667 — an int, so it can be compared
+$stats->processMemoryFormatted();  // '2.34 MB'
 ```
 
-**`memoryUsageBytes` is the whole PHP process, not this container.** It is
+**`processMemoryBytes` is the whole PHP process, not this container.** It is
 `memory_get_usage(true)`: the real memory the allocator has handed the process.
 It moves when anything anywhere allocates, and two containers in the same
 process report the same number. Every other field is a container-scoped counter,
@@ -113,12 +113,12 @@ what the container costs.
 
 Measuring a single container's footprint would mean carrying accounting code on
 the registration paths to feed a debug field, which is not a trade this library
-makes. The field is renamed `processMemoryBytes` in 2.0, so the name says what
-the value is.
+makes. The field was `memoryUsageBytes` through 1.x, a name that invited exactly
+the wrong reading.
 
-`stats()` is on [`FullContainerInterface`](api-reference.md#what-the-interface-guarantees)
-rather than `ContainerInterface`, because 1.x promises no method will be added
-to the latter. The two merge at 2.0.
+`stats()` is declared on
+[`ContainerInterface`](api-reference.md#what-the-interface-guarantees), so
+type-hinting the interface is enough to reach it.
 
 The older `getStats()` returns the same numbers as an array and keeps working for
 the whole of 1.x. Prefer `stats()`: the array's shape is

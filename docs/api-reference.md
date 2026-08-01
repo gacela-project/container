@@ -115,7 +115,7 @@ See [introspection](services.md#introspection).
 | `taggedKeys(string $tag): array` | The keys a tag can be asked for, in insertion order |
 | `dependencyGraph(string $className): DependencyNode` | The dependency graph as a tree — depth, the parameter each child satisfies, and cycles marked rather than thrown — see [cookbook](cookbook.md#work-out-why-something-resolves-to-the-wrong-thing) |
 | `createScope(): static` | A child container inheriting this one's registration without copying it — see [scopes](scopes.md) |
-| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `memoryUsageBytes` is **process** memory, not this container's — see [introspection](services.md#introspection) |
+| `stats(): ContainerStats` | Container statistics as a readonly object; shape is covered by BC. Its `processMemoryBytes` is **process** memory, not this container's — see [introspection](services.md#introspection) |
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | Every class a given class depends on, flat and deduplicated — despite the name, a list rather than a tree. Use `dependencyGraph()` for structure |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
@@ -170,16 +170,17 @@ types, and defaults do not change within a major version. Named arguments are sa
 `Container` cannot be subclassed. Extend behaviour by composition instead of
 inheritance: type-hint an interface and wrap.
 
-Implement `FullContainerInterface` rather than `ContainerInterface` when the
-wrapper is meant to stand in for a container everywhere. It costs more
-forwarders and buys the compiler checking them: a method the wrapper forgets is
-a compile error, not a method that silently goes missing at runtime.
+Implement `ContainerInterface`: it declares the whole surface, so the compiler
+checks the forwarders for you — a method the wrapper forgets is a compile error
+rather than one that silently goes missing at runtime. A wrapper should also
+call [`withSelfReference()`](#what-the-interface-guarantees) on the container it
+wraps, so service closures receive the wrapper rather than the inner container.
 
 ```php
-final class LoggingContainer implements FullContainerInterface
+final class LoggingContainer implements ContainerInterface
 {
     public function __construct(
-        private FullContainerInterface $inner,
+        private ContainerInterface $inner,
         private LoggerInterface $logger,
     ) {}
 
