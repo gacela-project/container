@@ -168,6 +168,35 @@ constructor, so a lazy service still defers them until first touch. A class with
 injected methods is skipped by [`writeCompiledFactories()`](performance.md) —
 a `new` expression cannot make the calls — with the reason `InjectedMethod`.
 
+## Re-presenting these under your own namespace
+
+The four attributes are **not `final`**, and every read the container makes
+passes `ReflectionAttribute::IS_INSTANCEOF`. So a package or framework wrapping
+this container can offer them under its own name without its users importing a
+vendor namespace:
+
+```php
+namespace App\Attribute;
+
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PARAMETER | Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
+final class Inject extends \Gacela\Container\Attribute\Inject
+{
+}
+```
+
+`#[App\Attribute\Inject]` is then honoured exactly as `#[Gacela\Container\Attribute\Inject]`
+is, including the optional implementation argument. The same works for
+`#[Singleton]`, `#[Factory]` and `#[Lazy]`.
+
+Repeat the `#[Attribute(...)]` declaration on the subclass with the targets you
+want — PHP does not inherit it — and keep the targets within the parent's.
+
+An exact-FQN match, which is what this used to do, follows **neither** a
+subclass nor a `class_alias()`. That failure is silent: the parameter is simply
+not injected and nothing says why.
+
 ## `#[Singleton]` — single instance
 
 Mark a class to be instantiated only once:

@@ -8,6 +8,7 @@ use Closure;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\ContainerException;
+use ReflectionAttribute;
 use ReflectionClass;
 use WeakReference;
 
@@ -489,8 +490,8 @@ final class DependencyCacheManager
         $reflection = new ReflectionClass($class);
 
         return self::$attributeCache[$class] = [
-            'singleton' => $reflection->getAttributes(Singleton::class) !== [],
-            'factory' => $reflection->getAttributes(Factory::class) !== [],
+            'singleton' => $reflection->getAttributes(Singleton::class, ReflectionAttribute::IS_INSTANCEOF) !== [],
+            'factory' => $reflection->getAttributes(Factory::class, ReflectionAttribute::IS_INSTANCEOF) !== [],
         ];
     }
 }

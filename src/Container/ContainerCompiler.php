@@ -7,6 +7,7 @@ namespace Gacela\Container;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
+use ReflectionAttribute;
 use ReflectionClass;
 
 use function array_keys;
@@ -290,7 +291,7 @@ final class ContainerCompiler
         // Attributes change lifetime or construction, all of which the runtime
         // owns. Never compile them.
         foreach ([Singleton::class, Factory::class, Lazy::class] as $attribute) {
-            if ($reflection->getAttributes($attribute) !== []) {
+            if ($reflection->getAttributes($attribute, ReflectionAttribute::IS_INSTANCEOF) !== []) {
                 $this->skip($class, CompilationSkipReason::LifetimeAttribute, sprintf(
                     'it carries #[%s], and lifetime belongs to the runtime',
                     (new ReflectionClass($attribute))->getShortName(),

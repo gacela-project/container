@@ -19,12 +19,17 @@ use Attribute;
  * A method is the option a property cannot cover: it can validate or derive
  * state, where writing the field cannot, and it can be declared on an interface,
  * where a property cannot.
- */
-#[Attribute(Attribute::TARGET_PARAMETER | Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
-/**
+ *
+ * Not `final`: a consumer may subclass this to re-present it under its own
+ * namespace. Every attribute read in the container passes
+ * ReflectionAttribute::IS_INSTANCEOF, so the subclass is honoured — an exact
+ * match follows neither a subclass nor a class_alias(), and the failure is
+ * silent, the dependency simply never arriving.
+ *
  * @api
  */
-final class Inject
+#[Attribute(Attribute::TARGET_PARAMETER | Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
+class Inject
 {
     /**
      * @param class-string|null $implementation The specific implementation to inject
