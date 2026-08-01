@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Performance
+
+- Warm resolution of a four-level chain is **~4.4% slower than 1.4.0** (1.615μs → 1.692μs; 20 paired samples, 19 of 20 slower, t = 7.15), and this records it rather than leaving it to be rediscovered. There is no single change to blame: both versions make the *same* calls per warm resolve — 48 against 49 — and two candidate causes were built and measured neutral. What grew is the compiled code those identical calls live in, by 14%, of which `DependencyResolver` is 62%; almost all of it is surface a plain `get()` never executes. Splitting that out is worth roughly 1% by the same ratio, which is at the edge of measurable, so it is documented instead of chased. See [performance](docs/performance.md#what-1-5-0-cost-the-warm-path)
+
 ### Fixed
 
 - The benchmark job failed on pushes to `main` and could not have done otherwise: on a push the merge base *is* the commit, so it compared byte-identical code against itself. That run also measured the shared-runner noise floor by accident — identical code came out **+7.6% to +12.7%** apart on four subjects — which disproved the ±7% per-subject time budget added alongside the gates. The comparison now runs on pull requests only, a push just proves the suite still executes, and the only time gate is the ±20% cliff. The ±5% peak-memory gate stays: memory is deterministic and it held throughout. `docs/performance.md` now states plainly that a 12%-scale drift is **not** catchable by CI timing here, and points at `composer bench:compare` for measuring one deliberately
