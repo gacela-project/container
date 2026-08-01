@@ -126,7 +126,13 @@ final class DependencyResolver
      */
     private ?WeakMap $closurePlans = null;
 
-    private ?Container $parent = null;
+    /**
+     * The container a scope falls through to. Typed as the interface rather
+     * than Container: only provides(), get() and getBindings() are ever asked
+     * of it, all three are on the contract, and naming the concrete class here
+     * pointed the resolver back at the class that owns it for no gain.
+     */
+    private ?ContainerInterface $parent = null;
 
     /**
      * Hoisted out of $parent so the fall-through test costs a bool read on the
@@ -200,7 +206,7 @@ final class DependencyResolver
     /**
      * Let a scope hand unresolved types to the container it was created from.
      */
-    public function inheritFrom(Container $parent): void
+    public function inheritFrom(ContainerInterface $parent): void
     {
         $this->parent = $parent;
         $this->hasParent = true;
