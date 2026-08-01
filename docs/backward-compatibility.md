@@ -33,17 +33,14 @@ For these, within 1.x:
 - Public method signatures will not change, including **parameter names** —
   named arguments are safe to use.
 - `Container::__construct()` keeps its three optional parameters, in order.
-- No method will be added to `ContainerInterface`. That is why the interface was
-  brought to its full shape before 1.0. Anything that would otherwise belong
-  there lands on `Container` instead until 2.0 — currently `withSelfReference()`
-  and `validate()`.
-- **The same applies to `FullContainerInterface`.** It exists so you can depend
-  on the whole surface rather than the `final` class, and it can only serve that
-  purpose if implementing it stays safe — so nothing is added to it, and no
-  signature on it changes, within 1.x either. That is why `validate()` and
-  `withSelfReference()` are on `Container` alone, and why `load()` keeps its
-  `void` return and reports registrations through an optional callback instead.
-  At 2.0 both interfaces merge and this name stays as a deprecated alias.
+- **`ContainerInterface` declares the whole surface** as of 2.0, and nothing
+  will be added to it within 2.x. That freeze is the same promise 1.x made; what
+  changed is that the interface now covers everything `Container` does, so
+  depending on it no longer costs you features.
+- `FullContainerInterface` is a **deprecated** empty alias of it, kept so a 1.5
+  type-hint keeps compiling. It is removed at 3.0.
+- Implementing either interface is what a new method would break, which is why
+  additions wait for a major. Callers are never affected.
 - Exception **classes** and the PSR-11 interfaces they implement are stable.
 
 ## What is not covered

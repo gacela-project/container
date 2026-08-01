@@ -22,28 +22,30 @@ use ReflectionClass;
 use ReflectionMethod;
 
 use function array_diff;
+use function array_map;
 use function in_array;
-use function sort;
 
 /**
- * The full surface of Container, reachable through an interface.
+ * The full surface of Container, reachable through ContainerInterface.
  *
- * Most of the 1.2–1.4 feature set used to be concrete-class-only, each method
- * documented as a limitation, which meant the library's own advice — depend on
- * the interface — cost a consumer exactly those features. This interface is additive:
- * ContainerInterface is untouched, so the 1.x promise that nothing is added to
- * it holds literally, and no existing implementor of it is affected.
+ * Most of the 1.2–1.4 feature set was concrete-class-only, each method
+ * documented as a limitation, because 1.x promised nothing would be added to
+ * ContainerInterface. 1.5 answered that additively with FullContainerInterface;
+ * 2.0 merges the two, which is what that promise was deferring.
+ *
+ * FullContainerInterface survives as a deprecated empty alias so code written
+ * against it in 1.5 does not migrate twice.
  */
 final class FullContainerInterfaceTest extends TestCase
 {
     /**
-     * Everything the interface exists to expose. Written out rather than
-     * derived, so adding a method to Container without deciding whether it
+     * Everything that was concrete-class-only before 2.0. Written out rather
+     * than derived, so adding a method to Container without deciding whether it
      * belongs on the contract is a failing test rather than a silent omission.
      *
      * dependencyGraph() arrived after the interface did, and adding it broke
      * ForwardingContainer's compilation until it grew a forwarder — which is
-     * the enforcement this whole interface exists to buy.
+     * the enforcement this interface exists to buy.
      */
     private const array EXPECTED = [
         'compileReport',
@@ -57,6 +59,8 @@ final class FullContainerInterfaceTest extends TestCase
         'taggedByKey',
         'taggedKeys',
         'useCompiledFactories',
+        'validate',
+        'withSelfReference',
         'writeCompiledFactories',
     ];
 
@@ -69,29 +73,53 @@ final class FullContainerInterfaceTest extends TestCase
         self::assertInstanceOf(PsrContainerInterface::class, $container);
     }
 
-    public function test_it_declares_exactly_the_methods_containerinterface_does_not(): void
+    public function test_containerinterface_declares_the_whole_surface(): void
     {
-        $full = self::methodsOf(FullContainerInterface::class);
-        $base = self::methodsOf(ContainerInterface::class);
+        $declared = self::methodsOf(ContainerInterface::class);
 
-        $added = array_diff($full, $base);
-        sort($added);
-
-        $expected = self::EXPECTED;
-        sort($expected);
-
-        self::assertSame($expected, $added);
+        foreach (self::EXPECTED as $method) {
+            self::assertContains(
+                $method,
+                $declared,
+                $method . ' should be on ContainerInterface at 2.0',
+            );
+        }
     }
 
-    public function test_containerinterface_gained_nothing(): void
+    /**
+     * The alias adds nothing of its own: it exists only so a 1.5 typehint keeps
+     * compiling, and everything it used to declare is inherited now.
+     */
+    public function test_the_deprecated_alias_declares_nothing_itself(): void
     {
-        // The whole reason this is additive: 1.x promises no method is added to
-        // ContainerInterface, and a test doubling it must keep compiling.
+        $own = array_map(
+            static fn (ReflectionMethod $m): string => $m->getName(),
+            (new ReflectionClass(FullContainerInterface::class))->getMethods(),
+        );
+
+        $base = self::methodsOf(ContainerInterface::class);
+
+        self::assertSame([], array_diff($own, $base));
+    }
+
+    public function test_a_1_5_typehint_still_resolves(): void
+    {
+        $container = new Container();
+
+        self::assertInstanceOf(FullContainerInterface::class, $container);
+        self::assertInstanceOf(ContainerInterface::class, $container);
+    }
+
+    public function test_every_expected_method_is_callable_through_the_base_interface(): void
+    {
+        // The 2.0 move: what used to be concrete-class-only is on the contract,
+        // so depending on the interface no longer costs a consumer features.
+        $container = self::containerAsInterface();
+
         foreach (self::EXPECTED as $method) {
-            self::assertNotContains(
-                $method,
-                self::methodsOf(ContainerInterface::class),
-                "{$method} was added to ContainerInterface, which 1.x promises not to extend",
+            self::assertTrue(
+                method_exists($container, $method),
+                "{$method} should be reachable through ContainerInterface",
             );
         }
     }
@@ -198,7 +226,7 @@ final class FullContainerInterfaceTest extends TestCase
      */
     public function test_the_expected_list_is_not_accidentally_empty(): void
     {
-        self::assertCount(12, self::EXPECTED);
+        self::assertCount(14, self::EXPECTED);
         self::assertTrue(in_array('createScope', self::EXPECTED, true));
         self::assertTrue((new ReflectionMethod(Container::class, 'createScope'))->hasReturnType());
     }

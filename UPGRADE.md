@@ -1,5 +1,79 @@
 # Upgrade Guide
 
+## 1.x → 2.0
+
+Two changes can require action, and both only affect code that **implements**
+a container interface. Callers are unaffected: every existing call keeps working.
+
+---
+
+### 1. `ContainerInterface` declares the whole surface
+
+1.x promised nothing would be added to `ContainerInterface`, which is why most of
+the 1.2–1.5 feature set was reachable only through the concrete `final class
+Container` — and why 1.5 introduced `FullContainerInterface` as an additive
+answer. 2.0 merges them: `createScope()`, `provides()`, `stats()`, `lazy()`,
+`load()`, `loadFile()`, `taggedByKey()`, `taggedKeys()`, `dependencyGraph()`,
+`compileReport()`, `writeCompiledFactories()`, `useCompiledFactories()`,
+`validate()` and `withSelfReference()` are all on `ContainerInterface` now.
+
+**If you only ever type-hint or call a container, there is nothing to do.**
+
+**If you implement `ContainerInterface` yourself** — a test double, most likely —
+it must now declare those methods. The compiler will tell you exactly which.
+Three options:
+
+```php
+// 1. Wrap a real container and forward. The interface then enforces
+//    completeness for you: a method added upstream fails compilation here
+//    rather than silently going missing.
+final class MyContainer implements ContainerInterface
+{
+    public function __construct(private Container $inner) {}
+
+    public function get(string $id): mixed { return $this->inner->get($id); }
+    // ...
+}
+
+// 2. In tests, use the real container. It has no I/O and no global state.
+$container = new Container();
+
+// 3. Type-hint PSR-11 instead, if all you need is get()/has().
+use Psr\Container\ContainerInterface as PsrContainer;
+```
+
+`FullContainerInterface` still exists and still works — it is now an empty,
+**deprecated** alias extending `ContainerInterface`, so a 1.5 type-hint keeps
+compiling and keeps accepting a `Container`. Switch to `ContainerInterface` when
+convenient; the alias goes at 3.0.
+
+---
+
+### 2. `load()` and `loadFile()` return the ids they registered
+
+Were `void`:
+
+```php
+$ids = $container->loadFile('config/services.php');
+// ['App\Mailer', 'db.dsn', 'repository']
+```
+
+This is the only reliable answer to "what did this source register" — reading
+the ids back off the container afterwards catches `bind()` and `set()` entries
+and **misses aliases**, which live in a third registry.
+
+**Nothing breaks for a caller**: ignoring a return value is always valid. Only an
+implementor of `ContainerInterface` has to change the signature.
+
+The optional listener added in 1.5 still works, for a consumer that wants the ids
+one at a time as they are registered rather than as a list:
+
+```php
+$container->loadFile($file, static fn (string $id) => $events->dispatch(new Registered($id)));
+```
+
+---
+
 ## 0.10.0 → 1.0.0
 
 Four changes can require action. Most applications need only the PHP bump.

@@ -64,9 +64,13 @@ final class DefinitionLoader
      * @param array<array-key, mixed> $definitions
      * @param (callable(string): void)|null $onRegistered called with each id as
      *   it is registered, in definition order
+     *
+     * @return list<string> every id registered, in definition order
      */
-    public function load(array $definitions, ?string $file = null, ?callable $onRegistered = null): void
+    public function load(array $definitions, ?string $file = null, ?callable $onRegistered = null): array
     {
+        $registered = [];
+
         /** @var mixed $definition */
         foreach ($definitions as $id => $definition) {
             if (!is_string($id)) {
@@ -78,17 +82,22 @@ final class DefinitionLoader
             }
 
             $this->apply($id, $definition, $file);
+            $registered[] = $id;
 
             if ($onRegistered !== null) {
                 $onRegistered($id);
             }
         }
+
+        return $registered;
     }
 
     /**
      * @param (callable(string): void)|null $onRegistered see load()
+     *
+     * @return list<string> every id registered, in definition order
      */
-    public function loadFile(string $file, ?callable $onRegistered = null): void
+    public function loadFile(string $file, ?callable $onRegistered = null): array
     {
         if (!is_file($file) || !is_readable($file)) {
             throw ContainerException::definitionFileUnreadable($file);
@@ -101,7 +110,7 @@ final class DefinitionLoader
             default => throw ContainerException::definitionFileUnsupported($file),
         };
 
-        $this->load($definitions, $file, $onRegistered);
+        return $this->load($definitions, $file, $onRegistered);
     }
 
     /**

@@ -30,6 +30,12 @@ use function max;
  *
  * @implements ArrayAccess<string, mixed>
  *
+ * Implements the deprecated FullContainerInterface on purpose: that is what
+ * keeps a 1.5 typehint accepting a container. It adds nothing — everything it
+ * used to declare is on ContainerInterface now — and it goes at 3.0.
+ *
+ * @psalm-suppress DeprecatedInterface
+ *
  * @api
  */
 final class Container implements FullContainerInterface, ArrayAccess
@@ -402,6 +408,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Scopes are not covered: `createScope()` builds its own collaborators, so
      * call this on a scope too if the scope is also decorated.
      */
+    #[Override]
     public function withSelfReference(ContainerInterface $facade): self
     {
         $ref = WeakReference::create($facade);
@@ -444,6 +451,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * @param list<class-string>|ClassSource $classNames
      */
+    #[Override]
     public function validate(array|ClassSource $classNames): ValidationReport
     {
         $roots = $classNames instanceof ClassSource
@@ -577,18 +585,20 @@ final class Container implements FullContainerInterface, ArrayAccess
      * promises not to extend. The two merge at 2.0.
      *
      * @param array<array-key, mixed> $definitions
-     * @param (callable(string): void)|null $onRegistered called with each id as it
-     *   is registered, in definition order — the answer to "what did this source
-     *   register", which reading the registries back cannot give because aliases
-     *   live in a third one
+     * @param (callable(string): void)|null $onRegistered called with each id as
+     *   it is registered, for a listener that wants them one at a time
      *
      * @throws ContainerException when an entry names an unknown key, or a key's
      *                            value is not of the type it accepts
+     *
+     * @return list<string> every id registered, in definition order — the
+     *   answer to "what did this source register", which reading the registries
+     *   back cannot give because aliases live in a third one
      */
     #[Override]
-    public function load(array $definitions, ?callable $onRegistered = null): void
+    public function load(array $definitions, ?callable $onRegistered = null): array
     {
-        (new DefinitionLoader($this))->load($definitions, null, $onRegistered);
+        return (new DefinitionLoader($this))->load($definitions, null, $onRegistered);
     }
 
     /**
@@ -607,11 +617,13 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * @throws ContainerException when the file is missing, unreadable, of an
      *                            unsupported type, or does not hold an array
+     *
+     * @return list<string> see load()
      */
     #[Override]
-    public function loadFile(string $file, ?callable $onRegistered = null): void
+    public function loadFile(string $file, ?callable $onRegistered = null): array
     {
-        (new DefinitionLoader($this))->loadFile($file, $onRegistered);
+        return (new DefinitionLoader($this))->loadFile($file, $onRegistered);
     }
 
     /**
