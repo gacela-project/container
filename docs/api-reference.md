@@ -55,8 +55,8 @@ It also extends `ArrayAccess`, so `$c[Id::class]`, `isset()`, assignment and
 
 Through 1.x the interface was frozen — nothing could be added to it — which left
 twelve methods reachable only through `final class Container`, and 1.5 answered
-that additively with `FullContainerInterface`. 2.0 merged them.
-`FullContainerInterface` is now a **deprecated** empty alias, kept so a 1.5
+that additively with `FullContainerInterface`. **2.0 merged them.**
+`FullContainerInterface` survives as a **deprecated** empty alias, so a 1.5
 type-hint keeps compiling and keeps accepting a `Container`; it is removed at
 3.0. Nothing is added to `ContainerInterface` within 2.x.
 

@@ -120,8 +120,8 @@ the wrong reading.
 [`ContainerInterface`](api-reference.md#what-the-interface-guarantees), so
 type-hinting the interface is enough to reach it.
 
-The older `getStats()` returns the same numbers as an array and keeps working for
-the whole of 1.x. Prefer `stats()`: the array's shape is
+The older `getStats()` returns the same numbers as an array and still works.
+Prefer `stats()`: the array's shape is
 [excluded from BC](backward-compatibility.md), and its memory figure is a
 preformatted string that has to be parsed back before it can be used.
 

@@ -113,8 +113,14 @@ $container->load(Yaml::parseFile('services.yaml'));
 
 ## Knowing what a source registered
 
-`load()` and `loadFile()` take an optional listener, called with each id as it
-is registered, in definition order:
+Both return the ids they registered, in definition order:
+
+```php
+$ids = $container->loadFile('config/services.php');
+// ['App\Mailer', 'db.dsn', 'repository']
+```
+
+Or take a listener, for a consumer that wants them one at a time as they land:
 
 ```php
 $container->loadFile('config/services.php', static function (string $id) use ($events): void {
@@ -122,9 +128,9 @@ $container->loadFile('config/services.php', static function (string $id) use ($e
 });
 ```
 
-This is the only reliable answer to "what did this file register". Reading the
+Either is the only reliable answer to "what did this file register". Reading the
 ids back off the container afterwards catches `bind()` and `set()` entries and
-**misses aliases**, which live in a third registry — an undercount a listener
+**misses aliases**, which live in a third registry — an undercount a caller
 cannot see the shape of.
 
 ## Layering environments

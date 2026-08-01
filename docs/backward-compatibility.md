@@ -28,15 +28,15 @@ Only classes marked `@api`. Every class in `src/` carries either `@api` or
 | `Exception\DependencyNotFoundException` | |
 | `Exception\DependencyInvalidArgumentException` | |
 
-For these, within 1.x:
+For these, within 2.x:
 
 - Public method signatures will not change, including **parameter names** —
   named arguments are safe to use.
-- `Container::__construct()` keeps its three optional parameters, in order.
-- **`ContainerInterface` declares the whole surface** as of 2.0, and nothing
-  will be added to it within 2.x. That freeze is the same promise 1.x made; what
-  changed is that the interface now covers everything `Container` does, so
-  depending on it no longer costs you features.
+- `Container::__construct()` keeps its four optional parameters, in order.
+- **`ContainerInterface` declares the whole surface**, and nothing will be added
+  to it within 2.x. That freeze is the same promise 1.x made; what changed at
+  2.0 is that the interface now covers everything `Container` does, so depending
+  on it no longer costs you features.
 - `FullContainerInterface` is a **deprecated** empty alias of it, kept so a 1.5
   type-hint keeps compiling. It is removed at 3.0.
 - Implementing either interface is what a new method would break, which is why
@@ -93,7 +93,7 @@ Not requiring one:
 
 ## PHP support
 
-1.x requires **PHP >= 8.3**. The floor will not rise within 1.x. New PHP
+2.x requires **PHP >= 8.3**. The floor will not rise within 2.x. New PHP
 versions are added to CI as they are released.
 
 ## Related

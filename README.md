@@ -25,17 +25,20 @@ A minimalistic, PSR-11 compliant dependency injection container with automatic c
 - 🚀 **Zero Configuration**: Automatic constructor injection without verbose setup
 - 🔄 **Circular Dependency Detection**: Clear error messages when dependencies form a loop
 - 📦 **PSR-11 Compliant**: Standard container interface for interoperability
-- ⚡ **Performance Optimized**: Built-in caching, warmup, a compiled cache that skips reflection, and one plan cache shared across sibling containers
+- ⚡ **Performance Optimized**: Warm resolution builds straight to `new`, plus warmup, a compiled cache that skips reflection, and one plan cache shared across sibling containers
 - 🧩 **Fluent Registration**: Register bindings after construction with `bind()`, `singleton()` and `lazy()`
 - 🌱 **Scopes**: Child containers that inherit registration without copying it, for per-request lifetimes
 - 🎁 **Typed Resolution**: `make()` returns a typed instance; `getOrFail()` never returns `null`
 - 🧵 **Tags**: Group services under a tag and resolve them lazily, as a list or as a keyed map
 - 🧭 **Contextual Bindings**: `when()` scopes a dependency — or a scalar — to the classes that ask for it
-- 📄 **Definitions as Data**: Ship and override wiring as arrays, PHP or JSON files with `load()`/`loadFile()`
+- 📄 **Definitions as Data**: Ship and override wiring as arrays, PHP, JSON or YAML files with `load()`/`loadFile()`
 - 🪝 **Resolution Hooks**: `afterResolving()` callbacks run once an id is built
 - 🔍 **Introspection**: Debug and inspect container state easily
 - 🎯 **Type Safe**: Requires type hints for reliable dependency resolution
-- 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, `#[Factory]`, and `#[Lazy]`
+- 🏷️ **PHP 8 Attributes**: Declarative configuration with `#[Inject]`, `#[Singleton]`, `#[Factory]` and `#[Lazy]` — on parameters, properties and setters, and subclassable under your own namespace
+- ✅ **Build-time Validation**: `validate()` proves a set of classes resolves *without resolving them*, so broken wiring fails a deploy instead of a request
+- 🛠️ **A CLI**: `gacela-container compile|report|validate` — no console framework, `psr/container` stays the only runtime dependency
+- 🎀 **Built to be Wrapped**: `withSelfReference()` hands a decorator's facade to service closures, so composing over the `final` container costs one call
 
 ## Installation
 
@@ -122,18 +125,18 @@ requirement is still `psr/container` alone.
 |-------|---------------|
 | [Getting Started](docs/getting-started.md) | Installation, basic usage, how resolution works |
 | [Bindings & Registration](docs/bindings.md) | Constructor bindings, `bind()`/`singleton()`, contextual bindings, aliasing |
-| [Definitions as Data](docs/definitions.md) | `load()`/`loadFile()`: wiring from arrays, PHP and JSON files |
+| [Definitions as Data](docs/definitions.md) | `load()`/`loadFile()`: wiring from arrays, PHP, JSON and YAML files |
 | [Resolving Services](docs/resolution.md) | `get()`, `make()`, `getOrFail()`, `resolve()`, transient vs. shared |
-| [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]` |
+| [PHP 8 Attributes](docs/attributes.md) | `#[Inject]`, `#[Singleton]`, `#[Factory]`, `#[Lazy]` |
 | [Managing Services](docs/services.md) | Factories, extending, protecting closures, introspection |
 | [Scopes](docs/scopes.md) | Child containers: inherited registration, per-request lifetimes |
-| [Performance & Compilation](docs/performance.md) | `warmUp()`, compiled container cache |
+| [Performance & Compilation](docs/performance.md) | `warmUp()`, compiled cache, generated factories, `validate()`, the CLI |
 | [Cookbook](docs/cookbook.md) | Recipes: testing, config, plugins, decorating, debugging |
 | [Error Handling](docs/error-handling.md) | Every exception, what causes it, how to fix it |
 | [Best Practices](docs/best-practices.md) | Recommended patterns |
 | [API Reference](docs/api-reference.md) | Full method, static, and attribute reference |
 | [Backward Compatibility](docs/backward-compatibility.md) | What semver covers here, and what it does not |
-| [Upgrade Guide](UPGRADE.md) | Migrating from 0.10.0 to 1.0.0 — the only breaking bump so far |
+| [Upgrade Guide](UPGRADE.md) | Migrating to 2.0, and 0.10.0 to 1.0.0 |
 
 ## Real-World Example
 

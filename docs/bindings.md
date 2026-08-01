@@ -118,7 +118,7 @@ $container->load([
     'db.dsn' => ['value' => 'pgsql://localhost/app'],
 ]);
 
-$container->loadFile(__DIR__ . '/config/services.php');   // or .json
+$container->loadFile(__DIR__ . '/config/services.php');   // or .json, .yaml
 ```
 
 See [definitions](definitions.md) for every entry form, file loading, and
