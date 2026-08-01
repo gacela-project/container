@@ -302,6 +302,13 @@ final class DependencyResolver
         }
 
         if (!$this->eligibleForBuilders()) {
+            // Recorded as a refusal rather than re-derived per construction:
+            // for a given resolver this answer cannot go back to true. A parent
+            // is never removed, and the contextual and lazy maps only grow —
+            // every registration that adds to one drops this whole map first,
+            // so a stale false cannot outlive the state that produced it.
+            $this->argBuilders[$className] = false;
+
             return null;
         }
 

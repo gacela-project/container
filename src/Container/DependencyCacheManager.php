@@ -448,15 +448,24 @@ final class DependencyCacheManager
         // only while the answer is still open, which is twice per class.
         $builder = $resolver->argBuilders[$class] ?? null;
 
-        if ($builder === false) {
-            $builder = null;
-        } elseif (!$builder instanceof Closure) {
-            $builder = $resolver->argBuilderFor($class);
-        }
-
-        if ($builder !== null) {
+        if ($builder instanceof Closure) {
             /** @var object */
             return $builder();
+        }
+
+        if ($builder === null) {
+            // First construction of this class: record the sighting inline.
+            // Composing is deferred to the second one (see argBuilderFor()),
+            // and a container that builds the class once — a fresh container
+            // per request — must not pay even the call to find that out.
+            $resolver->argBuilders[$class] = true;
+        } elseif ($builder === true) {
+            $builder = $resolver->argBuilderFor($class);
+
+            if ($builder !== null) {
+                /** @var object */
+                return $builder();
+            }
         }
 
         $dependencies = $resolver->resolveDependencies($class);
