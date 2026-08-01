@@ -518,6 +518,24 @@ final class DependencyResolver
     }
 
     /**
+     * A lazy class must not be flattened into a builder — construction is the
+     * thing it defers.
+     *
+     * Only observable on PHP 8.4+. Below that there are no native lazy objects,
+     * so a #[Lazy] class is constructed eagerly by the ordinary path too and
+     * building it eagerly here is indistinguishable — which makes every mutant
+     * of this branch equivalent on the 8.3 floor CI gates on.
+     *
+     * @infection-ignore-all
+     *
+     * @param class-string $className
+     */
+    private function refusesForLaziness(string $className): bool
+    {
+        return $this->isLazy($className);
+    }
+
+    /**
      * @param class-string $className
      *
      * @return (Closure(): object)|null
@@ -533,7 +551,7 @@ final class DependencyResolver
             return null;
         }
 
-        if ($this->isLazy($className)) {
+        if ($this->refusesForLaziness($className)) {
             return null;
         }
 
