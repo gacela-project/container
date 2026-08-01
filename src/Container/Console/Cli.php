@@ -35,6 +35,8 @@ use function substr;
  * cost more than the whole feature is worth. `psr/container` stays the only
  * runtime dependency.
  *
+ * @psalm-type CliOptions = array<string, string|bool>
+ *
  * @internal
  * Not covered by backward compatibility: the CLI is a build tool, not part of
  * the library's API surface, and may change or disappear in any release
@@ -100,7 +102,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function compile(array $options): int
     {
@@ -145,7 +147,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function report(array $options): int
     {
@@ -170,7 +172,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function validate(array $options): int
     {
@@ -247,7 +249,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function configFrom(array $options): CliConfig
     {
@@ -270,7 +272,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function sourceFrom(array $options, CliConfig $config): ClassSource
     {
@@ -301,7 +303,7 @@ final class Cli
      *
      * @param list<string> $arguments
      *
-     * @return array<string, string|bool>
+     * @return CliOptions
      */
     private function parseOptions(array $arguments): array
     {
@@ -333,7 +335,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function stringOption(array $options, string $name): ?string
     {

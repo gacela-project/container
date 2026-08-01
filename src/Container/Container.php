@@ -26,7 +26,11 @@ use function max;
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
+ * @psalm-import-type FactoriesMap from ContainerInterface
+ * @psalm-import-type StatsArray from ContainerInterface
  * @psalm-import-type CompiledPlans from DependencyResolver
+ *
+ * @psalm-type ResolvedHook = array{id: string, byType: bool, callback: Closure}
  *
  * @implements ArrayAccess<string, mixed>
  *
@@ -80,7 +84,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * on the *type* of what was resolved and the two kinds still have to fire
      * in the order they were registered.
      *
-     * @var list<array{id: string, byType: bool, callback: Closure}>
+     * @var list<ResolvedHook>
      */
     private array $afterResolvingCallbacks = [];
 
@@ -92,7 +96,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private WeakReference $selfReference;
 
-    /** @var array<class-string, callable(): object> */
+    /** @var FactoriesMap */
     private array $compiledFactories = [];
 
     /**
@@ -181,7 +185,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * staleness rules as loadCompiledCache(). Feed the result to
      * useCompiledFactories().
      *
-     * @return array<class-string, callable(): object>
+     * @return FactoriesMap
      */
     public static function loadCompiledFactories(string $file, ?string $buildStamp = null): array
     {
@@ -492,7 +496,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * Use previously generated factories as a fast path for `get()`/`make()`.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     #[Override]
     public function useCompiledFactories(array $factories): void
@@ -1250,14 +1254,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * 'memory_usage' is the PHP process, not this container — see
      * ContainerStats.
      *
-     * @return array{
-     *     registered_services: int,
-     *     frozen_services: int,
-     *     factory_services: int,
-     *     bindings: int,
-     *     cached_dependencies: int,
-     *     memory_usage: string
-     * }
+     * @return StatsArray
      */
     #[Override]
     public function getStats(): array
@@ -1394,7 +1391,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * class nobody has bound — but a scope silently missing the fast path its
      * parent was given is still surprising.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     private function pushCompiledFactories(array $factories): void
     {
@@ -1516,7 +1513,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * @param array{id: string, byType: bool, callback: Closure} $hook
+     * @param ResolvedHook $hook
      */
     private function hookMatches(array $hook, string $id, mixed $instance): bool
     {

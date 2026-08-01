@@ -32,6 +32,7 @@ use function var_export;
  * opcache maps it exactly as before.
  *
  * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type FactoriesMap from ContainerInterface
  * @psalm-import-type FileStamp from CacheStamp
  *
  * @internal
@@ -106,11 +107,11 @@ final class CompiledCacheWriter
      *
      * @throws ContainerException
      *
-     * @return array<class-string, callable(): object>
+     * @return FactoriesMap
      */
     public static function readFactories(string $file, ?string $buildStamp = null): array
     {
-        /** @var array<class-string, callable(): object> $factories */
+        /** @var FactoriesMap $factories */
         $factories = self::entries($file, 'factories', $buildStamp);
 
         return $factories;
