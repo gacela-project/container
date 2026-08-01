@@ -575,6 +575,33 @@ measures several times noisier than the second — up to ±40% relative standard
 deviation against ±8% on the same subject moments later — which is enough to
 swamp the differences this page reports. Run it twice and read the second.
 
+### What 1.5.0 cost the warm path
+
+Warm resolution of a four-level chain is **~4.4% slower in 1.5.0 than in 1.4.0**
+(1.615μs → 1.692μs; 20 paired samples, 19 of 20 pairs slower, t = 7.15). Figures
+on this page were taken before that and are otherwise unchanged.
+
+There is no single change to point at. Call-count tracing shows both versions
+making the *same* calls per warm resolve — 48 against 49, the one difference
+being a memoized `isInstantiable()` guard. Two candidate causes were built and
+measured neutral.
+
+What did change is how much compiled code those identical calls live in. Code
+actually loaded to perform one warm resolve, with comments stripped, grew
+**14%** — and `DependencyResolver`, the hot class, grew 30%, which is 62% of the
+total. Almost all of that is surface a plain `get()` never executes: the
+describe-only planner behind `validate()` and discovery, the callable-plan memo,
+and method injection's scanning.
+
+That is correlation rather than proof, and it is recorded here rather than
+chased: splitting the cold surface out of `DependencyResolver` is worth about 1%
+by the same ratio, which is at the edge of what the harness below can resolve,
+in exchange for restructuring the most safety-critical class in the library.
+
+4.4% is what this release cost, and it bought `validate()`, the CLI,
+`ClassSource`, method injection, `FullContainerInterface`, the decorator seams,
+two memory-retention fixes and YAML definitions.
+
 ### Comparing a change against main
 
 ```bash
