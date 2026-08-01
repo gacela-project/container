@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Gacela\Container\Exception;
 
+use Gacela\Container\FuzzyMatcher;
 use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
-use function count;
 use function sprintf;
 
 /**
@@ -27,12 +27,10 @@ Did you forget to bind this interface to a concrete class?
 
 TXT;
 
-        if (count($suggestions) > 0) {
-            $message .= "\nDid you mean one of these?\n";
-            foreach ($suggestions as $suggestion) {
-                $message .= "  - {$suggestion}\n";
-            }
-            $message .= "\n";
+        $block = FuzzyMatcher::renderSuggestions($suggestions);
+
+        if ($block !== '') {
+            $message .= $block . "\n";
         }
 
         $message .= 'You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings';
