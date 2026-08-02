@@ -881,11 +881,9 @@ final class DependencyResolver
         $ownerContainer = $this->container();
 
         /**
-         * newLazyGhost() is PHP 8.4+ and PHPStan targets the 8.3 floor, so it
-         * cannot see the method at all. Callers gate this behind a runtime
-         * capability check, which is exactly what it cannot model. Psalm knows
-         * the method but not what a ghost of $className is, hence the narrower
-         * suppression.
+         * newLazyGhost() is PHP 8.4+, and both analysers target the 8.3 floor,
+         * so neither can see the method. Callers gate this behind a runtime
+         * capability check, which is exactly what they cannot model.
          *
          * Calling __construct() directly on the ghost is the documented way to
          * initialize one, not an accident.
@@ -894,7 +892,7 @@ final class DependencyResolver
          * itself, which is a lifetime, and a lifetime is the other thing they
          * cannot model.
          *
-         * @psalm-suppress MixedReturnStatement
+         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
          *
          * @phpstan-ignore method.notFound, return.type, closure.unusedUse
          */
@@ -936,10 +934,10 @@ final class DependencyResolver
         $container = $this->container();
 
         /**
-         * newLazyProxy() is PHP 8.4+; see newLazyGhost() for what each analyser
-         * can and cannot see.
+         * newLazyProxy() is PHP 8.4+; see newLazyGhost() for why the analysers
+         * cannot see it.
          *
-         * @psalm-suppress MixedReturnStatement
+         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
          *
          * @phpstan-ignore method.notFound, return.type
          */
