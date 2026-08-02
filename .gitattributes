@@ -4,6 +4,7 @@
 /.github                export-ignore
 /.gitignore             export-ignore
 /.php-cs-fixer.dist.php export-ignore
+/ASSESSMENT-cycles.md   export-ignore
 /benchmarks             export-ignore
 /docs                   export-ignore
 /infection.json5        export-ignore

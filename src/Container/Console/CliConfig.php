@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container\Console;
 
+use Closure;
 use Gacela\Container\ClassSource;
 use Gacela\Container\Container;
 
@@ -33,10 +34,10 @@ use function is_string;
 final class CliConfig
 {
     /**
-     * @param callable(): Container $containerFactory
+     * @param Closure(): Container $containerFactory
      */
     private function __construct(
-        private $containerFactory,
+        private Closure $containerFactory,
         public readonly ?ClassSource $source = null,
         public readonly ?string $plans = null,
         public readonly ?string $factories = null,
@@ -101,9 +102,9 @@ final class CliConfig
      * know what a callable returns without calling it, and calling it early
      * would build the application container before we know a command needs one.
      *
-     * @return callable(): Container
+     * @return Closure(): Container
      */
-    private static function assertBuildsContainer(callable $factory, string $file): callable
+    private static function assertBuildsContainer(callable $factory, string $file): Closure
     {
         return static function () use ($factory, $file): Container {
             /** @var mixed $container */

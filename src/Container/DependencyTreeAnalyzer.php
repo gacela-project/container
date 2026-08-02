@@ -32,7 +32,7 @@ final readonly class DependencyTreeAnalyzer
      *
      * @param class-string $className
      *
-     * @return list<string>
+     * @return list<class-string>
      */
     public function analyze(string $className): array
     {
@@ -118,7 +118,6 @@ final readonly class DependencyTreeAnalyzer
             /** @var class-string $paramTypeName */
             $paramTypeName = $type->getName();
 
-            // Resolve binding if it's an interface
             $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
 
             $childCut = false;

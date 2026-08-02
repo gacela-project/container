@@ -14,6 +14,7 @@ use function is_string;
 /**
  * Resolves abstract types to concrete implementations using bindings.
  *
+ * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  *
  * @internal
@@ -117,11 +118,9 @@ final class BindingResolver
      */
     public function resolveType(string $typeName): string
     {
-        /** @psalm-suppress MixedAssignment */
         $binding = $this->findBinding($typeName);
 
         if (is_string($binding) && class_exists($binding)) {
-            /** @var class-string */
             return $binding;
         }
 
@@ -135,6 +134,8 @@ final class BindingResolver
      * Deliberately not `getBindings()[$id]`: this runs once per constructor
      * parameter of every node of a dependency tree, and building the merged map
      * each time made analysing a scope scale with the size of its parent.
+     *
+     * @return Binding|null
      */
     private function findBinding(string $typeName): mixed
     {

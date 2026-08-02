@@ -38,7 +38,6 @@ final class AliasRegistry
     public function add(string $alias, string $id): void
     {
         $this->aliases[$alias] = $id;
-        // Clear cached resolutions when aliases change
         $this->resolvedCache = [];
     }
 
@@ -65,10 +64,5 @@ final class AliasRegistry
         // Only ids this registry maps are cached. An ancestor's answer is
         // cached by the ancestor, which is also where add() invalidates it.
         return $this->parent?->resolve($id) ?? $id;
-    }
-
-    public function has(string $alias): bool
-    {
-        return isset($this->aliases[$alias]);
     }
 }

@@ -32,7 +32,8 @@ use function sprintf;
  * It does not attempt to predict a closure binding's return value or anything
  * else that only running the code can settle.
  *
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
+ * @psalm-import-type ParamPlan from PlanRegistry
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  *
  * @internal
@@ -133,7 +134,7 @@ final class ContainerValidator
     }
 
     /**
-     * @param array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null} $param
+     * @param ParamPlan $param
      * @param list<string> $chain
      */
     private function checkParameter(string $class, array $param, array $chain): void
@@ -215,7 +216,7 @@ final class ContainerValidator
     }
 
     /**
-     * @param array{name: string, declaringClass: string|null, ...} $param
+     * @param ParamPlan $param
      */
     private function hasNamedBinding(array $param): bool
     {

@@ -124,8 +124,8 @@ final class ClassContainerTest extends TestCase
 
     public function test_resolve_new_object(): void
     {
-        // We are registering 'PersonInterface::class', but 'Person::class' was not.
-        // As result, a 'new Person()' will be resolved.
+        // Only PersonInterface is registered, so asking for Person autowires a
+        // fresh one rather than handing back the registered instance.
         $person = new Person();
         $person->name = 'person-name';
 

@@ -32,13 +32,12 @@ use function method_exists;
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- *
- * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
- * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
- * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
- * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>}
- * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>, methods?: list<MethodPlan>}
- * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
+ * @psalm-import-type ParamPlan from PlanRegistry
+ * @psalm-import-type PropPlan from PlanRegistry
+ * @psalm-import-type MethodPlan from PlanRegistry
+ * @psalm-import-type ClassPlan from PlanRegistry
+ * @psalm-import-type StoredClassPlan from PlanRegistry
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -127,7 +126,13 @@ final class DependencyResolver
      */
     private ?WeakMap $closurePlans = null;
 
-    private ?Container $parent = null;
+    /**
+     * The container a scope falls through to. Typed as the interface rather
+     * than Container: only provides(), get() and getBindings() are ever asked
+     * of it, all three are on the contract, and naming the concrete class here
+     * pointed the resolver back at the class that owns it for no gain.
+     */
+    private ?ContainerInterface $parent = null;
 
     /**
      * Hoisted out of $parent so the fall-through test costs a bool read on the
@@ -201,7 +206,7 @@ final class DependencyResolver
     /**
      * Let a scope hand unresolved types to the container it was created from.
      */
-    public function inheritFrom(Container $parent): void
+    public function inheritFrom(ContainerInterface $parent): void
     {
         $this->parent = $parent;
         $this->hasParent = true;
@@ -418,16 +423,6 @@ final class DependencyResolver
         return $factory === null
             ? $this->newLazyGhost($className)
             : $this->newLazyProxy($className, $factory);
-    }
-
-    /**
-     * The compiled constructor plans gathered so far, for persisting to a cache.
-     *
-     * @return CompiledPlans
-     */
-    public function exportPlans(): array
-    {
-        return $this->planRegistry->plans;
     }
 
     /**
@@ -769,7 +764,6 @@ final class DependencyResolver
         /** @var mixed $value */
         $value = $bindings[$key];
         if (is_callable($value)) {
-            /** @psalm-suppress MixedFunctionCall */
             return [true, $value($this->container())];
         }
 
@@ -789,7 +783,6 @@ final class DependencyResolver
             // is_callable() does on a string — nor risks that lookup answering
             // true for a class whose name collides with a function's.
             if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
-                /** @psalm-suppress MixedFunctionCall */
                 return $contextualBinding($this->container());
             }
 
@@ -797,7 +790,6 @@ final class DependencyResolver
                 return $contextualBinding;
             }
 
-            // It's a class string - use it instead of the interface
             /** @var class-string $contextualBinding */
             $paramTypeName = $contextualBinding;
         }
@@ -889,9 +881,9 @@ final class DependencyResolver
         $ownerContainer = $this->container();
 
         /**
-         * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
-         * so they cannot see it. Callers gate this behind a runtime capability
-         * check, which is exactly what they cannot model.
+         * newLazyGhost() is PHP 8.4+, and both analysers target the 8.3 floor,
+         * so neither can see the method. Callers gate this behind a runtime
+         * capability check, which is exactly what they cannot model.
          *
          * Calling __construct() directly on the ghost is the documented way to
          * initialize one, not an accident.
@@ -1221,11 +1213,15 @@ final class DependencyResolver
      */
     private function describeProperty(ReflectionProperty $property): ?array
     {
+        // Deliberately spelled out here and in describeParameter() rather than
+        // shared: this runs per parameter while a plan is built, which a
+        // container built per request does on every resolution. Extracting it
+        // measured +4-5% on the cold subjects (#181's shape), so the duplicate
+        // is the cheaper of the two.
         $attributes = $property->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
         if ($attributes === []) {
             return null;
         }
-
         /** @var Inject $inject */
         $inject = $attributes[0]->newInstance();
 
@@ -1375,7 +1371,6 @@ final class DependencyResolver
     private function describeParameter(ReflectionParameter $parameter): array
     {
         $type = $parameter->getType();
-
         $typeName = null;
         $isScalar = false;
         if ($type instanceof ReflectionNamedType) {
@@ -1403,17 +1398,13 @@ final class DependencyResolver
     private function readInjectImplementation(ReflectionParameter $parameter): ?string
     {
         $attributes = $parameter->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF);
-        if (count($attributes) === 0) {
+        if ($attributes === []) {
             return null;
         }
-
         /** @var Inject $inject */
         $inject = $attributes[0]->newInstance();
-
-        /** @var class-string|null $implementation */
-        $implementation = $inject->implementation;
-
-        return $implementation;
+        /** @var class-string|null */
+        return $inject->implementation;
     }
 
     /**

@@ -74,10 +74,10 @@ final class InstanceRegistry
         /** @var mixed $instance */
         $instance = $this->instances[$id];
 
-        // The memo carries exactly what method_exists() used to prove inline —
-        // and proved again on every single read of the instance. Both analysers
-        // narrow an object to a callable from the call itself and cannot follow
-        // that through the cache, hence the two annotations below; the class
+        // The memo carries exactly what method_exists() proves, so it is proved
+        // once rather than on every read of the instance. Both analysers narrow
+        // an object to a callable from the call itself and cannot follow that
+        // through the cache, hence the declaration below; the class
         // declaring __invoke is what makes the invocation safe, and a class
         // cannot stop declaring it within a process.
         if (!is_object($instance)
@@ -87,23 +87,19 @@ final class InstanceRegistry
             return $instance;
         }
 
+        // What the memo proved, stated as a type rather than silenced as four
+        // diagnostics. The parameter describes what the container passes, not
+        // what the service is obliged to accept: an __invoke declaring nothing
+        // is called exactly the same way and ignores it.
+        /** @var object&callable(ContainerInterface): mixed $invokable */
+        $invokable = $instance;
+
         if ($factoryManager->isFactory($instance)) {
-            /**
-             * @psalm-suppress InvalidFunctionCall
-             *
-             * @phpstan-ignore callable.nonCallable
-             */
-            return $instance($container);
+            return $invokable($container);
         }
 
-        /**
-         * @var mixed $resolvedService
-         *
-         * @psalm-suppress InvalidFunctionCall
-         *
-         * @phpstan-ignore callable.nonCallable
-         */
-        $resolvedService = $instance($container);
+        /** @var mixed $resolvedService */
+        $resolvedService = $invokable($container);
 
         $this->instances[$id] = $resolvedService;
 

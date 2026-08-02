@@ -35,6 +35,8 @@ use function substr;
  * cost more than the whole feature is worth. `psr/container` stays the only
  * runtime dependency.
  *
+ * @psalm-type CliOptions = array<string, string|bool>
+ *
  * @internal
  * Not covered by backward compatibility: the CLI is a build tool, not part of
  * the library's API surface, and may change or disappear in any release
@@ -90,17 +92,17 @@ final class Cli
                 '--version', '-V' => $this->version(),
                 default => throw CliException::unknownCommand($command),
             };
-        } catch (CliException $exception) {
-            return $this->fail($exception->getMessage());
         } catch (Throwable $exception) {
-            // A broken container factory or an unwritable path surfaces here.
-            // The message is the useful part; the trace is not, for a build tool.
+            // Everything lands here: a CliException the user can act on, or a
+            // broken container factory or unwritable path. One catch, because
+            // for a build tool the message is the useful part and the trace is
+            // not, so a second arm would do nothing different.
             return $this->fail($exception->getMessage());
         }
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function compile(array $options): int
     {
@@ -117,8 +119,7 @@ final class Cli
         }
 
         $classNames = $source->classNames();
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($container->compile($source)));
+        $this->reportDiscovery($classNames, count($container->compile($source)));
 
         if ($plans !== null) {
             $this->ensureDirectory($plans);
@@ -145,7 +146,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function report(array $options): int
     {
@@ -156,8 +157,7 @@ final class Cli
         $classNames = $source->classNames();
         $report = $container->compileReport($source);
 
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($report->compiled()) + count($report->skipped()));
+        $this->reportDiscovery($classNames, count($report->compiled()) + count($report->skipped()));
         $this->printReport($report);
 
         $skipped = count($report->skipped());
@@ -170,7 +170,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function validate(array $options): int
     {
@@ -181,8 +181,7 @@ final class Cli
         $classNames = $source->classNames();
         $report = $container->validate($source);
 
-        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
-        $this->warnIfNothingLoaded($classNames, count($report->checked()));
+        $this->reportDiscovery($classNames, count($report->checked()));
         $this->write($this->out, $report->render() . "\n");
 
         // Unlike report, this fails by default: an unresolvable service is a
@@ -191,15 +190,22 @@ final class Cli
     }
 
     /**
+     * Say how many classes discovery found, and call it out when none of them
+     * could be loaded. Every command opens with this, which is why it is one
+     * call rather than the same two lines three times.
+     *
      * Discovery reads declarations off disk; planning needs the classes
      * *loaded*. When every one of them failed to load, the run reports a
      * cheerful zero and has in fact done nothing — the exact silent failure this
      * command exists to remove, so it is called out.
      *
      * @param list<class-string> $classNames
+     * @param int $planned how many of them the command was able to act on
      */
-    private function warnIfNothingLoaded(array $classNames, int $planned): void
+    private function reportDiscovery(array $classNames, int $planned): void
     {
+        $this->write($this->out, sprintf("Discovered %d class(es).\n", count($classNames)));
+
         if ($classNames === [] || $planned > 0) {
             return;
         }
@@ -241,13 +247,13 @@ final class Cli
         // there is no unreachable "unknown" branch to defend.
         $this->write($this->out, "\nRefused:\n");
         foreach ($report->reasons() as $class => $reason) {
-            $why = $explanations[$class] ?? '';
+            $why = $explanations[$class];
             $this->write($this->out, "  {$class}\n    [{$reason->value}] {$why}\n");
         }
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function configFrom(array $options): CliConfig
     {
@@ -270,7 +276,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function sourceFrom(array $options, CliConfig $config): ClassSource
     {
@@ -301,7 +307,7 @@ final class Cli
      *
      * @param list<string> $arguments
      *
-     * @return array<string, string|bool>
+     * @return CliOptions
      */
     private function parseOptions(array $arguments): array
     {
@@ -333,7 +339,7 @@ final class Cli
     }
 
     /**
-     * @param array<string, string|bool> $options
+     * @param CliOptions $options
      */
     private function stringOption(array $options, string $name): ?string
     {
@@ -359,6 +365,7 @@ final class Cli
         USAGE
           gacela-container compile [options]
           gacela-container report [options]
+          gacela-container validate [options]
 
         COMMANDS
           compile    Write plans and/or factories, and say what was written.

@@ -15,6 +15,7 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  * @psalm-type Binding = class-string|callable|object
  * @psalm-type BindingsMap = array<class-string, Binding>
  * @psalm-type ContextualBindingsMap = array<string, array<string, mixed>>
+ * @psalm-type FactoriesMap = array<class-string, callable(): object>
  * @psalm-type StatsArray = array{
  *     registered_services: int,
  *     frozen_services: int,
@@ -224,8 +225,8 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * The shape of the returned array is NOT covered by backward compatibility
      * and may change in any release. Do not build logic on it.
      *
-     * Superseded by Container::stats(), which returns a ContainerStats whose
-     * shape IS covered. This method is replaced by it in 2.0.
+     * Superseded by stats(), which returns a ContainerStats whose shape IS
+     * covered. Kept for the whole of 2.x and removed at 3.0.
      *
      * @return StatsArray
      */
@@ -378,7 +379,7 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * A later bind() or singleton() for one of these classes still outranks the
      * generated expression.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     public function useCompiledFactories(array $factories): void;
 

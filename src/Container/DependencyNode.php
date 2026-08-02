@@ -56,17 +56,17 @@ final readonly class DependencyNode
      * depends on. This is what getDependencyTree() returns, derived from the
      * graph rather than walked separately, so the two cannot disagree.
      *
-     * @return list<string>
+     * @return list<class-string>
      */
     public function flatten(): array
     {
+        /** @var array<class-string, true> $seen */
         $seen = [];
 
         foreach ($this->children as $child) {
             $child->collectInto($seen);
         }
 
-        /** @var list<string> */
         return array_keys($seen);
     }
 
@@ -124,7 +124,7 @@ final readonly class DependencyNode
     }
 
     /**
-     * @param array<string, true> $seen
+     * @param array<class-string, true> $seen
      */
     private function collectInto(array &$seen): void
     {

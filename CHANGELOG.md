@@ -10,6 +10,19 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- `gacela-container --help` lists `validate` under USAGE. The command was added to COMMANDS only, so the two halves of the help disagreed
+- `Container::loadFile()`'s docblock no longer says YAML is "a userland concern — there is no parser here". It has read `.yaml`/`.yml` since 1.5
+
+### Internal
+
+- Removed `AliasRegistry::has()` and `DependencyResolver::exportPlans()`, both `@internal` and both unreferenced — the first never consulted its parent, so it would have told a scope an inherited alias did not exist. Three independent audits reached the same two
+- The six constructor-plan type aliases now belong to `PlanRegistry`, which holds them, rather than to `DependencyResolver`, which builds them; the runtime class graph of `src/` is acyclic as a result
+- 22 array shapes that had been respelled by hand now reference the alias they duplicate, and `FactoriesMap`, `ResolvedHook`, `LifetimeFlags` and `CliOptions` name shapes that were written out up to seven times
+- Dropped two unreachable `??` fallbacks whose only possible output was a wrong explanation in a compilation report, and a `catch (CliException)` whose body was identical to the `catch (Throwable)` below it
+- Tag merging, `#[Inject]` reads and "did you mean" rendering had two implementations each; the CLI printed its discovery line in three places
+
 ## [2.0.1](https://github.com/gacela-project/container/compare/2.0.0...2.0.1) - 2026-08-01
 
 ### Performance

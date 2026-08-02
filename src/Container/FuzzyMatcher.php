@@ -7,7 +7,6 @@ namespace Gacela\Container;
 use function array_filter;
 use function array_map;
 use function array_slice;
-use function count;
 use function levenshtein;
 use function max;
 use function strlen;
@@ -32,7 +31,7 @@ final class FuzzyMatcher
      */
     public static function findSimilar(string $target, array $candidates): array
     {
-        if (count($candidates) === 0) {
+        if ($candidates === []) {
             return [];
         }
 
@@ -57,6 +56,32 @@ final class FuzzyMatcher
         );
 
         return array_slice($suggestions, 0, self::MAX_SUGGESTIONS);
+    }
+
+    /**
+     * The suggestions as the block that goes into an exception message, or an
+     * empty string when there are none.
+     *
+     * Here rather than in each exception: two classes rendered the same list by
+     * hand, so the wording a user sees was two literals to keep in step. The
+     * matcher that produced the names is where the way they are presented
+     * belongs.
+     *
+     * @param list<string> $suggestions
+     */
+    public static function renderSuggestions(array $suggestions): string
+    {
+        if ($suggestions === []) {
+            return '';
+        }
+
+        $block = "\nDid you mean one of these?\n";
+
+        foreach ($suggestions as $suggestion) {
+            $block .= "  - {$suggestion}\n";
+        }
+
+        return $block;
     }
 
     /**

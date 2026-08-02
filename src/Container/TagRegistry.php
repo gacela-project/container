@@ -37,21 +37,7 @@ final class TagRegistry
      */
     public function tag(string|array $ids, string $tag): void
     {
-        $ids = is_array($ids) ? $ids : [$ids];
-
-        $this->tags[$tag] ??= [];
-
-        foreach ($ids as $key => $id) {
-            if (is_int($key)) {
-                if (!in_array($id, $this->tags[$tag], true)) {
-                    $this->tags[$tag][] = $id;
-                }
-
-                continue;
-            }
-
-            $this->tags[$tag][$key] = $id;
-        }
+        $this->tags[$tag] = self::merge($this->tags[$tag] ?? [], is_array($ids) ? $ids : [$ids]);
     }
 
     /**
@@ -60,5 +46,33 @@ final class TagRegistry
     public function idsFor(string $tag): array
     {
         return $this->tags[$tag] ?? [];
+    }
+
+    /**
+     * The merge rule itself, kept in one place because it is applied twice: on
+     * registration here, and by Container::taggedIds() layering a scope's tags
+     * over the ones it inherits. Two copies of "a key replaces, an id appends"
+     * is two things to keep in step.
+     *
+     * @param array<array-key, string> $into
+     * @param array<array-key, string> $ids
+     *
+     * @return array<array-key, string>
+     */
+    public static function merge(array $into, array $ids): array
+    {
+        foreach ($ids as $key => $id) {
+            if (!is_int($key)) {
+                $into[$key] = $id;
+
+                continue;
+            }
+
+            if (!in_array($id, $into, true)) {
+                $into[] = $id;
+            }
+        }
+
+        return $into;
     }
 }

@@ -14,7 +14,6 @@ use WeakReference;
 
 use function class_exists;
 use function count;
-use function in_array;
 use function interface_exists;
 use function is_callable;
 use function is_int;
@@ -26,7 +25,11 @@ use function max;
  * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type FactoriesMap from ContainerInterface
+ * @psalm-import-type StatsArray from ContainerInterface
+ * @psalm-import-type CompiledPlans from PlanRegistry
+ *
+ * @psalm-type ResolvedHook = array{id: string, byType: bool, callback: Closure}
  *
  * @implements ArrayAccess<string, mixed>
  *
@@ -80,7 +83,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * on the *type* of what was resolved and the two kinds still have to fire
      * in the order they were registered.
      *
-     * @var list<array{id: string, byType: bool, callback: Closure}>
+     * @var list<ResolvedHook>
      */
     private array $afterResolvingCallbacks = [];
 
@@ -92,7 +95,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private WeakReference $selfReference;
 
-    /** @var array<class-string, callable(): object> */
+    /** @var FactoriesMap */
     private array $compiledFactories = [];
 
     /**
@@ -181,7 +184,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * staleness rules as loadCompiledCache(). Feed the result to
      * useCompiledFactories().
      *
-     * @return array<class-string, callable(): object>
+     * @return FactoriesMap
      */
     public static function loadCompiledFactories(string $file, ?string $buildStamp = null): array
     {
@@ -480,7 +483,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * already performs. Its `compiled()` set is exactly what
      * `writeCompiledFactories()` returns for the same input.
      *
-     *
      * @param list<class-string>|ClassSource $classNames
      */
     #[Override]
@@ -492,7 +494,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * Use previously generated factories as a fast path for `get()`/`make()`.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     #[Override]
     public function useCompiledFactories(array $factories): void
@@ -570,7 +572,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * per-environment layering a matter of loading base then overrides — except
      * for 'tags', which accumulate the way tag() does.
      *
-     *
      * @param array<array-key, mixed> $definitions
      * @param (callable(string): void)|null $onRegistered called with each id as
      *   it is registered, for a listener that wants them one at a time
@@ -589,16 +590,16 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Load definitions from a '.php' file returning an array, or a '.json' file.
+     * Load definitions from a '.php' file returning an array, a '.json' file,
+     * or a '.yaml'/'.yml' one.
      *
-     * YAML stays a userland concern — there is no parser here, and adding one
-     * would mean a second runtime dependency:
+     * YAML needs a parser, and this library will not add a second runtime
+     * dependency to get one: symfony/yaml is a `suggest`, and a '.yaml' file
+     * without it throws saying exactly that. Parsing it yourself needs nothing:
      *
      * ```php
      * $container->load(Yaml::parseFile('services.yaml'));
      * ```
-     *
-     * On FullContainerInterface — see load().
      *
      * @param (callable(string): void)|null $onRegistered see load()
      *
@@ -814,7 +815,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * resolved instance of it — so the registration people actually reach for,
      * "after anything implementing LoggerAwareInterface is built, hand it the
      * logger", is one call rather than one per implementation. Any other id
-     * matches exactly, as before.
+     * matches exactly.
      *
      * A callback that throws **removes the instance from the container**, so a
      * service whose post-construction wiring failed is not handed to the next
@@ -843,7 +844,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function getOrFail(string $id): mixed
     {
-        /** @psalm-suppress MixedAssignment */
+        /** @var mixed $instance */
         $instance = $this->get($id);
         if ($instance === null) {
             throw DependencyNotFoundException::unresolvableId($id);
@@ -873,7 +874,6 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $this->getOrFail($className);
         }
 
-        /** @var T $instance */
         $instance = $this->cacheManager->instantiateWith($className, $parameters);
 
         // get() fires for every other path; without this, overriding an
@@ -1000,7 +1000,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * The keys $tag can be asked for, in insertion order. Entries registered
      * without a key are not listed: there is no key to ask with.
      *
-     *
      * @return list<string>
      */
     #[Override]
@@ -1013,12 +1012,13 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Every class reachable from $className, flat and deduplicated.
      *
      * Despite the name this is a list, not a tree. It stays that way — it is on
-     * ContainerInterface, which 1.x does not change, and a flat list is what
-     * some callers want. Use dependencyGraph() for depth, parents and cycles.
+     * ContainerInterface, whose shape 2.x does not change, and a flat list is
+     * what some callers want. Use dependencyGraph() for depth, parents and
+     * cycles.
      *
      * @param class-string $className
      *
-     * @return list<string>
+     * @return list<class-string>
      */
     #[Override]
     public function getDependencyTree(string $className): array
@@ -1048,7 +1048,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Bindings are resolved as it is built, so an interface shows up as the
      * concrete it maps to.
      *
-     *
      * @param class-string $className
      */
     #[Override]
@@ -1057,9 +1056,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->dependencyTreeAnalyzer()->graph($className);
     }
 
-    /**
-     * @psalm-suppress MixedAssignment
-     */
     #[Override]
     public function extend(string $id, Closure $instance): Closure
     {
@@ -1087,6 +1083,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             throw ContainerException::frozenInstanceExtend($id);
         }
 
+        /** @var mixed $factory */
         $factory = $this->instanceRegistry->getRaw($id);
 
         if ($this->factoryManager->isProtected($factory)) {
@@ -1192,7 +1189,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         $builder = new ContextualBindingBuilder(
             $this->contextualBindings,
             function (string $concrete, string $needs, mixed $implementation): void {
-                /** @psalm-suppress PropertyTypeCoercion */
                 $this->ownContextualBindings[$concrete][$needs] = $implementation;
                 $this->pushContextualBinding($concrete, $needs, $implementation);
             },
@@ -1245,19 +1241,13 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Superseded by stats(), which is typed. Kept for the whole of 1.x.
+     * Superseded by stats(), which is typed. Kept for the whole of 2.x and
+     * removed at 3.0.
      *
      * 'memory_usage' is the PHP process, not this container — see
      * ContainerStats.
      *
-     * @return array{
-     *     registered_services: int,
-     *     frozen_services: int,
-     *     factory_services: int,
-     *     bindings: int,
-     *     cached_dependencies: int,
-     *     memory_usage: string
-     * }
+     * @return StatsArray
      */
     #[Override]
     public function getStats(): array
@@ -1306,21 +1296,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $own;
         }
 
-        $merged = $this->parent->taggedIds($tag);
-
-        foreach ($own as $key => $id) {
-            if (!is_int($key)) {
-                $merged[$key] = $id;
-
-                continue;
-            }
-
-            if (!in_array($id, $merged, true)) {
-                $merged[] = $id;
-            }
-        }
-
-        return $merged;
+        return TagRegistry::merge($this->parent->taggedIds($tag), $own);
     }
 
     /**
@@ -1343,7 +1319,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * The scopes of this container that are still alive, dropping the handles
      * of those that are not. Weak, so a scope is collected when it goes out of
-     * scope exactly as it was before its parent kept a handle at all.
+     * scope exactly as if its parent kept no handle at all.
      *
      * @return list<self>
      */
@@ -1382,7 +1358,6 @@ final class Container implements FullContainerInterface, ArrayAccess
                 continue;
             }
 
-            /** @psalm-suppress PropertyTypeCoercion */
             $scope->contextualBindings[$concrete][$needs] = $implementation;
             $scope->pushContextualBinding($concrete, $needs, $implementation);
         }
@@ -1394,7 +1369,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      * class nobody has bound — but a scope silently missing the fast path its
      * parent was given is still surprising.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     private function pushCompiledFactories(array $factories): void
     {
@@ -1516,7 +1491,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * @param array{id: string, byType: bool, callback: Closure} $hook
+     * @param ResolvedHook $hook
      */
     private function hookMatches(array $hook, string $id, mixed $instance): bool
     {
@@ -1579,9 +1554,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         return isset($this->bindings[$class]) || $this->cacheManager->ownsSingleton($class);
     }
 
-    /**
-     * @psalm-suppress MixedReturnTypeCoercion
-     */
     private function extendService(string $id): void
     {
         if (!$this->factoryManager->hasPendingExtensions($id)) {
