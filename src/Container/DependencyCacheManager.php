@@ -21,7 +21,7 @@ use function count;
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -91,7 +91,12 @@ final class DependencyCacheManager
 
     private ?DependencyResolver $dependencyResolver = null;
 
-    private ?Container $parent = null;
+    /**
+     * The container a scope falls through to, held only to hand to the resolver
+     * built later. Typed as the interface for the reason
+     * DependencyResolver::$parent is: nothing here needs the concrete class.
+     */
+    private ?ContainerInterface $parent = null;
 
     private PlanRegistry $planRegistry;
 
@@ -154,7 +159,7 @@ final class DependencyCacheManager
      * instances are deliberately not shared — those are what a scope exists to
      * keep separate.
      */
-    public function inheritFrom(self $parentManager, Container $parent): void
+    public function inheritFrom(self $parentManager, ContainerInterface $parent): void
     {
         $this->parent = $parent;
         $this->planRegistry = $parentManager->planRegistry;

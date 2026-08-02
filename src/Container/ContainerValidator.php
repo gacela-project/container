@@ -32,8 +32,8 @@ use function sprintf;
  * It does not attempt to predict a closure binding's return value or anything
  * else that only running the code can settle.
  *
- * @psalm-import-type CompiledPlans from DependencyResolver
- * @psalm-import-type ParamPlan from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
+ * @psalm-import-type ParamPlan from PlanRegistry
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  *
  * @internal

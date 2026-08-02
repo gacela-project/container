@@ -33,13 +33,12 @@ use function method_exists;
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
- *
- * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
- * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
- * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
- * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>}
- * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>, methods?: list<MethodPlan>}
- * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
+ * @psalm-import-type ParamPlan from PlanRegistry
+ * @psalm-import-type PropPlan from PlanRegistry
+ * @psalm-import-type MethodPlan from PlanRegistry
+ * @psalm-import-type ClassPlan from PlanRegistry
+ * @psalm-import-type StoredClassPlan from PlanRegistry
+ * @psalm-import-type CompiledPlans from PlanRegistry
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -128,7 +127,13 @@ final class DependencyResolver
      */
     private ?WeakMap $closurePlans = null;
 
-    private ?Container $parent = null;
+    /**
+     * The container a scope falls through to. Typed as the interface rather
+     * than Container: only provides(), get() and getBindings() are ever asked
+     * of it, all three are on the contract, and naming the concrete class here
+     * pointed the resolver back at the class that owns it for no gain.
+     */
+    private ?ContainerInterface $parent = null;
 
     /**
      * Hoisted out of $parent so the fall-through test costs a bool read on the
@@ -202,7 +207,7 @@ final class DependencyResolver
     /**
      * Let a scope hand unresolved types to the container it was created from.
      */
-    public function inheritFrom(Container $parent): void
+    public function inheritFrom(ContainerInterface $parent): void
     {
         $this->parent = $parent;
         $this->hasParent = true;

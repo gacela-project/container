@@ -31,7 +31,7 @@ use function var_export;
  * stale plan is worse than no plan. It is still a plain `return [...]`, so
  * opcache maps it exactly as before.
  *
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type FileStamp from CacheStamp
  *
  * @internal

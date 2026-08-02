@@ -20,7 +20,18 @@ namespace Gacela\Container;
  * The map is a public property, not a pair of accessors: reading it sits on
  * the resolver's hot path, once per class of every object graph.
  *
- * @psalm-import-type CompiledPlans from DependencyResolver
+ * The shape of a plan is declared here rather than on DependencyResolver, which
+ * builds them: seven classes need this vocabulary and only one of them resolves
+ * anything, so hanging it off the resolver made every reader of a plan point
+ * back at it — including this registry, which the resolver constructs. Owned by
+ * the type that holds the data, the vocabulary flows one way.
+ *
+ * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
+ * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
+ * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
+ * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>}
+ * @psalm-type StoredClassPlan = array{instantiable: bool, params: list<ParamPlan>, props?: list<PropPlan>, methods?: list<MethodPlan>}
+ * @psalm-type CompiledPlans = array<class-string, StoredClassPlan>
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
