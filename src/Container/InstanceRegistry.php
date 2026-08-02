@@ -74,10 +74,10 @@ final class InstanceRegistry
         /** @var mixed $instance */
         $instance = $this->instances[$id];
 
-        // The memo carries exactly what method_exists() used to prove inline —
-        // and proved again on every single read of the instance. Both analysers
-        // narrow an object to a callable from the call itself and cannot follow
-        // that through the cache, hence the two annotations below; the class
+        // The memo carries exactly what method_exists() proves, so it is proved
+        // once rather than on every read of the instance. Both analysers narrow
+        // an object to a callable from the call itself and cannot follow that
+        // through the cache, hence the two annotations below; the class
         // declaring __invoke is what makes the invocation safe, and a class
         // cannot stop declaring it within a process.
         if (!is_object($instance)

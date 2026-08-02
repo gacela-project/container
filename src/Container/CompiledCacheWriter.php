@@ -28,8 +28,8 @@ use function var_export;
  * The file is an envelope — a format marker, an optional build stamp, one
  * CacheStamp per entry, and the entries themselves — because an entry that
  * cannot say what it was compiled from cannot be known to be stale, and a
- * stale plan is worse than no plan. It is still a plain `return [...]`, so
- * opcache maps it exactly as before.
+ * stale plan is worse than no plan. The envelope is itself a plain
+ * `return [...]`, so opcache maps it as it would any array file.
  *
  * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type FactoriesMap from ContainerInterface

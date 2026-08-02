@@ -22,13 +22,10 @@ use function is_string;
 /**
  * Where the classes to compile come from.
  *
- * Every compile entry point used to take a `list<class-string>` that nothing
- * produced, so each application wrote and maintained it by hand — and a class
- * added to the application but not to the list silently dropped back to the
- * reflection path, with nothing to say so.
- *
- * A source is resolved lazily, once, when a compile call asks for it. Passing a
- * plain list still works everywhere; this is additive.
+ * Every compile entry point also takes a plain `list<class-string>`, which
+ * nothing produces: an application maintains it by hand, and a class missing
+ * from it silently falls back to the reflection path with nothing to say so.
+ * A source is discovered instead — lazily, once, when a compile call asks.
  *
  * Deliberately not accepted by `warmUp()`. The signatures are otherwise
  * identical and the symmetry is a trap: warming *resolves*, so warming a

@@ -8,7 +8,7 @@ final class ServiceWithScalarDependency
 {
     public function __construct(
         public Person $person,
-        public string $apiKey,  // No default - will cause error
+        public string $apiKey,  // No default, so nothing supplies it
     ) {
     }
 }

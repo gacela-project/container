@@ -375,7 +375,8 @@ final class DependencyCacheManager
         }
 
         if ($attributes['factory']) {
-            // Don't cache dependencies for factory classes to ensure fresh instances
+            // Not recorded as resolved: a #[Factory] class is built afresh every
+            // time, so it is never one of the cached dependencies stats() counts.
             return $this->construct($class);
         }
 

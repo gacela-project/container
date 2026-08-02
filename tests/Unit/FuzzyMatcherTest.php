@@ -69,7 +69,6 @@ final class FuzzyMatcherTest extends TestCase
         $candidates = ['UserService', 'UserServce', 'UserSrvice'];
         $result = FuzzyMatcher::findSimilar('UserService', $candidates);
 
-        // Exact match should be first
         self::assertSame('UserService', $result[0]);
     }
 
