@@ -643,6 +643,33 @@ in exchange for restructuring the most safety-critical class in the library.
 `ClassSource`, method injection, `FullContainerInterface`, the decorator seams,
 two memory-retention fixes and YAML definitions.
 
+### Where 2.x stands against 1.5.0
+
+Measured on the current release against 1.5.0, 20 paired samples per subject:
+
+| warm subject | | builder |
+|---|---|---|
+| four-level chain | **−57.2%** | composed |
+| no dependencies | **−16.7%** | composed |
+| bound dependency | +3.2% | refused |
+| `#[Inject]` parameter | +2.1% | refused |
+
+The split is the whole story: a class the builder composes for is between a
+sixth and a half faster than it was, and a class it refuses is 2-3% slower.
+Cold resolution is within ±5% either way.
+
+That remainder is **not** the builder. With `argBuilderFor()` taken off the
+construction path outright, 2.x still measures +0.2% to +2.3% against 1.5.0 on
+the same subjects — about half the pairs each way, so at the edge of what this
+harness resolves. It is the same shape #163 records for 1.4.0 → 1.5.0: identical
+work, more compiled code around it, no single hot spot to remove.
+
+It is documented rather than chased, for the reason given above — the candidate
+fix is worth about 1% and costs a restructuring of `DependencyResolver`. If you
+resolve mostly bound interfaces and nothing else, 2.x is a few percent slower
+than 1.5.0 and [generated factories](#generated-constructor-code) are the answer
+rather than a version pin.
+
 ### Comparing a change against main
 
 ```bash
