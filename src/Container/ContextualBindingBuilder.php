@@ -92,11 +92,9 @@ final class ContextualBindingBuilder
             // the only place the by-reference map is *read*, and without a read
             // the property is indistinguishable from a write-only one.
             if (!isset($this->contextualBindings[$concreteClass])) {
-                /** @psalm-suppress PropertyTypeCoercion */
                 $this->contextualBindings[$concreteClass] = [];
             }
 
-            /** @psalm-suppress PropertyTypeCoercion */
             $this->contextualBindings[$concreteClass][$needs] = $implementation;
 
             if ($this->onGive !== null) {

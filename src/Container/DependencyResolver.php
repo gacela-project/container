@@ -765,7 +765,6 @@ final class DependencyResolver
         /** @var mixed $value */
         $value = $bindings[$key];
         if (is_callable($value)) {
-            /** @psalm-suppress MixedFunctionCall */
             return [true, $value($this->container())];
         }
 
@@ -785,7 +784,6 @@ final class DependencyResolver
             // is_callable() does on a string — nor risks that lookup answering
             // true for a class whose name collides with a function's.
             if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
-                /** @psalm-suppress MixedFunctionCall */
                 return $contextualBinding($this->container());
             }
 
@@ -884,9 +882,11 @@ final class DependencyResolver
         $ownerContainer = $this->container();
 
         /**
-         * newLazyGhost() is PHP 8.4+, and the analysers target the 8.3 floor,
-         * so they cannot see it. Callers gate this behind a runtime capability
-         * check, which is exactly what they cannot model.
+         * newLazyGhost() is PHP 8.4+ and PHPStan targets the 8.3 floor, so it
+         * cannot see the method at all. Callers gate this behind a runtime
+         * capability check, which is exactly what it cannot model. Psalm knows
+         * the method but not what a ghost of $className is, hence the narrower
+         * suppression.
          *
          * Calling __construct() directly on the ghost is the documented way to
          * initialize one, not an accident.
@@ -895,7 +895,7 @@ final class DependencyResolver
          * itself, which is a lifetime, and a lifetime is the other thing they
          * cannot model.
          *
-         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
+         * @psalm-suppress MixedReturnStatement
          *
          * @phpstan-ignore method.notFound, return.type, closure.unusedUse
          */
@@ -937,10 +937,10 @@ final class DependencyResolver
         $container = $this->container();
 
         /**
-         * newLazyProxy() is PHP 8.4+; see newLazyGhost() for why the analysers
-         * cannot see it.
+         * newLazyProxy() is PHP 8.4+; see newLazyGhost() for what each analyser
+         * can and cannot see.
          *
-         * @psalm-suppress UndefinedMethod, MixedReturnStatement, MixedInferredReturnType
+         * @psalm-suppress MixedReturnStatement
          *
          * @phpstan-ignore method.notFound, return.type
          */

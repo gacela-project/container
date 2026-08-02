@@ -279,8 +279,12 @@ final class DependencyCacheManager
      * Build a fresh instance, overriding constructor arguments by parameter name.
      * Overrides are never cached.
      *
-     * @param class-string $class
+     * @template T of object
+     *
+     * @param class-string<T> $class
      * @param array<string, mixed> $overrides
+     *
+     * @return T
      */
     public function instantiateWith(string $class, array $overrides): object
     {

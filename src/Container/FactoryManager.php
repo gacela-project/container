@@ -132,13 +132,11 @@ final class FactoryManager
         }
     }
 
-    /**
-     * @psalm-suppress MixedAssignment
-     */
     public function generateExtendedInstance(Closure $instance, mixed $factory): Closure
     {
         if (is_callable($factory)) {
             return static function (ContainerInterface $c) use ($instance, $factory): mixed {
+                /** @var mixed $result */
                 $result = $factory($c);
 
                 return $instance($result, $c) ?? $result;

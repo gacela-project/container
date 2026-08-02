@@ -844,7 +844,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function getOrFail(string $id): mixed
     {
-        /** @psalm-suppress MixedAssignment */
+        /** @var mixed $instance */
         $instance = $this->get($id);
         if ($instance === null) {
             throw DependencyNotFoundException::unresolvableId($id);
@@ -874,7 +874,6 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $this->getOrFail($className);
         }
 
-        /** @var T $instance */
         $instance = $this->cacheManager->instantiateWith($className, $parameters);
 
         // get() fires for every other path; without this, overriding an
@@ -1019,7 +1018,7 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * @param class-string $className
      *
-     * @return list<string>
+     * @return list<class-string>
      */
     #[Override]
     public function getDependencyTree(string $className): array
@@ -1057,9 +1056,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->dependencyTreeAnalyzer()->graph($className);
     }
 
-    /**
-     * @psalm-suppress MixedAssignment
-     */
     #[Override]
     public function extend(string $id, Closure $instance): Closure
     {
@@ -1087,6 +1083,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             throw ContainerException::frozenInstanceExtend($id);
         }
 
+        /** @var mixed $factory */
         $factory = $this->instanceRegistry->getRaw($id);
 
         if ($this->factoryManager->isProtected($factory)) {
@@ -1192,7 +1189,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         $builder = new ContextualBindingBuilder(
             $this->contextualBindings,
             function (string $concrete, string $needs, mixed $implementation): void {
-                /** @psalm-suppress PropertyTypeCoercion */
                 $this->ownContextualBindings[$concrete][$needs] = $implementation;
                 $this->pushContextualBinding($concrete, $needs, $implementation);
             },
@@ -1362,7 +1358,6 @@ final class Container implements FullContainerInterface, ArrayAccess
                 continue;
             }
 
-            /** @psalm-suppress PropertyTypeCoercion */
             $scope->contextualBindings[$concrete][$needs] = $implementation;
             $scope->pushContextualBinding($concrete, $needs, $implementation);
         }
@@ -1559,9 +1554,6 @@ final class Container implements FullContainerInterface, ArrayAccess
         return isset($this->bindings[$class]) || $this->cacheManager->ownsSingleton($class);
     }
 
-    /**
-     * @psalm-suppress MixedReturnTypeCoercion
-     */
     private function extendService(string $id): void
     {
         if (!$this->factoryManager->hasPendingExtensions($id)) {
