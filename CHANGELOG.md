@@ -10,6 +10,12 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Internal
+
+- The mutation gate has margin again. Infection 0.34 scores stricter than 0.31, and covered MSI sat on the 87% threshold with nothing to spare; it is 89% now, from tests rather than a lowered bar ([#186](https://github.com/gacela-project/container/issues/186))
+- `ArgBuilderTest`'s registration tests were weakened by the fix for [#181](https://github.com/gacela-project/container/issues/181): a builder is composed on the *second* construction now, so tests that resolved once before registering were asserting against a container that never had one. `test_a_registration_drops_the_memo` also ended with a `bind()` of its own, which drops the memo whatever the method under test did — it passed either way. It reads the memo directly now and fails if there was nothing to drop
+- `ValidationReport::render()` and `ValidationIssue::describe()` are asserted exactly. They are what a failing build prints, and `assertStringContainsString()` held none of the counts, pluralisation or separators in place
+
 ### Fixed
 
 - `gacela-container --help` lists `validate` under USAGE. The command was added to COMMANDS only, so the two halves of the help disagreed
