@@ -42,7 +42,7 @@
         "symfony/var-dumper": "^6.4 || ^7.0",
         "vimeo/psalm": "^6.16",
         "phpbench/phpbench": "^1.4",
-        "infection/infection": "^0.31",
+        "infection/infection": "^0.31 || ^0.34",
         "symfony/yaml": "^6.4 || ^7.0"
     },
     "suggest": {
