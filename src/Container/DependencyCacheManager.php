@@ -23,6 +23,8 @@ use function count;
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  * @psalm-import-type CompiledPlans from PlanRegistry
  *
+ * @psalm-type LifetimeFlags = array{singleton: bool, factory: bool}
+ *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
  * detail of Container and may change or disappear in any release
@@ -51,7 +53,7 @@ final class DependencyCacheManager
      * reflected every class it resolved, which is the tax PlanCache exists to
      * remove on the plan axis being paid again on this one.
      *
-     * @var array<class-string, array{singleton: bool, factory: bool}>
+     * @var array<class-string, LifetimeFlags>
      */
     private static array $attributeCache = [];
 
@@ -523,7 +525,7 @@ final class DependencyCacheManager
      *
      * @param class-string $class
      *
-     * @return array{singleton: bool, factory: bool}
+     * @return LifetimeFlags
      */
     private function attributesOf(string $class): array
     {

@@ -15,6 +15,7 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  * @psalm-type Binding = class-string|callable|object
  * @psalm-type BindingsMap = array<class-string, Binding>
  * @psalm-type ContextualBindingsMap = array<string, array<string, mixed>>
+ * @psalm-type FactoriesMap = array<class-string, callable(): object>
  * @psalm-type StatsArray = array{
  *     registered_services: int,
  *     frozen_services: int,
@@ -378,7 +379,7 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * A later bind() or singleton() for one of these classes still outranks the
      * generated expression.
      *
-     * @param array<class-string, callable(): object> $factories
+     * @param FactoriesMap $factories
      */
     public function useCompiledFactories(array $factories): void;
 
