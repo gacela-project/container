@@ -6,7 +6,6 @@ namespace Gacela\Container;
 
 use Closure;
 
-use function get_class;
 use function is_array;
 use function is_object;
 use function is_string;
@@ -83,7 +82,7 @@ final class CallableKey
     private static function identify(mixed $classOrObject): string
     {
         if (is_object($classOrObject)) {
-            return get_class($classOrObject) . '#' . spl_object_id($classOrObject);
+            return $classOrObject::class . '#' . spl_object_id($classOrObject);
         }
 
         /** @var string $classOrObject */

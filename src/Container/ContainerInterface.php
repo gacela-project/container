@@ -225,8 +225,8 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      * The shape of the returned array is NOT covered by backward compatibility
      * and may change in any release. Do not build logic on it.
      *
-     * Superseded by Container::stats(), which returns a ContainerStats whose
-     * shape IS covered. This method is replaced by it in 2.0.
+     * Superseded by stats(), which returns a ContainerStats whose shape IS
+     * covered. Kept for the whole of 2.x and removed at 3.0.
      *
      * @return StatsArray
      */

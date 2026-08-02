@@ -7,7 +7,6 @@ namespace Gacela\Container;
 use function array_filter;
 use function array_map;
 use function array_slice;
-use function count;
 use function levenshtein;
 use function max;
 use function strlen;
@@ -32,7 +31,7 @@ final class FuzzyMatcher
      */
     public static function findSimilar(string $target, array $candidates): array
     {
-        if (count($candidates) === 0) {
+        if ($candidates === []) {
             return [];
         }
 

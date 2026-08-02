@@ -153,7 +153,7 @@ TXT;
      */
     private static function formatResolutionChain(array $chain): string
     {
-        if (empty($chain)) {
+        if ($chain === []) {
             return '';
         }
 

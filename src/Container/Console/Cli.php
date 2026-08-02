@@ -365,6 +365,7 @@ final class Cli
         USAGE
           gacela-container compile [options]
           gacela-container report [options]
+          gacela-container validate [options]
 
         COMMANDS
           compile    Write plans and/or factories, and say what was written.
