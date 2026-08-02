@@ -7,6 +7,7 @@ namespace GacelaTest\Unit;
 use Gacela\Container\Container;
 use Gacela\Container\ValidationIssue;
 use Gacela\Container\ValidationProblem;
+use Gacela\Container\ValidationReport;
 use GacelaTest\Fake\CircularA;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -265,5 +266,67 @@ final class ValidationTest extends TestCase
 
         self::assertTrue($report->isValid());
         self::assertSame([], $report->checked());
+    }
+
+    // ---------------------------------------------------------------
+    // Exact rendering. This is what a failing build prints, so the
+    // counts, the pluralisation and the separators are the contract —
+    // assertStringContainsString() cannot hold any of them in place.
+    // ---------------------------------------------------------------
+
+    public function test_a_clean_report_renders_the_count_and_nothing_else(): void
+    {
+        $report = new ValidationReport([], ['A', 'B']);
+
+        self::assertSame('2 class(es) checked, no problems found.', $report->render());
+    }
+
+    public function test_a_clean_report_of_nothing_still_counts(): void
+    {
+        self::assertSame(
+            '0 class(es) checked, no problems found.',
+            (new ValidationReport([], []))->render(),
+        );
+    }
+
+    public function test_a_failing_report_renders_both_counts_and_the_issues(): void
+    {
+        $report = new ValidationReport(
+            [
+                new ValidationIssue('App\\A', ValidationProblem::MissingClass, 'it does not exist'),
+                new ValidationIssue('App\\B', ValidationProblem::DependencyCycle, 'it loops', ['App\\A', 'App\\B']),
+            ],
+            ['App\\A', 'App\\B', 'App\\C'],
+        );
+
+        self::assertSame(
+            "3 class(es) checked, 2 problem(s):\n\n"
+            . "[missing-class] App\\A: it does not exist\n"
+            . "[dependency-cycle] App\\B: it loops\n"
+            . '    via App\\A -> App\\B',
+            $report->render(),
+        );
+    }
+
+    public function test_an_issue_without_a_chain_renders_one_line(): void
+    {
+        $issue = new ValidationIssue('App\\A', ValidationProblem::NotInstantiable, 'it is abstract');
+
+        self::assertSame('[not-instantiable] App\\A: it is abstract', $issue->describe());
+    }
+
+    public function test_an_issue_with_a_chain_appends_the_path(): void
+    {
+        $issue = new ValidationIssue(
+            'App\\C',
+            ValidationProblem::UnresolvableParameter,
+            'nothing supplies $name',
+            ['App\\A', 'App\\B', 'App\\C'],
+        );
+
+        self::assertSame(
+            "[unresolvable-parameter] App\\C: nothing supplies \$name\n    via App\\A -> App\\B -> App\\C",
+            $issue->describe(),
+        );
     }
 }

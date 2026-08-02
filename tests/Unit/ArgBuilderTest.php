@@ -107,6 +107,7 @@ final class ArgBuilderTest extends TestCase
     {
         $container = new Container();
         $container->get(ClassWithDependencyWithoutDependencies::class);
+        $container->get(ClassWithDependencyWithoutDependencies::class);
 
         $replacement = new ClassWithoutDependencies();
         $container->bind(ClassWithoutDependencies::class, static fn (): object => $replacement);
@@ -120,6 +121,7 @@ final class ArgBuilderTest extends TestCase
     public function test_a_contextual_binding_registered_afterwards_is_honoured(): void
     {
         $container = new Container();
+        $container->get(ClassWithDependencyWithoutDependencies::class);
         $container->get(ClassWithDependencyWithoutDependencies::class);
 
         $replacement = new ClassWithoutDependencies();
@@ -137,6 +139,7 @@ final class ArgBuilderTest extends TestCase
     {
         $container = new Container();
         $container->get(ClassWithDependencyWithoutDependencies::class);
+        $container->get(ClassWithDependencyWithoutDependencies::class);
 
         $container->lazy(ClassWithoutDependencies::class);
 
@@ -149,6 +152,7 @@ final class ArgBuilderTest extends TestCase
     public function test_singleton_registered_afterwards_is_honoured(): void
     {
         $container = new Container();
+        $container->get(ClassWithDependencyWithoutDependencies::class);
         $container->get(ClassWithDependencyWithoutDependencies::class);
 
         $container->singleton(ClassWithDependencyWithoutDependencies::class);
@@ -354,8 +358,13 @@ final class ArgBuilderTest extends TestCase
 
     /**
      * One per registration method: each must drop the memos, because a builder
-     * has already flattened a graph that the registration can change. Proven by
-     * removing the drop and watching these fail.
+     * has already flattened a graph that the registration can change.
+     *
+     * The memo is read directly rather than inferred from a later resolution.
+     * Any container-level observation needs a second registration to make the
+     * difference visible, and that registration drops the memos too — so it
+     * passes whether or not the method under test dropped anything. This asks
+     * the question the mutant answers.
      *
      * @param callable(Container): void $register
      */
@@ -363,17 +372,16 @@ final class ArgBuilderTest extends TestCase
     public function test_a_registration_drops_the_memo(callable $register): void
     {
         $container = new Container();
+        // Twice: a builder is composed on the second construction, so one
+        // resolution leaves nothing for the registration to drop.
         $container->get(ClassWithDependencyWithoutDependencies::class);
+        $container->get(ClassWithDependencyWithoutDependencies::class);
+
+        self::assertNotSame([], self::argBuildersOf($container), 'no builder to drop — the test would be vacuous');
 
         $register($container);
 
-        $replacement = new ClassWithoutDependencies();
-        $container->bind(ClassWithoutDependencies::class, static fn (): object => $replacement);
-
-        self::assertSame(
-            $replacement,
-            $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
-        );
+        self::assertSame([], self::argBuildersOf($container));
     }
 
     /**
@@ -607,5 +615,24 @@ final class ArgBuilderTest extends TestCase
         $container->get(ClassWithDependencyWithoutDependencies::class);
 
         self::assertSame(2, $built);
+    }
+
+    /**
+     * The resolver's builder memo, reached through the collaborators that own
+     * it. Private on the way down and public at the end, which is the shape
+     * DependencyCacheManager::construct() reads it in.
+     *
+     * @return array<string, mixed>
+     */
+    private static function argBuildersOf(Container $container): array
+    {
+        $manager = (new ReflectionClass($container))->getProperty('cacheManager')->getValue($container);
+        self::assertIsObject($manager);
+
+        $resolver = (new ReflectionClass($manager))->getProperty('dependencyResolver')->getValue($manager);
+        self::assertIsObject($resolver);
+
+        /** @var array<string, mixed> */
+        return (new ReflectionClass($resolver))->getProperty('argBuilders')->getValue($resolver);
     }
 }
