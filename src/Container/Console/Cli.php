@@ -91,10 +91,10 @@ final class Cli
                 default => throw CliException::unknownCommand($command),
             };
         } catch (Throwable $exception) {
-            // Everything the user can act on arrives as a CliException; a broken
-            // container factory or an unwritable path arrives as anything at
-            // all. Both end the same way, because for a build tool the message
-            // is the useful part and the trace is not.
+            // Everything lands here: a CliException the user can act on, or a
+            // broken container factory or unwritable path. One catch, because
+            // for a build tool the message is the useful part and the trace is
+            // not, so a second arm would do nothing different.
             return $this->fail($exception->getMessage());
         }
     }
@@ -245,7 +245,7 @@ final class Cli
         // there is no unreachable "unknown" branch to defend.
         $this->write($this->out, "\nRefused:\n");
         foreach ($report->reasons() as $class => $reason) {
-            $why = $explanations[$class] ?? '';
+            $why = $explanations[$class];
             $this->write($this->out, "  {$class}\n    [{$reason->value}] {$why}\n");
         }
     }

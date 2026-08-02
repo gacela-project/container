@@ -265,11 +265,15 @@ final class ContainerCompiler
         $expression = $this->expressionFor($type, $stack);
 
         if ($expression === null) {
+            // Read unconditionally: every path on which expressionFor() returns
+            // null goes through skip() for that same class first, so the
+            // explanation is already recorded. A `?? 'reason unknown'` here
+            // could only ever print itself into a report as a lie.
             return $this->skip($class, CompilationSkipReason::Dependency, sprintf(
                 "parameter \$%s needs '%s', which cannot be compiled: %s",
                 $param['name'],
                 $type,
-                $this->explanations[$type] ?? 'reason unknown',
+                $this->explanations[$type],
             ));
         }
 
