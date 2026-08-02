@@ -88,11 +88,9 @@ final class ContextualBindingBuilder
 
         foreach ($this->concrete as $concreteClass) {
             if (!isset($this->contextualBindings[$concreteClass])) {
-                /** @psalm-suppress PropertyTypeCoercion */
                 $this->contextualBindings[$concreteClass] = [];
             }
 
-            /** @psalm-suppress PropertyTypeCoercion */
             $this->contextualBindings[$concreteClass][$needs] = $implementation;
 
             if ($this->onGive !== null) {

@@ -32,7 +32,7 @@ final readonly class DependencyTreeAnalyzer
      *
      * @param class-string $className
      *
-     * @return list<string>
+     * @return list<class-string>
      */
     public function analyze(string $className): array
     {

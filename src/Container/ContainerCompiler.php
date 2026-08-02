@@ -30,6 +30,7 @@ use function var_export;
  *
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type CompiledPlans from DependencyResolver
+ * @psalm-import-type ParamPlan from DependencyResolver
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -201,7 +202,7 @@ final class ContainerCompiler
 
     /**
      * @param class-string $class the class whose constructor declares $param
-     * @param array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null} $param
+     * @param ParamPlan $param
      * @param list<class-string> $stack
      */
     private function argumentFor(string $class, array $param, array $stack): ?string
