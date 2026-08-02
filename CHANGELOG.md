@@ -12,6 +12,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Internal
 
+- Dropped `psalm/plugin-phpunit` and its `<pluginClass>` entry. The plugin types PHPUnit assertions and mocks in test code, but `psalm.xml` analyses `src/` only, so it did nothing — identical output and inference percentage with and without it ([#188](https://github.com/gacela-project/container/issues/188))
+
 - CI's test matrix tests the dependency floor instead of testing the same thing twice. `composer.lock` is gitignored — correctly, for a library — so the `locked` leg resolved identically to `highest` and three of six jobs were duplicates. It runs `--prefer-lowest --prefer-stable` now, and the cache keys hash `composer.json` rather than a lockfile that has never existed ([#187](https://github.com/gacela-project/container/issues/187))
 
 - The mutation gate has margin again. Infection 0.34 scores stricter than 0.31, and covered MSI sat on the 87% threshold with nothing to spare; it is 89% now, from tests rather than a lowered bar ([#186](https://github.com/gacela-project/container/issues/186))

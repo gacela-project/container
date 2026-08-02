@@ -15,10 +15,6 @@
         </ignoreFiles>
     </projectFiles>
 
-    <plugins>
-        <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
-    </plugins>
-
     <issueHandlers>
         <MoreSpecificReturnType errorLevel="suppress" />
         <LessSpecificReturnStatement errorLevel="suppress" />
