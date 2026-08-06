@@ -1,5 +1,5 @@
 ---
-description: Tighten the Unreleased changelog notes to the density the released sections use — merge duplicate sections, collapse entries describing one change, verify every doc anchor — and optionally cut the release.
+description: Bring the Unreleased changelog notes up to release shape — account for every commit since the last tag, merge duplicate sections, collapse entries describing one change, tighten to the density the released sections use, verify every doc anchor — and optionally cut the release.
 argument-hint: "[--release] [--version X.Y.Z] [--dry-run]"
 disable-model-invocation: true
 allowed-tools: "Read, Edit, Write, Bash(git *), Bash(gh *), Bash(./release.sh *), Bash(python3 *), Bash(sed *), Bash(grep *), Bash(wc *)"
@@ -24,6 +24,23 @@ detail that the released sections do not have.
 - `--dry-run` — report what would change; write nothing.
 - `--release` — after tightening, cut the release (delegates to the `release` skill / `release.sh`).
 - `--version X.Y.Z` — explicit version for `--release`. **Required when anything is marked ⚠**, because `release.sh` auto-bumps the *minor* and a breaking change needs a major.
+
+## Phase 0 — Check the section covers what shipped
+
+Every later phase reads only what is already written, so the failure they cannot
+see is silence: a merged PR nobody wrote an entry for.
+
+```bash
+git log $(git describe --tags --abbrev=0)..HEAD --oneline
+```
+
+Account for every commit against `## Unreleased`. One needs an entry unless it is
+a `chore(release):` commit, or has no effect a consumer or a future maintainer
+could notice — CI plumbing that changes no result, a `.gitignore` fix, committed
+worktree litter. Judgement call, and the bar is *noticeable*, not *code*: a
+`docs:` commit that ships a measurement or settles an open question earns a
+`### Documentation` entry, and #193 — the 2.x-versus-1.5.0 numbers that closed
+#189 — reached a release candidate with none.
 
 ## Phase 1 — Measure the target
 
@@ -151,6 +168,7 @@ and is not a draft, and Packagist shows the new version.
 
 ## Report
 
-State: entries and words before → after, which sections merged, which entries
-collapsed and why, any anchor fixed, and — if `--release` was not passed — the
-version you would use and whether a ⚠ forces a major.
+State: any commit that had no entry and what you wrote for it, entries and words
+before → after, which sections merged, which entries collapsed and why, any
+anchor fixed, and — if `--release` was not passed — the version you would use and
+whether a ⚠ forces a major.
