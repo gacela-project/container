@@ -10,28 +10,27 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
-### Internal
+### Documentation
 
-- Dropped `psalm/plugin-phpunit` and its `<pluginClass>` entry. The plugin types PHPUnit assertions and mocks in test code, but `psalm.xml` analyses `src/` only, so it did nothing — identical output and inference percentage with and without it ([#188](https://github.com/gacela-project/container/issues/188))
-
-- CI's test matrix tests the dependency floor instead of testing the same thing twice. `composer.lock` is gitignored — correctly, for a library — so the `locked` leg resolved identically to `highest` and three of six jobs were duplicates. It runs `--prefer-lowest --prefer-stable` now, and the cache keys hash `composer.json` rather than a lockfile that has never existed ([#187](https://github.com/gacela-project/container/issues/187))
-
-- The mutation gate has margin again. Infection 0.34 scores stricter than 0.31, and covered MSI sat on the 87% threshold with nothing to spare; it is 89% now, from tests rather than a lowered bar ([#186](https://github.com/gacela-project/container/issues/186))
-- `ArgBuilderTest`'s registration tests were weakened by the fix for [#181](https://github.com/gacela-project/container/issues/181): a builder is composed on the *second* construction now, so tests that resolved once before registering were asserting against a container that never had one. `test_a_registration_drops_the_memo` also ended with a `bind()` of its own, which drops the memo whatever the method under test did — it passed either way. It reads the memo directly now and fails if there was nothing to drop
-- `ValidationReport::render()` and `ValidationIssue::describe()` are asserted exactly. They are what a failing build prints, and `assertStringContainsString()` held none of the counts, pluralisation or separators in place
+- Where 2.x stands against 1.5.0, measured rather than asserted: a class the argument builder composes for is 16.7% to 57.2% faster, one it refuses 2-3% slower, and the residual is not the builder but the diffuse cost [#163](https://github.com/gacela-project/container/issues/163) already records for 1.4.0 → 1.5.0. Documented rather than chased — the candidate fix is worth about 1% and costs a restructuring of `DependencyResolver` ([#189](https://github.com/gacela-project/container/issues/189)). See [performance](docs/performance.md#where-2x-stands-against-150)
 
 ### Fixed
 
-- `gacela-container --help` lists `validate` under USAGE. The command was added to COMMANDS only, so the two halves of the help disagreed
-- `Container::loadFile()`'s docblock no longer says YAML is "a userland concern — there is no parser here". It has read `.yaml`/`.yml` since 1.5
+- `gacela-container --help` lists `validate` under USAGE, which had it in COMMANDS only, so the two halves of the help disagreed
+- `Container::loadFile()`'s docblock no longer calls YAML "a userland concern — there is no parser here". It has read `.yaml`/`.yml` since 1.5
 
 ### Internal
 
-- Removed `AliasRegistry::has()` and `DependencyResolver::exportPlans()`, both `@internal` and both unreferenced — the first never consulted its parent, so it would have told a scope an inherited alias did not exist. Three independent audits reached the same two
-- The six constructor-plan type aliases now belong to `PlanRegistry`, which holds them, rather than to `DependencyResolver`, which builds them; the runtime class graph of `src/` is acyclic as a result
-- 22 array shapes that had been respelled by hand now reference the alias they duplicate, and `FactoriesMap`, `ResolvedHook`, `LifetimeFlags` and `CliOptions` name shapes that were written out up to seven times
-- Dropped two unreachable `??` fallbacks whose only possible output was a wrong explanation in a compilation report, and a `catch (CliException)` whose body was identical to the `catch (Throwable)` below it
+- CI's matrix tests the dependency floor rather than resolving `highest` twice: `composer.lock` is gitignored — correctly, for a library — so three of six jobs were duplicates ([#187](https://github.com/gacela-project/container/issues/187))
+- Dropped `psalm/plugin-phpunit`, which types test code that `psalm.xml` never analyses ([#188](https://github.com/gacela-project/container/issues/188))
+- The mutation gate has margin again — 89% covered MSI, from tests rather than a lowered bar, after Infection 0.34 scored stricter than 0.31 ([#186](https://github.com/gacela-project/container/issues/186))
+- `ArgBuilderTest`'s registration cases resolved before registering, so they asserted against a container that never had a builder, and one ended with a `bind()` that drops the memo whatever the method under test does. They read the memo directly now ([#181](https://github.com/gacela-project/container/issues/181))
+- `ValidationReport::render()` and `ValidationIssue::describe()` are asserted exactly; `assertStringContainsString()` held none of the counts, pluralisation or separators in place
+- Removed `AliasRegistry::has()` and `DependencyResolver::exportPlans()`, both `@internal` and unreferenced — the first never consulted its parent, so it would have told a scope an inherited alias did not exist
+- Dropped two unreachable `??` fallbacks whose only output was a wrong explanation in a compilation report, and a `catch (CliException)` identical to the `catch (Throwable)` below it
 - Tag merging, `#[Inject]` reads and "did you mean" rendering had two implementations each; the CLI printed its discovery line in three places
+- 22 hand-respelled array shapes now reference the alias they duplicate, and `FactoriesMap`, `ResolvedHook`, `LifetimeFlags` and `CliOptions` name shapes written out up to seven times
+- The six constructor-plan type aliases moved to `PlanRegistry`, which holds them, from `DependencyResolver`, which builds them; `src/`'s runtime class graph is acyclic as a result
 
 ## [2.0.1](https://github.com/gacela-project/container/compare/2.0.0...2.0.1) - 2026-08-01
 
