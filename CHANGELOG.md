@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [2.0.2](https://github.com/gacela-project/container/compare/2.0.1...2.0.2) - 2026-08-06
+
 ### Documentation
 
 - Where 2.x stands against 1.5.0, measured rather than asserted: a class the argument builder composes for is 16.7% to 57.2% faster, one it refuses 2-3% slower, and the residual is not the builder but the diffuse cost [#163](https://github.com/gacela-project/container/issues/163) already records for 1.4.0 → 1.5.0. Documented rather than chased — the candidate fix is worth about 1% and costs a restructuring of `DependencyResolver` ([#189](https://github.com/gacela-project/container/issues/189)). See [performance](docs/performance.md#where-2x-stands-against-150)
