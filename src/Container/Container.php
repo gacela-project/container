@@ -773,6 +773,11 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         $this->instanceRegistry->set($id, $instance);
 
+        // Nested resolution has no way to reach the instance registry, and a
+        // constructor parameter naming this id must still get what get() hands
+        // back. See DependencyCacheManager::markAsOwned().
+        $this->cacheManager->markAsOwned($id);
+
         if ($this->factoryManager->isCurrentlyExtending($id)) {
             return;
         }
@@ -925,6 +930,10 @@ final class Container implements FullContainerInterface, ArrayAccess
     {
         $this->cacheManager->dropArgBuilders();
 
+        // The alias, not the id it points at: that is the name a constructor
+        // parameter would be typed with. See
+        // DependencyCacheManager::markAsOwned().
+        $this->cacheManager->markAsOwned($alias);
         $this->aliasRegistry->add($alias, $id);
     }
 

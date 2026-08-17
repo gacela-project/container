@@ -1,5 +1,56 @@
 # Upgrade Guide
 
+## 2.0.x → 2.1
+
+One change in runtime behaviour, with nothing to write on your side.
+
+---
+
+### A registration now answers a constructor parameter too
+
+Nested resolution used to consult the **bindings** and nothing else. Everything
+the container answers from its instance registry, and everything reached through
+an alias, was therefore invisible to it — so a class asking for such an id by
+type was autowired a *second* copy:
+
+```php
+$container->set(TaxRates::class, new TaxRates(0.21));
+
+$container->get(TaxRates::class);   // the registered instance, as always
+$container->get(Invoicing::class);  // 2.0: a *different*, autowired TaxRates
+                                    // 2.1: the registered instance
+```
+
+Affects `set()`, `factory()`, `protect()`, `extend()`, `alias()` and a
+`['value' => …]` or `['factory' => …]` definition. Bindings, `singleton()` and
+`lazy()` already behaved this way, and so did every one of these inside a
+**scope** — a scope delegates an id it does not own to its parent, which
+resolves it with `get()`. This brings a root container in line with that.
+
+**Action: none**, and in most applications nothing observable changes — the two
+copies were usually equivalent. Three cases where it does:
+
+- **A class that cannot be autowired.** This is the failure that motivated the
+  change: the container built the class anyway and threw
+  `DependencyInvalidArgumentException` naming a scalar parameter of a class you
+  never asked it to build, usually while resolving something unrelated. If you
+  worked around it by *also* registering a `bind()`, that workaround is now
+  redundant and still correct.
+- **Instance identity.** A consumer and a direct `get()` now hand back the same
+  object. Code that depended on the consumer getting its own copy should
+  register a `factory()`, which is honoured per injection.
+- **A `protect()`ed closure under a class-string id.** `protect()` means "hand
+  this closure back rather than call it", so the closure *is* the service and a
+  parameter typed as the class rejects it with a `TypeError` instead of silently
+  receiving an autowired object. This is what a scope has always done. Register
+  protected closures under a non-class id, which is what they are for.
+
+Frozen state follows the same rule, because it is the same read: a service
+injected into a constructor is now `isFrozen()` afterwards, exactly as one
+handed out by `get()` is.
+
+---
+
 ## 1.x → 2.0
 
 Four changes can require action. The first two affect only code that
