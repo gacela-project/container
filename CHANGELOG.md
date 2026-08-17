@@ -10,27 +10,18 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+
 ### Fixed
 
 - A service registered under an id is now what a **constructor parameter** naming that id gets, not only what a direct `get()` returns. Nested resolution consulted the bindings alone, so a stored instance, a `factory()`, a `protect()`ed closure, an `extend()`ed service, a `['value' => …]` definition and every `alias()` were invisible to it: the container autowired a second copy of the class instead, and where the class could not be autowired the first resolution of an unrelated *consumer* died naming a scalar parameter of a class nobody asked it to build. **Affects callers**, with no code change on their side: see [UPGRADE.md](UPGRADE.md#a-registration-now-answers-a-constructor-parameter-too) ([gacela#885](https://github.com/gacela-project/gacela/issues/885))
 - A **scope** answered most of these already, by delegating an id it does not own to its parent — but not `alias()` whose target is an autowirable class, which the delegation test reports no ownership of. `alias(RepositoryInterface::class, InMemoryRepository::class)` resolved directly on the scope and threw as a parameter
 - A facade dropped after `withSelfReference()` falls back to the container for everything the resolver invokes, as it already did for `get()` — a nested closure binding used to be handed `null` instead
-
-### Internal
-
-- The argument-builder optimisation refuses a class the container holds an id for, alongside the bound ones it already refused: flattening it to a plain `new` would make a consumer's second construction disagree with its first
-
-### Documentation
-
-- Where 2.x stands against 1.5.0, measured rather than asserted: a class the argument builder composes for is 16.7% to 57.2% faster, one it refuses 2-3% slower, and the residual is not the builder but the diffuse cost [#163](https://github.com/gacela-project/container/issues/163) already records for 1.4.0 → 1.5.0. Documented rather than chased — the candidate fix is worth about 1% and costs a restructuring of `DependencyResolver` ([#189](https://github.com/gacela-project/container/issues/189)). See [performance](docs/performance.md#where-2x-stands-against-150)
-
-### Fixed
-
 - `gacela-container --help` lists `validate` under USAGE, which had it in COMMANDS only, so the two halves of the help disagreed
 - `Container::loadFile()`'s docblock no longer calls YAML "a userland concern — there is no parser here". It has read `.yaml`/`.yml` since 1.5
 
 ### Internal
 
+- The argument-builder optimisation refuses a class the container holds an id for, alongside the bound ones it already refused: flattening it to a plain `new` would make a consumer's second construction disagree with its first
 - CI's matrix tests the dependency floor rather than resolving `highest` twice: `composer.lock` is gitignored — correctly, for a library — so three of six jobs were duplicates ([#187](https://github.com/gacela-project/container/issues/187))
 - Dropped `psalm/plugin-phpunit`, which types test code that `psalm.xml` never analyses ([#188](https://github.com/gacela-project/container/issues/188))
 - The mutation gate has margin again — 89% covered MSI, from tests rather than a lowered bar, after Infection 0.34 scored stricter than 0.31 ([#186](https://github.com/gacela-project/container/issues/186))
@@ -41,6 +32,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 - Tag merging, `#[Inject]` reads and "did you mean" rendering had two implementations each; the CLI printed its discovery line in three places
 - 22 hand-respelled array shapes now reference the alias they duplicate, and `FactoriesMap`, `ResolvedHook`, `LifetimeFlags` and `CliOptions` name shapes written out up to seven times
 - The six constructor-plan type aliases moved to `PlanRegistry`, which holds them, from `DependencyResolver`, which builds them; `src/`'s runtime class graph is acyclic as a result
+
+### Documentation
+
+- Where 2.x stands against 1.5.0, measured rather than asserted: a class the argument builder composes for is 16.7% to 57.2% faster, one it refuses 2-3% slower, and the residual is not the builder but the diffuse cost [#163](https://github.com/gacela-project/container/issues/163) already records for 1.4.0 → 1.5.0. Documented rather than chased — the candidate fix is worth about 1% and costs a restructuring of `DependencyResolver` ([#189](https://github.com/gacela-project/container/issues/189)). See [performance](docs/performance.md#where-2x-stands-against-150)
 
 ## [2.0.1](https://github.com/gacela-project/container/compare/2.0.0...2.0.1) - 2026-08-01
 
