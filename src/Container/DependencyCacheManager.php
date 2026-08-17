@@ -109,6 +109,46 @@ final class DependencyCacheManager
     private array $lazyFactories = [];
 
     /**
+     * The ids the container answers from somewhere other than its bindings:
+     * anything stored with set(), and every alias.
+     *
+     * Kept here, and handed to the resolver by reference, for the same reason
+     * the lazy marks above are: it is registration state the resolver has to
+     * see the moment it is written, without anything having to be invalidated.
+     *
+     * A gate, not an answer: a hit means "ask the container", and the container
+     * decides. It over-reports on purpose, which is what keeps it honest — an
+     * id that is not a class name can never match a constructor parameter's
+     * type, so registration pays no class_exists() probe, and an id whose
+     * instance remove() has since forgotten is answered by get() exactly as a
+     * direct call would answer it.
+     *
+     * Narrowing this to what the container currently *owns* was tried and is a
+     * mistake: provides() reports no ownership of an alias whose target is
+     * merely an autowirable class, so `alias(RepositoryInterface::class,
+     * InMemoryRepository::class)` resolved directly and threw as a parameter.
+     * Any predicate here is a second opinion about what get() will do, which is
+     * the class of bug this exists to fix.
+     *
+     * @var array<string, true>
+     */
+    private array $ownedIds = [];
+
+    /**
+     * The container this manager belongs to, as opposed to whatever
+     * useSelfReference() has since pointed $containerRef at.
+     *
+     * Kept because a facade is held weakly and may be dropped while its inner
+     * container carries on resolving, which the library supports: closures fall
+     * back to the container itself (see Container::forClosures()). Without the
+     * owner recorded here the fall-back has nothing to name, since replacing
+     * $containerRef is what loses it.
+     *
+     * @var WeakReference<ContainerInterface>|null
+     */
+    private ?WeakReference $ownerRef;
+
+    /**
      * @param BindingsMap $bindings
      * @param ContextualBindingsMap $contextualBindings
      * @param CompiledPlans $compiledPlans
@@ -122,6 +162,10 @@ final class DependencyCacheManager
         private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
     ) {
+        // Read before useSelfReference() can replace it, which is the only way
+        // to know which of the two references is the owner.
+        $this->ownerRef = $containerRef;
+
         if ($planCache === null) {
             $this->planRegistry = new PlanRegistry($compiledPlans);
 
@@ -174,6 +218,14 @@ final class DependencyCacheManager
         // adoptLazyFrom().
         $this->lazyClasses = $parentManager->lazyClasses;
         $this->lazyFactories = $parentManager->lazyFactories;
+
+        // Copied for the same reason, and it has to be copied rather than
+        // reached through the chain: the parent branch in resolveClass() asks
+        // provides(), which reports no ownership of an ancestor's alias whose
+        // target is merely an autowirable class — so a scope would build the
+        // name the alias is spelled as while its own get() followed the alias.
+        // A later set() or alias() up there is pushed down, see adoptOwnedFrom().
+        $this->ownedIds = $parentManager->ownedIds;
     }
 
     /**
@@ -185,6 +237,16 @@ final class DependencyCacheManager
     {
         $this->lazyClasses += $parentManager->lazyClasses;
         $this->lazyFactories += $parentManager->lazyFactories;
+    }
+
+    /**
+     * The same for ids the parent has come to answer itself since this scope was
+     * created. A gate only ever grows, and a hit is settled by asking the
+     * container, so there is nothing here for a scope to disagree with.
+     */
+    public function adoptOwnedFrom(self $parentManager): void
+    {
+        $this->ownedIds += $parentManager->ownedIds;
     }
 
     /**
@@ -212,6 +274,23 @@ final class DependencyCacheManager
     public function markAsSingleton(string $class): void
     {
         $this->forcedSingletons[$class] = true;
+    }
+
+    /**
+     * Record that the container answers $id itself, so nested resolution asks
+     * it instead of autowiring the class.
+     *
+     * A stored instance, a factory or protected closure, an alias — none of
+     * them are bindings, and the resolver only ever consulted the bindings. A
+     * constructor parameter typed as such an id therefore got a second,
+     * freshly built object, or a hard error naming a scalar of a class nobody
+     * asked the container to build (gacela#885).
+     *
+     * @see DependencyResolver::resolveClass()
+     */
+    public function markAsOwned(string $id): void
+    {
+        $this->ownedIds[$id] = true;
     }
 
     /**
@@ -507,6 +586,8 @@ final class DependencyCacheManager
                 $this->containerRef,
                 $this->lazyClasses,
                 $this->lazyFactories,
+                $this->ownedIds,
+                $this->ownerRef,
             );
 
             if ($this->parent !== null) {

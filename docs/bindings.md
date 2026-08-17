@@ -273,6 +273,11 @@ $db1 = $container->get('db');        // Same instance
 $db2 = $container->get(PDO::class);  // Same instance
 ```
 
+An alias whose *name* is a class or interface is followed for a constructor
+parameter typed as it too, so `alias(Clock::class, 'clock.frozen')` redirects
+every injection of `Clock` — see
+[a registration answers a constructor parameter too](resolution.md#a-registration-answers-a-constructor-parameter-too).
+
 ## Related
 
 - [Resolving services](resolution.md) — `get()`, `make()`, `getOrFail()`

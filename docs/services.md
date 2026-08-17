@@ -16,6 +16,10 @@ $file1 = $container->get('temp_file'); // New instance
 $file2 = $container->get('temp_file'); // Different instance
 ```
 
+Registered under a class-string id, a factory also answers a constructor
+parameter typed as that class, and is re-invoked per injection — see
+[a registration answers a constructor parameter too](resolution.md#a-registration-answers-a-constructor-parameter-too).
+
 ## Extending services
 
 Wrap or modify services, even before they are created:
@@ -38,6 +42,11 @@ $container->set('greeting', $container->protect($closure));
 
 $result = $container->get('greeting'); // Returns the closure itself
 ```
+
+Use a non-class id, as above. A protected closure is handed back rather than
+called wherever the id is asked for, so under a class-string id a constructor
+parameter typed as that class is given the closure and rejects it with a
+`TypeError`.
 
 ## Resolution hooks
 

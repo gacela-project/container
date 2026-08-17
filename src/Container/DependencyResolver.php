@@ -160,6 +160,10 @@ final class DependencyResolver
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
      * @param array<class-string, Closure> $lazyFactories lazy targets whose instance a closure produces
+     * @param array<string, true> $ownedIds ids the container answers outside its
+     *   bindings; see DependencyCacheManager::$ownedIds
+     * @param WeakReference<ContainerInterface>|null $ownerRef the container this
+     *   resolver belongs to, which a facade never replaces; see container()
      */
     public function __construct(
         private array &$bindings = [],
@@ -168,6 +172,8 @@ final class DependencyResolver
         private ?WeakReference $containerRef = null,
         private array &$lazyClasses = [],
         private array &$lazyFactories = [],
+        private array &$ownedIds = [],
+        private ?WeakReference $ownerRef = null,
     ) {
         $this->supportsLazyObjects = self::$lazyObjectsAvailable
             ??= method_exists(ReflectionClass::class, 'newLazyGhost');
@@ -612,7 +618,12 @@ final class DependencyResolver
         // A bound class is whatever its binding says, now or after the next
         // call to bind(). Registration drops every builder (see
         // dropArgBuilders()), so this only has to be right at build time.
-        if (isset($this->bindings[$className])) {
+        //
+        // Same for a class the container owns an id for: resolution hands over
+        // the stored instance, and a flattened `new` would hand over a second
+        // one — so a consumer's first construction and its second would
+        // disagree.
+        if (isset($this->bindings[$className]) || isset($this->ownedIds[$className])) {
             return null;
         }
 
@@ -655,13 +666,21 @@ final class DependencyResolver
     /**
      * The container this resolver belongs to, or null once it has been dropped.
      *
-     * Never null on any path a binding closure runs on: those run while the
-     * container is resolving. A lazy object resolves after get() returned, so
-     * its initializer captures the container strongly to keep it that way.
+     * The facade first, then the container itself — the same order, and the same
+     * fall-back, as Container::forClosures(). A facade is held weakly on
+     * purpose, so one whose caller has let go of it is gone while the container
+     * it wrapped resolves on; without the fall-back everything reached through
+     * here silently loses its container at that point, which for a nested
+     * lookup means resolving an id the container owns as if it did not.
+     *
+     * Null only once the container itself has been dropped, which no path a
+     * binding closure runs on can reach: those run while it is resolving. A
+     * lazy object resolves after get() returned, so its initializer captures
+     * the container strongly to keep it that way.
      */
     private function container(): ?ContainerInterface
     {
-        return $this->containerRef?->get();
+        return $this->containerRef?->get() ?? $this->ownerRef?->get();
     }
 
     /**
@@ -794,6 +813,24 @@ final class DependencyResolver
             $paramTypeName = $contextualBinding;
         }
 
+        // An id the container answers for itself — a stored instance, a factory
+        // or protected closure, an alias — is what get() hands back, so it is
+        // what a constructor parameter naming that id gets. See delegateTo()
+        // for why the container is asked rather than read.
+        //
+        // Ahead of the bindings, and it has to be: get() reads the instance
+        // registry first, and an id with both must not answer one thing
+        // directly and another as a parameter. The cost is one lookup in a map
+        // that stays empty unless something was stored or aliased, so a
+        // container that only autowires never reaches the call behind it.
+        if (isset($this->ownedIds[$paramTypeName])) {
+            $owner = $this->container();
+
+            if ($owner !== null) {
+                return $this->delegateTo($owner, $paramTypeName);
+            }
+        }
+
         $bindClass = $this->bindings[$paramTypeName] ?? null;
 
         // An ancestor that already owns this type hands over its own instance,
@@ -838,6 +875,37 @@ final class DependencyResolver
         }
 
         return $this->instantiateFromPlan($paramTypeName, $plan);
+    }
+
+    /**
+     * Hand an id the container owns back to the container.
+     *
+     * get() is the answer to "what does this container hand out for this id",
+     * and this is that question asked from inside a constructor's parameter
+     * list. Deliberately the same call rather than a lookup of its own: every
+     * registry it consults — instances, aliases, factory and protected marks,
+     * the ancestors of a scope — is then consulted by construction, and a verb
+     * added later needs nothing here.
+     *
+     * Bracketed by the resolving stack for the same reason instantiateFromPlan()
+     * brackets a construction: get() re-enters this class for whatever the id
+     * turns out to name, and an alias whose target leads back to the id is a
+     * cycle. Without it the recursion has no floor and takes the process with
+     * it, instead of throwing the exception a cycle throws everywhere else.
+     *
+     * @param class-string $id
+     */
+    private function delegateTo(ContainerInterface $owner, string $id): mixed
+    {
+        $this->checkCircularDependency($id);
+
+        $this->resolvingStack[$id] = true;
+
+        try {
+            return $owner->get($id);
+        } finally {
+            unset($this->resolvingStack[$id]);
+        }
     }
 
     /**

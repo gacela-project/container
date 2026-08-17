@@ -118,6 +118,33 @@ $container['db'] = new PDO(/* ... */);           // set()
 unset($container['temp']);                        // remove()
 ```
 
+## A registration answers a constructor parameter too
+
+Whatever the container hands back for an id, it hands to a constructor parameter
+typed as that id. There is one answer per id, not one for `get()` and another for
+autowiring:
+
+```php
+$container->set(TaxRates::class, new TaxRates(0.21));
+
+$container->get(TaxRates::class);            // the registered instance
+$container->get(Invoicing::class)->rates;    // the same registered instance
+```
+
+That holds for every way of registering: a binding, `singleton()`, `lazy()`,
+`set()`, `factory()`, `extend()`, an `alias()`, a
+[definition](definitions.md). Lifetime is still the registration's to decide — a
+`factory()` is re-invoked per injection, a `singleton()` is not — and reading a
+stored service freezes it whether the read was a `get()` or an injection.
+
+Two things deliberately do not follow it:
+
+- A **contextual binding** wins over the registration for the consumer it names.
+  That is narrower than "what this id holds", which is the point of
+  [`when()`](bindings.md#contextual-bindings).
+- A **`protect()`ed closure** is handed over rather than called, so a parameter
+  typed as a class rejects it. Protected closures are for non-class ids.
+
 ## Transient vs. shared instances
 
 By default, autowired services are **transient**: each `get()` builds a fresh

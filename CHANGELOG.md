@@ -10,7 +10,15 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
-## [2.0.2](https://github.com/gacela-project/container/compare/2.0.1...2.0.2) - 2026-08-06
+### Fixed
+
+- A service registered under an id is now what a **constructor parameter** naming that id gets, not only what a direct `get()` returns. Nested resolution consulted the bindings alone, so a stored instance, a `factory()`, a `protect()`ed closure, an `extend()`ed service, a `['value' => …]` definition and every `alias()` were invisible to it: the container autowired a second copy of the class instead, and where the class could not be autowired the first resolution of an unrelated *consumer* died naming a scalar parameter of a class nobody asked it to build. **Affects callers**, with no code change on their side: see [UPGRADE.md](UPGRADE.md#a-registration-now-answers-a-constructor-parameter-too) ([gacela#885](https://github.com/gacela-project/gacela/issues/885))
+- A **scope** answered most of these already, by delegating an id it does not own to its parent — but not `alias()` whose target is an autowirable class, which the delegation test reports no ownership of. `alias(RepositoryInterface::class, InMemoryRepository::class)` resolved directly on the scope and threw as a parameter
+- A facade dropped after `withSelfReference()` falls back to the container for everything the resolver invokes, as it already did for `get()` — a nested closure binding used to be handed `null` instead
+
+### Internal
+
+- The argument-builder optimisation refuses a class the container holds an id for, alongside the bound ones it already refused: flattening it to a plain `new` would make a consumer's second construction disagree with its first
 
 ### Documentation
 
