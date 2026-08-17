@@ -777,6 +777,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         // constructor parameter naming this id must still get what get() hands
         // back. See DependencyCacheManager::markAsOwned().
         $this->cacheManager->markAsOwned($id);
+        $this->pushOwnedIds();
 
         if ($this->factoryManager->isCurrentlyExtending($id)) {
             return;
@@ -934,6 +935,8 @@ final class Container implements FullContainerInterface, ArrayAccess
         // parameter would be typed with. See
         // DependencyCacheManager::markAsOwned().
         $this->cacheManager->markAsOwned($alias);
+        $this->pushOwnedIds();
+
         $this->aliasRegistry->add($alias, $id);
     }
 
@@ -1400,6 +1403,20 @@ final class Container implements FullContainerInterface, ArrayAccess
         foreach ($this->liveScopes() as $scope) {
             $scope->cacheManager->adoptLazyFrom($this->cacheManager);
             $scope->pushLazyRegistrations();
+        }
+    }
+
+    /**
+     * Same again, for an id this container has come to answer itself. A scope
+     * created before the set() or alias() took a copy of a map that did not have
+     * it yet, and would go on building the class rather than asking for the id —
+     * the very thing markAsOwned() exists to stop.
+     */
+    private function pushOwnedIds(): void
+    {
+        foreach ($this->liveScopes() as $scope) {
+            $scope->cacheManager->adoptOwnedFrom($this->cacheManager);
+            $scope->pushOwnedIds();
         }
     }
 

@@ -23,9 +23,11 @@ $container->get(Invoicing::class);  // 2.0: a *different*, autowired TaxRates
 
 Affects `set()`, `factory()`, `protect()`, `extend()`, `alias()` and a
 `['value' => …]` or `['factory' => …]` definition. Bindings, `singleton()` and
-`lazy()` already behaved this way, and so did every one of these inside a
-**scope** — a scope delegates an id it does not own to its parent, which
-resolves it with `get()`. This brings a root container in line with that.
+`lazy()` already behaved this way, and so did most of these inside a **scope** —
+a scope delegates an id it does not own to its parent, which resolves it with
+`get()`. This brings a root container in line with that, and fixes the one case
+a scope did not cover either: an `alias()` whose target is an autowirable class,
+which the delegation reports no ownership of.
 
 **Action: none**, and in most applications nothing observable changes — the two
 copies were usually equivalent. Three cases where it does:

@@ -479,6 +479,81 @@ final class NestedResolutionHonoursRegistrationsTest extends TestCase
     }
 
     /**
+     * A scope reaches an ancestor's registrations by delegating an id it does
+     * not own, and that delegation asks provides() — which reports no ownership
+     * of an alias whose target is merely an autowirable class. So a scope takes a
+     * copy of the gate, the way it copies the contextual bindings and the lazy
+     * marks, rather than the chain being walked per parameter.
+     */
+    public function test_a_scope_follows_an_alias_registered_on_its_parent(): void
+    {
+        $root = new Container();
+        $root->alias(RepositoryInterface::class, InMemoryRepository::class);
+        $scope = $root->createScope();
+
+        self::assertInstanceOf(InMemoryRepository::class, $scope->get(RepositoryInterface::class));
+        self::assertInstanceOf(
+            InMemoryRepository::class,
+            $scope->get(ServiceWithRepository::class)->repository,
+        );
+    }
+
+    /**
+     * And a copy has to be kept current: registering on the parent *after* the
+     * scope exists would otherwise leave the scope building the class while the
+     * parent answered the id.
+     */
+    public function test_a_scope_created_before_the_registration_still_sees_it(): void
+    {
+        $registered = new RegisteredOnlyService(42);
+
+        $root = new Container();
+        $scope = $root->createScope();
+        $nested = $scope->createScope();
+
+        $root->set(RegisteredOnlyService::class, $registered);
+
+        self::assertSame($registered, $scope->get(ConsumerOfRegisteredOnlyService::class)->service);
+        self::assertSame($registered, $nested->get(ConsumerOfRegisteredOnlyService::class)->service);
+    }
+
+    /**
+     * The same for an alias, which is the case a copy of a *membership* gate
+     * cannot fake: the target is not owned, so nothing else would report it.
+     */
+    public function test_a_scope_created_before_an_alias_still_follows_it(): void
+    {
+        $root = new Container();
+        $scope = $root->createScope();
+
+        $root->alias(RepositoryInterface::class, InMemoryRepository::class);
+
+        self::assertInstanceOf(
+            InMemoryRepository::class,
+            $scope->get(ServiceWithRepository::class)->repository,
+        );
+    }
+
+    /**
+     * Shadowing is unaffected: the gate says only "ask the container", and the
+     * container a scope asks is itself, which prefers what it stored.
+     */
+    public function test_a_scope_shadowing_an_id_injects_its_own(): void
+    {
+        $parentInstance = new RegisteredOnlyService(1);
+        $scopeInstance = new RegisteredOnlyService(42);
+
+        $root = new Container();
+        $root->set(RegisteredOnlyService::class, $parentInstance);
+
+        $scope = $root->createScope();
+        $scope->set(RegisteredOnlyService::class, $scopeInstance);
+
+        self::assertSame($parentInstance, $root->get(ConsumerOfRegisteredOnlyService::class)->service);
+        self::assertSame($scopeInstance, $scope->get(ConsumerOfRegisteredOnlyService::class)->service);
+    }
+
+    /**
      * Lifetime marks are a separate axis and are deliberately *not* changed
      * here: a nested node is built afresh whether or not the class carries
      * #[Singleton], and `singleton()` with no concrete behaves the same — so

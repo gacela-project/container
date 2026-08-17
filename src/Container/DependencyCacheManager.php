@@ -218,6 +218,14 @@ final class DependencyCacheManager
         // adoptLazyFrom().
         $this->lazyClasses = $parentManager->lazyClasses;
         $this->lazyFactories = $parentManager->lazyFactories;
+
+        // Copied for the same reason, and it has to be copied rather than
+        // reached through the chain: the parent branch in resolveClass() asks
+        // provides(), which reports no ownership of an ancestor's alias whose
+        // target is merely an autowirable class — so a scope would build the
+        // name the alias is spelled as while its own get() followed the alias.
+        // A later set() or alias() up there is pushed down, see adoptOwnedFrom().
+        $this->ownedIds = $parentManager->ownedIds;
     }
 
     /**
@@ -229,6 +237,16 @@ final class DependencyCacheManager
     {
         $this->lazyClasses += $parentManager->lazyClasses;
         $this->lazyFactories += $parentManager->lazyFactories;
+    }
+
+    /**
+     * The same for ids the parent has come to answer itself since this scope was
+     * created. A gate only ever grows, and a hit is settled by asking the
+     * container, so there is nothing here for a scope to disagree with.
+     */
+    public function adoptOwnedFrom(self $parentManager): void
+    {
+        $this->ownedIds += $parentManager->ownedIds;
     }
 
     /**
