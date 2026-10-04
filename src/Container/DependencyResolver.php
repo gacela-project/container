@@ -655,6 +655,20 @@ final class DependencyResolver
     }
 
     /**
+     * A plan read from a compiled cache written before lifetime flags were
+     * recorded has no 'singleton', so the attribute is read once and stored.
+     *
+     * @param class-string $className
+     * @param ClassPlan $plan
+     */
+    private function isSingletonClass(string $className, array $plan): bool
+    {
+        return $plan['singleton']
+            ?? ($this->planRegistry->plans[$className]['singleton'] = (new ReflectionClass($className))
+                ->getAttributes(Singleton::class, ReflectionAttribute::IS_INSTANCEOF) !== []);
+    }
+
+    /**
      * @param class-string $className
      *
      * @return (Closure(): object)|null
@@ -683,6 +697,11 @@ final class DependencyResolver
         // one — so a consumer's first construction and its second would
         // disagree.
         if (isset($this->bindings[$className]) || isset($this->ownedIds[$className])) {
+            return null;
+        }
+
+        // A flattened `new` would build a #[Singleton] class once per consumer.
+        if ($this->isSingletonClass($className, $plan)) {
             return null;
         }
 
@@ -958,6 +977,16 @@ final class DependencyResolver
         // nothing is ever lazy, and this runs for every node of every graph.
         if ($this->supportsLazyObjects && $this->isLazy($paramTypeName)) {
             return $this->newLazyInstance($paramTypeName);
+        }
+
+        // get() keeps the shared instance; building one here would hand the
+        // parameter a second copy.
+        if ($this->isSingletonClass($paramTypeName, $plan)) {
+            $owner = $this->container();
+
+            if ($owner !== null) {
+                return $this->delegateTo($owner, $paramTypeName);
+            }
         }
 
         return $this->instantiateFromPlan($paramTypeName, $plan);
