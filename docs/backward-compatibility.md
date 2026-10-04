@@ -37,6 +37,9 @@ For these, within 2.x:
   to it within 2.x. That freeze is the same promise 1.x made; what changed at
   2.0 is that the interface now covers everything `Container` does, so depending
   on it no longer costs you features.
+- A method added to `Container` within 2.x, such as `forget()` in 2.2, stays off
+  the interface until 3.0. It is covered like the rest of `Container`; a wrapper
+  that wants it forwards it by hand.
 - `FullContainerInterface` is a **deprecated** empty alias of it, kept so a 1.5
   type-hint keeps compiling. It is removed at 3.0.
 - Implementing either interface is what a new method would break, which is why

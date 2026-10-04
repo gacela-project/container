@@ -10,6 +10,18 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Documentation
+
+- `docs/bindings.md` described `has()` and `bound()` wrongly: `has()` is true for anything `get()` can return, an autowirable class included, and `bound()` only for a registration. Its alias example promised the same instance, which holds only for a shared target
+- `ContainerInterface::set()` said an instance cannot be overridden; it can until it is first read
+- `forget()` is listed in the API reference, which also says why it is on `Container` and not on `ContainerInterface` until 3.0
+- The README links Gacela's container wrapper instead of a line number in a file that has since changed
+
+### Changed
+
+- `compileReport()` says an interface with nothing bound to it is one, instead of calling it "not a loadable class"
+- PHPStan keeps its result cache in `.cache/phpstan`, so several checkouts analysing at once no longer share one in the system temp directory, and `composer phpstan` runs with a 1GB memory limit: a cold run ran its worker out of the default 128MB, which `composer test` reported as an internal error
+
 ### Performance
 
 - A container built from compiled plans no longer reflects at all. A plan already carried a class's `#[Inject]` properties and methods, but the code that asks whether a class has any read its own memo instead, and `#[Lazy]`, `#[Singleton]` and `#[Factory]` were not in the plan, so every class was reflected again on the request that loaded the cache. Plans now record the three attributes, and every reflection memo reads the plan first. Measured on a Gacela application under PHP's built-in server with opcache and preloading: a request with the cache loaded went from about 2.5% to about 7% faster than one without

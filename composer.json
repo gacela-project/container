@@ -93,7 +93,7 @@
         "bench-baseline": "vendor/bin/phpbench run --tag=baseline --store --progress=none",
         "bench:compare": "tools/bench-compare.sh",
         "psalm": "XDEBUG_MODE=off ./vendor/bin/psalm",
-        "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze",
+        "phpstan": "XDEBUG_MODE=off ./vendor/bin/phpstan analyze --memory-limit=1G",
         "fix": "@csfix",
         "csfix": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix",
         "csrun": "XDEBUG_MODE=off ./vendor/bin/php-cs-fixer fix --dry-run"

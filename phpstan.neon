@@ -1,4 +1,7 @@
 parameters:
     level: max
+    # Per checkout, so several checkouts or sessions analysing at once do not
+    # share one result cache in the system temp directory.
+    tmpDir: %currentWorkingDirectory%/.cache/phpstan
     paths:
         - %currentWorkingDirectory%/src/

@@ -140,7 +140,7 @@ requirement is still `psr/container` alone.
 
 ## Real-World Example
 
-See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/ClassResolver/AbstractClassResolver.php#L161).
+See how it's used in the [Gacela Framework](https://github.com/gacela-project/gacela/blob/main/src/Framework/Container/Container.php).
 
 ## Testing
 
