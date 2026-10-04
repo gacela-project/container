@@ -12,7 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Added
 
-- `PlanCache::writeTo()` and `PlanCache::fromFile()` carry a plan cache from one process to the next. Under PHP-FPM every request started by reflecting the same classes again; a request can now write what it planned and the next one start from it, with nothing resolved to produce the file. It is the `writeCompiledCache()` format, so an entry whose class changed is dropped on read. `fromFile()` gives an empty cache for a missing, unreadable or foreign file instead of throwing
+- `PlanCache::writeTo()` and `PlanCache::fromFile()` carry a plan cache from one process to the next. Under PHP-FPM every request started by reflecting the same classes again; a request can now write what it planned and the next one start from it, with nothing resolved to produce the file. It is the `writeCompiledCache()` format, so an entry whose class changed is dropped on read. `fromFile()` gives an empty cache for a missing, unreadable or foreign file instead of throwing. `writeTo()` leaves out a class whose file changed after the cache was created, since a process that lived across a deploy holds a plan of the constructor it loaded, not of the file on disk
 
 ### Documentation
 

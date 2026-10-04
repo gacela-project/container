@@ -8,6 +8,7 @@ use Gacela\Container\Exception\ContainerException;
 
 use function array_keys;
 use function count;
+use function time;
 
 /**
  * One constructor-plan cache, shared by containers that are not related.
@@ -52,6 +53,8 @@ final class PlanCache
 {
     private readonly PlanRegistry $registry;
 
+    private readonly int $createdAt;
+
     /**
      * @param CompiledPlans $compiledPlans seeds the cache from a compiled cache
      *   file, so several containers share one read of it instead of one each
@@ -59,6 +62,7 @@ final class PlanCache
     public function __construct(array $compiledPlans = [])
     {
         $this->registry = new PlanRegistry($compiledPlans);
+        $this->createdAt = time();
     }
 
     /**
@@ -89,11 +93,15 @@ final class PlanCache
      * needed. The file is replaced in one rename, so a process reading it
      * meanwhile never sees half of it.
      *
+     * A class whose file changed after this cache was created is left out: a
+     * process that loaded the old file and lived across a deploy holds a plan
+     * of the old constructor, and the stamp taken now would vouch for it.
+     *
      * @throws ContainerException when the file cannot be written
      */
     public function writeTo(string $file, ?string $buildStamp = null): void
     {
-        CompiledCacheWriter::write($this->registry->plans, $file, $buildStamp);
+        CompiledCacheWriter::write($this->registry->plans, $file, $buildStamp, $this->createdAt);
     }
 
     /**
