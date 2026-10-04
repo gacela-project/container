@@ -6,10 +6,8 @@ namespace Gacela\Container\Exception;
 
 use Gacela\Container\FuzzyMatcher;
 use Psr\Container\NotFoundExceptionInterface;
-use ReflectionClass;
 use RuntimeException;
 
-use function class_exists;
 use function implode;
 use function interface_exists;
 use function sprintf;
@@ -40,19 +38,16 @@ final class DependencyNotFoundException extends RuntimeException implements NotF
 
         $message .= sprintf("\n\nBind it to a concrete class:\n  \$container->bind(%s::class, YourImplementation::class);\n", self::shortName($className));
 
-        $block = FuzzyMatcher::renderSuggestions($suggestions);
-
-        if ($block !== '') {
-            $message .= "\n" . $block . "\n";
-        }
+        $message .= FuzzyMatcher::renderSuggestions($suggestions);
 
         return new self($message . "\nSee https://github.com/gacela-project/container/blob/main/docs/bindings.md");
     }
 
     public static function unresolvableId(string $id): self
     {
-        // The usual reason: an interface or abstract class with nothing bound.
-        if (interface_exists($id) || (class_exists($id) && (new ReflectionClass($id))->isAbstract())) {
+        // get() already refuses an abstract class, so only an unbound interface
+        // comes back as null.
+        if (interface_exists($id)) {
             return self::mapNotFoundForClassName($id);
         }
 

@@ -11,6 +11,7 @@ use GacelaTest\Fake\ClassWithInterfaceDependencies;
 use GacelaTest\Fake\ClassWithIntersectionParameter;
 use GacelaTest\Fake\ClassWithUnionParameter;
 use GacelaTest\Fake\OuterOfWithoutDefaults;
+use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -60,7 +61,7 @@ final class ResolutionErrorMessagesTest extends TestCase
             (new Container())->get(PersonWithoutDefaultValues::class);
             self::fail('a scalar parameter was resolved');
         } catch (DependencyInvalidArgumentException $exception) {
-            self::assertStringContainsString("needs('\$name')->give(<value>)", $exception->getMessage());
+            self::assertStringContainsString("when(PersonWithoutDefaultValues::class)->needs('\$name')->give(<value>)", $exception->getMessage());
             self::assertStringNotContainsString("= 'default'", $exception->getMessage());
         }
     }
@@ -71,6 +72,41 @@ final class ResolutionErrorMessagesTest extends TestCase
         $this->expectExceptionMessage('Needed by parameter $person of ' . ClassWithInterfaceDependencies::class . '::__construct().');
 
         (new Container())->get(ClassWithInterfaceDependencies::class);
+    }
+
+    public function test_a_scalar_parameter_of_a_callable_says_to_pass_it_in(): void
+    {
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $this->expectExceptionMessage("of the callable.\nScalar types (string, int, float, bool, array) cannot be auto-resolved.\n\nPass it in: \$container->resolve(\$callable, ['name' => <value>])");
+
+        (new Container())->resolve(static fn (string $name): string => $name);
+    }
+
+    public function test_a_missing_binding_reads_as_one_message_with_its_fix_and_suggestions(): void
+    {
+        $container = new Container([PersonInterface::class . 's' => Person::class]);
+
+        try {
+            $container->get(ClassWithInterfaceDependencies::class);
+            self::fail('an unbound interface was resolved');
+        } catch (DependencyNotFoundException $exception) {
+            $message = $exception->getMessage();
+            self::assertStringStartsWith('Nothing is bound to "' . PersonInterface::class . '"', $message);
+            self::assertStringContainsString("\nResolution chain: " . ClassWithInterfaceDependencies::class . "\n", $message);
+            self::assertStringContainsString(
+                "\$container->bind(PersonInterface::class, YourImplementation::class);\n\nDid you mean one of these?\n  - " . PersonInterface::class . "s\n\nSee ",
+                $message,
+            );
+            self::assertStringEndsWith('docs/bindings.md', $message);
+        }
+    }
+
+    public function test_get_or_fail_on_an_unknown_id_says_it_resolved_to_nothing(): void
+    {
+        $this->expectException(DependencyNotFoundException::class);
+        $this->expectExceptionMessage('Could not resolve a non-null instance for "no-such-service".');
+
+        (new Container())->getOrFail('no-such-service');
     }
 
     public function test_get_or_fail_on_an_unbound_interface_says_to_bind_it(): void
