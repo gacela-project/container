@@ -122,6 +122,9 @@ final class DependencyResolver
      */
     private static array $lazyAttribute = [];
 
+    /** @var array<class-string, bool> */
+    private static array $hasInstanceProperties = [];
+
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
 
@@ -210,6 +213,7 @@ final class DependencyResolver
         self::$propertyPlans = [];
         self::$methodPlans = [];
         self::$lazyAttribute = [];
+        self::$hasInstanceProperties = [];
         self::$lazyObjectsAvailable = null;
     }
 
@@ -441,6 +445,15 @@ final class DependencyResolver
     public function newLazyInstance(string $className): object
     {
         $factory = $this->lazyFactories[$className] ?? null;
+
+        // PHP marks a lazy object with no properties initialized the moment it
+        // is created, so its initializer never runs: a ghost would never be
+        // constructed, and a proxy would be an unconstructed $className rather
+        // than what the factory returns. Such a class is built now instead.
+        if (!self::hasInstanceProperties($className)) {
+            /** @var object */
+            return $factory === null ? $this->constructNow($className) : $factory($this->container());
+        }
 
         return $factory === null
             ? $this->newLazyGhost($className)
@@ -960,6 +973,48 @@ final class DependencyResolver
         $neededBy = $this->typeInFocus === $abstract ? $this->parameterInFocus : null;
 
         throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions, $neededBy, $this->getResolutionChain());
+    }
+
+    /**
+     * What a ghost's initializer does, on an instance built now.
+     *
+     * @param class-string $className
+     */
+    private function constructNow(string $className): object
+    {
+        /** @psalm-suppress MixedMethodCall */
+        $instance = new $className(...$this->resolveDependencies($className));
+
+        if ($this->hasInjectedProperties($className)) {
+            $this->injectPropertiesOn($instance, $className);
+        }
+
+        $this->callInjectedMethods($instance, $className, $this->describeMethods($className));
+
+        return $instance;
+    }
+
+    /**
+     * Whether $className or an ancestor declares an instance property, which
+     * is what PHP needs to keep a lazy object uninitialized.
+     *
+     * @param class-string $className
+     */
+    private static function hasInstanceProperties(string $className): bool
+    {
+        if (isset(self::$hasInstanceProperties[$className])) {
+            return self::$hasInstanceProperties[$className];
+        }
+
+        for ($class = new ReflectionClass($className); $class instanceof ReflectionClass; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                if (!$property->isStatic()) {
+                    return self::$hasInstanceProperties[$className] = true;
+                }
+            }
+        }
+
+        return self::$hasInstanceProperties[$className] = false;
     }
 
     /**
