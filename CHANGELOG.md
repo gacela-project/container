@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- A constructor parameter typed with a class or interface that does not exist is reported as missing, with a pointer to the import and the autoloader. It was reported as a scalar, with advice to give it a default value, which no class-typed parameter accepts
+
 ## [2.1.0](https://github.com/gacela-project/container/compare/2.0.2...2.1.0) - 2026-08-17
 
 

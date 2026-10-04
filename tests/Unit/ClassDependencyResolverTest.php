@@ -10,6 +10,7 @@ use Gacela\Container\Exception\DependencyNotFoundException;
 use Gacela\Container\PlanRegistry;
 use GacelaTest\Fake\AbstractService;
 use GacelaTest\Fake\ClassWithInterfaceDependencies;
+use GacelaTest\Fake\ClassWithMissingClassDependency;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\Person;
@@ -81,6 +82,23 @@ final class ClassDependencyResolverTest extends TestCase
 
         $resolver = new DependencyResolver();
         $resolver->resolveDependencies(PersonWithoutDefaultValues::class);
+    }
+
+    /**
+     * A class that does not exist is no scalar: the default-value advice given
+     * for a string would not even parse with a class type.
+     */
+    public function test_a_parameter_typed_with_a_missing_class_names_the_class(): void
+    {
+        $resolver = new DependencyResolver();
+
+        try {
+            $resolver->resolveDependencies(ClassWithMissingClassDependency::class);
+            self::fail('a missing class was resolved');
+        } catch (DependencyInvalidArgumentException $exception) {
+            self::assertStringContainsString("No class or interface 'App\\Nope\\Missing' exists.", $exception->getMessage());
+            self::assertStringNotContainsString('default value', $exception->getMessage());
+        }
     }
 
     public function test_missing_param_types_on_dependency_value(): void
