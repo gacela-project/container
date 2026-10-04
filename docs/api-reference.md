@@ -163,6 +163,10 @@ that have no parent/scope relationship, and nothing else: bindings, contextual
 bindings, instances and singletons stay private to each container. See
 [performance](performance.md#one-plan-cache-for-several-containers).
 
+`PlanCache::fromFile($file, ?$buildStamp)` and `$planCache->writeTo($file, ?$buildStamp)`
+carry it from one process to the next; see
+[performance](performance.md#carry-it-to-the-next-process).
+
 All four parameters are optional and part of the stable API — their names, order,
 types, and defaults do not change within a major version. Named arguments are safe.
 

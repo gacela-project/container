@@ -7,6 +7,7 @@ namespace Gacela\Container;
 use Gacela\Container\Exception\ContainerException;
 use Throwable;
 
+use function bin2hex;
 use function dirname;
 use function file_put_contents;
 use function implode;
@@ -16,6 +17,9 @@ use function is_file;
 use function is_readable;
 use function is_string;
 use function is_writable;
+use function random_bytes;
+use function rename;
+use function unlink;
 use function var_export;
 
 /**
@@ -134,7 +138,18 @@ final class CompiledCacheWriter
             throw ContainerException::compiledCacheNotWritable($file);
         }
 
-        if (@file_put_contents($file, $code) === false) {
+        // Written beside the target and renamed over it: a request that
+        // includes the file while it is being written sees the old file or the
+        // new one, never half of one, which would be a parse error.
+        $temporary = $file . '.' . bin2hex(random_bytes(6)) . '.tmp';
+
+        if (@file_put_contents($temporary, $code) === false) {
+            throw ContainerException::compiledCacheNotWritable($file);
+        }
+
+        if (!@rename($temporary, $file)) {
+            @unlink($temporary);
+
             throw ContainerException::compiledCacheNotWritable($file);
         }
     }

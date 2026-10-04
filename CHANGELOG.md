@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `PlanCache::writeTo()` and `PlanCache::fromFile()` carry a plan cache from one process to the next. Under PHP-FPM every request started by reflecting the same classes again; a request can now write what it planned and the next one start from it, with nothing resolved to produce the file. It is the `writeCompiledCache()` format, so an entry whose class changed is dropped on read. `fromFile()` gives an empty cache for a missing, unreadable or foreign file instead of throwing
+
 ### Documentation
 
 - `docs/bindings.md` described `has()` and `bound()` wrongly: `has()` is true for anything `get()` can return, an autowirable class included, and `bound()` only for a registration. Its alias example promised the same instance, which holds only for a shared target
@@ -24,6 +28,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- A compiled cache file is written beside its target and renamed over it. It was written in place, so a request that included it during a write could read half a file and fail with a parse error
 - A constructor parameter with a union or intersection type throws a `DependencyInvalidArgumentException` naming the class and the parameter, instead of a PHP `TypeError` from inside the resolver
 - The error for a scalar parameter nothing supplies names the parameter, and suggests `when()->needs()->give()`, `make()` with the value, or a default value. It suggested `= 'default'` for any type, which does not compile for an `int` or an `array`
 - The error for an interface nothing is bound to names the parameter and class that needed it, prints the resolution chain, and links the container's own docs instead of Gacela's. `getOrFail()` on such an interface says to bind it

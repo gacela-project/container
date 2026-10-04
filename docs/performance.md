@@ -67,6 +67,33 @@ be describing a constructor that has since changed.
 `count()` and `classes()` say what the cache holds, which is how a build asserts
 the sharing is happening at all.
 
+### Carry it to the next process
+
+Under PHP-FPM every request starts with an empty cache. `writeTo()` saves what
+the cache holds, and `fromFile()` starts the next process from it:
+
+```php
+$file = __DIR__ . '/cache/plans.php';
+$plans = PlanCache::fromFile($file);
+
+// ... build containers with $plans and handle the request ...
+
+if ($plans->count() > $countAtStart) {
+    $plans->writeTo($file);
+}
+```
+
+Nothing is resolved to write it: the file holds exactly the classes earlier
+requests planned. It is the same format as `writeCompiledCache()`, so an entry
+whose class file changed since is dropped on read, and passing the same build
+stamp to both calls trusts the whole file on one comparison instead. The file is
+replaced with one rename, so a request reading it while another writes it never
+sees half of it.
+
+`fromFile()` never throws. A missing file, an unreadable one, or one written by
+another container version gives an empty cache: plans only save reflection, so
+the request plans the slow way and can write the file again.
+
 ## Process-global caches
 
 Some reflection output is cached in `static` properties, shared by every
