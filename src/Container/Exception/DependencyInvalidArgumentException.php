@@ -7,11 +7,17 @@ namespace Gacela\Container\Exception;
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 
+use function in_array;
+use function ltrim;
+use function strtolower;
+
 /**
  * @api
  */
 final class DependencyInvalidArgumentException extends InvalidArgumentException implements ContainerExceptionInterface
 {
+    private const BUILT_IN_TYPES = ['string', 'int', 'float', 'bool', 'array', 'iterable', 'mixed', 'callable', 'object', 'false', 'true', 'null'];
+
     /**
      * @param list<string> $resolutionChain
      */
@@ -35,6 +41,18 @@ TXT;
     public static function unableToResolve(string $parameter, string $className, array $resolutionChain = []): self
     {
         $chainInfo = self::formatResolutionChain($resolutionChain);
+
+        // A name that is no built-in type is a class or interface that does not
+        // exist: suggesting a default value would be advice no PHP accepts.
+        if (!in_array(strtolower(ltrim($parameter, '?')), self::BUILT_IN_TYPES, true)) {
+            $message = <<<TXT
+Unable to resolve parameter of type '{$parameter}' in '{$className}'.{$chainInfo}
+No class or interface '{$parameter}' exists.
+
+Check the type's import and spelling, and that the autoloader can find it.
+TXT;
+            return new self($message);
+        }
 
         $message = <<<TXT
 Unable to resolve parameter of type '{$parameter}' in '{$className}'.{$chainInfo}
