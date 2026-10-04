@@ -808,7 +808,11 @@ final class Container implements FullContainerInterface, ArrayAccess
             $instance = $this->createInstance($id);
         }
 
-        $this->fireAfterResolving($id, $instance);
+        // Guarded here rather than inside: most containers register no hooks,
+        // and this is every get().
+        if ($this->afterResolvingCallbacks !== []) {
+            $this->fireAfterResolving($id, $instance);
+        }
 
         return $instance;
     }
@@ -896,7 +900,9 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         // get() fires for every other path; without this, overriding an
         // argument silently skipped the hooks.
-        $this->fireAfterResolving($id, $instance);
+        if ($this->afterResolvingCallbacks !== []) {
+            $this->fireAfterResolving($id, $instance);
+        }
 
         return $instance;
     }
@@ -1525,10 +1531,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private function fireAfterResolving(string $id, mixed $instance): void
     {
-        if ($this->afterResolvingCallbacks === []) {
-            return;
-        }
-
         $container = $this->forClosures();
 
         foreach ($this->afterResolvingCallbacks as $hook) {
