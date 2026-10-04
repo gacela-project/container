@@ -13,6 +13,7 @@ use GacelaTest\Fake\EagerService;
 use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\LazyFactoryService;
 use GacelaTest\Fake\LazyService;
+use GacelaTest\Fake\LazyServiceWithoutProperties;
 use GacelaTest\Fake\LazySingletonService;
 use GacelaTest\Fake\OuterHoldingLazyService;
 use GacelaTest\Fake\OuterHoldingReportGenerator;
@@ -77,6 +78,23 @@ final class LazyServicesTest extends TestCase
         self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency);
 
         self::assertSame(1, ConstructionCounter::countFor(LazyService::class));
+    }
+
+    public function test_a_lazy_class_without_properties_is_constructed(): void
+    {
+        $service = (new Container())->get(LazyServiceWithoutProperties::class);
+
+        self::assertInstanceOf(LazyServiceWithoutProperties::class, $service);
+        self::assertSame(1, ConstructionCounter::countFor(LazyServiceWithoutProperties::class));
+    }
+
+    public function test_a_lazy_factory_for_a_class_without_properties_returns_what_it_builds(): void
+    {
+        $built = new LazyServiceWithoutProperties(new ClassWithoutDependencies());
+        $container = new Container();
+        $container->lazy(LazyServiceWithoutProperties::class, static fn (): LazyServiceWithoutProperties => $built);
+
+        self::assertSame($built, $container->get(LazyServiceWithoutProperties::class));
     }
 
     public function test_a_class_without_the_attribute_is_constructed_eagerly(): void
