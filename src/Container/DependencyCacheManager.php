@@ -110,7 +110,8 @@ final class DependencyCacheManager
 
     /**
      * The ids the container answers from somewhere other than its bindings:
-     * anything stored with set(), and every alias.
+     * anything stored with set(), every alias, and both names a class-string
+     * singleton() was registered with.
      *
      * Kept here, and handed to the resolver by reference, for the same reason
      * the lazy marks above are: it is registration state the resolver has to

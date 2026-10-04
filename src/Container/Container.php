@@ -550,6 +550,13 @@ final class Container implements FullContainerInterface, ArrayAccess
         /** @var class-string $concrete */
         $this->bind($abstract, $concrete);
         $this->cacheManager->markAsSingleton($concrete);
+
+        // Nested resolution builds a class-string binding itself, which would
+        // bypass the shared instance; owning both names sends a constructor
+        // parameter typed as either through get().
+        $this->cacheManager->markAsOwned($abstract);
+        $this->cacheManager->markAsOwned($concrete);
+        $this->pushOwnedIds();
     }
 
     /**

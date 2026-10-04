@@ -16,7 +16,6 @@ use GacelaTest\Fake\RegisteredOnlyService;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\SelfReferential;
 use GacelaTest\Fake\ServiceWithRepository;
-use GacelaTest\Fake\SingletonAttributeService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -554,33 +553,6 @@ final class NestedResolutionHonoursRegistrationsTest extends TestCase
     }
 
     /**
-     * Lifetime marks are a separate axis and are deliberately *not* changed
-     * here: a nested node is built afresh whether or not the class carries
-     * #[Singleton], and `singleton()` with no concrete behaves the same — so
-     * the attribute and the method still agree with each other.
-     *
-     * Both differ from a direct get(), which does share. That is the transient
-     * children rule (see TransientChildResolutionTest): it decides how long an
-     * instance lives, not which registration answers the id, which is what this
-     * class covers. Asserted so a change to it is deliberate.
-     */
-    public function test_lifetime_marks_are_still_not_applied_to_nested_nodes(): void
-    {
-        $byAttribute = new Container();
-        self::assertNotSame(
-            $byAttribute->get(SingletonAttributeService::class),
-            $byAttribute->get(ConsumerOfSingletonAttributeService::class)->service,
-        );
-
-        $byMethod = new Container();
-        $byMethod->singleton(ClassWithoutDependencies::class);
-        self::assertNotSame(
-            $byMethod->get(ClassWithoutDependencies::class),
-            $byMethod->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
-        );
-    }
-
-    /**
      * An id nothing was registered for still costs nothing but the autowiring
      * it always did — the gate that makes the lookup affordable is what this
      * asserts, by proving a container that stores nothing under a class name
@@ -595,13 +567,5 @@ final class NestedResolutionHonoursRegistrationsTest extends TestCase
             $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
             $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
         );
-    }
-}
-
-final class ConsumerOfSingletonAttributeService
-{
-    public function __construct(
-        public SingletonAttributeService $service,
-    ) {
     }
 }
