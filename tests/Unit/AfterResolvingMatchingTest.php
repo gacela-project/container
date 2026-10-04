@@ -201,6 +201,58 @@ final class AfterResolvingMatchingTest extends TestCase
         self::assertFalse($container->has('svc'));
     }
 
+    /**
+     * The built instance goes, the registration stays: one failed hook must
+     * not leave every later get() with nothing to build.
+     */
+    public function test_a_throwing_hook_rebuilds_a_closure_registered_service_next_time(): void
+    {
+        $container = new Container();
+        $container->set('svc', static fn (): ClassWithoutDependencies => new ClassWithoutDependencies());
+
+        $failures = 1;
+        $container->afterResolving('svc', static function () use (&$failures): void {
+            if ($failures-- > 0) {
+                throw new RuntimeException('wiring failed');
+            }
+        });
+
+        try {
+            $container->get('svc');
+            self::fail('the hook should have thrown');
+        } catch (RuntimeException) {
+            // expected
+        }
+
+        $first = $container->get('svc');
+
+        self::assertTrue($container->has('svc'));
+        self::assertInstanceOf(ClassWithoutDependencies::class, $first);
+        self::assertSame($first, $container->get('svc'), 'still shared once rebuilt');
+    }
+
+    public function test_a_throwing_hook_leaves_a_factory_registered(): void
+    {
+        $container = new Container();
+        $container->set('svc', $container->factory(static fn (): ClassWithoutDependencies => new ClassWithoutDependencies()));
+
+        $failures = 1;
+        $container->afterResolving('svc', static function () use (&$failures): void {
+            if ($failures-- > 0) {
+                throw new RuntimeException('wiring failed');
+            }
+        });
+
+        try {
+            $container->get('svc');
+            self::fail('the hook should have thrown');
+        } catch (RuntimeException) {
+            // expected
+        }
+
+        self::assertInstanceOf(ClassWithoutDependencies::class, $container->get('svc'));
+    }
+
     public function test_a_throwing_hook_still_propagates(): void
     {
         $container = new Container();

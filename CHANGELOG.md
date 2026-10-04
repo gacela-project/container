@@ -10,9 +10,14 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `Container::forget($id)` drops what was built for an id and keeps how to build it: a closure-registered service is built again on the next `get()`, a `factory()` is left as it is
+
 ### Fixed
 
 - A constructor parameter typed with a class or interface that does not exist is reported as missing, with a pointer to the import and the autoloader. It was reported as a scalar, with advice to give it a default value, which no class-typed parameter accepts
+- An `afterResolving()` hook that throws no longer deletes the registration of a service registered with a closure or a `factory()`. The closure had been replaced by the instance it built, so removing the instance removed the service, and every later `get()` found nothing
 
 ## [2.1.0](https://github.com/gacela-project/container/compare/2.0.2...2.1.0) - 2026-08-17
 
