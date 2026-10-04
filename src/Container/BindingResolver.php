@@ -118,7 +118,7 @@ final class BindingResolver
      */
     public function resolveType(string $typeName): string
     {
-        $binding = $this->findBinding($typeName);
+        $binding = $this->bindings[$typeName] ?? $this->parent?->findBinding($typeName);
 
         if (is_string($binding) && class_exists($binding)) {
             return $binding;

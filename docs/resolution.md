@@ -37,6 +37,31 @@ $service = $container->make(UserService::class, ['logger' => $myLogger]);
 This resolves parameters that could not be autowired otherwise (e.g. a scalar
 without a default). Overrides are per-call and never cached.
 
+The id is resolved as `make()` without parameters resolves it: an alias is
+followed, then a class-string binding, so the overrides go to the bound
+concrete class:
+
+```php
+$container->bind(CacheInterface::class, RedisCache::class);
+
+$cache = $container->make(CacheInterface::class, ['host' => 'cache.local']); // a RedisCache
+```
+
+A closure or instance binding has no constructor to override, so it is not
+followed.
+
+A key that names no constructor parameter throws
+`DependencyInvalidArgumentException`, listing the parameters the class has and
+suggesting the closest one:
+
+```php
+$container->make(RedisCache::class, ['hots' => 'cache.local']);
+// Unknown parameter(s) 'hots' passed to make() for 'RedisCache'.
+// Its constructor takes: $host, $port
+// Did you mean one of these?
+//   - host
+```
+
 ## getOrFail()
 
 Like `get()`, but throws `DependencyNotFoundException` instead of returning

@@ -808,7 +808,11 @@ final class Container implements FullContainerInterface, ArrayAccess
             $instance = $this->createInstance($id);
         }
 
-        $this->fireAfterResolving($id, $instance);
+        // Guarded here rather than inside: most containers register no hooks,
+        // and this is every get().
+        if ($this->afterResolvingCallbacks !== []) {
+            $this->fireAfterResolving($id, $instance);
+        }
 
         return $instance;
     }
@@ -865,6 +869,8 @@ final class Container implements FullContainerInterface, ArrayAccess
      *
      * When $parameters are given, they override constructor arguments by
      * parameter name (top level only) and the instance is always built fresh.
+     * The id follows an alias and a class-string binding first, and a key that
+     * names no constructor parameter throws.
      *
      * @template T of object
      *
@@ -881,11 +887,22 @@ final class Container implements FullContainerInterface, ArrayAccess
             return $this->getOrFail($className);
         }
 
-        $instance = $this->cacheManager->instantiateWith($className, $parameters);
+        // The same id get() would resolve: an alias, then a class-string
+        // binding, here or in an ancestor. A closure or instance binding has no
+        // constructor to override, so the id is built as given.
+        /** @var class-string $id */
+        $id = $this->aliasRegistry->resolve($className);
+
+        /** @var class-string<T> $concrete */
+        $concrete = $this->bindingResolver->resolveType($id);
+
+        $instance = $this->cacheManager->instantiateWith($concrete, $parameters);
 
         // get() fires for every other path; without this, overriding an
         // argument silently skipped the hooks.
-        $this->fireAfterResolving($className, $instance);
+        if ($this->afterResolvingCallbacks !== []) {
+            $this->fireAfterResolving($id, $instance);
+        }
 
         return $instance;
     }
@@ -1514,10 +1531,6 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private function fireAfterResolving(string $id, mixed $instance): void
     {
-        if ($this->afterResolvingCallbacks === []) {
-            return;
-        }
-
         $container = $this->forClosures();
 
         foreach ($this->afterResolvingCallbacks as $hook) {

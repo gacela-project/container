@@ -22,8 +22,11 @@ use Throwable;
 use WeakMap;
 use WeakReference;
 
+use function array_diff;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
+use function array_values;
 use function class_exists;
 use function count;
 use function in_array;
@@ -256,7 +259,34 @@ final class DependencyResolver
         $this->buildStack[] = $toResolve;
 
         try {
-            return $this->resolveEntryParameters($this->describeClass($toResolve)['params'], $overrides);
+            $params = $this->describeClass($toResolve)['params'];
+
+            // An override is matched by name only, so a misspelled key would
+            // otherwise be dropped without a word. Checked inline and up front:
+            // this runs on every make() with parameters, and a wrong key should
+            // be reported before the parameter it missed fails to autowire.
+            foreach ($overrides as $key => $_) {
+                foreach ($params as $param) {
+                    if ($param['name'] === $key) {
+                        continue 2;
+                    }
+                }
+
+                $this->throwUnknownOverrides($toResolve, $params, $overrides);
+            }
+
+            // resolveEntryParameters() inlined: every get() of an unplanned
+            // class and every make() comes through here.
+            $dependencies = [];
+
+            foreach ($params as $param) {
+                /** @psalm-suppress MixedAssignment */
+                $dependencies[] = array_key_exists($param['name'], $overrides)
+                    ? $overrides[$param['name']]
+                    : $this->resolveParameter($param);
+            }
+
+            return $dependencies;
         } finally {
             array_pop($this->buildStack);
         }
@@ -710,6 +740,19 @@ final class DependencyResolver
     private function container(): ?ContainerInterface
     {
         return $this->containerRef?->get() ?? $this->ownerRef?->get();
+    }
+
+    /**
+     * @param class-string $className
+     * @param list<ParamPlan> $params
+     * @param array<string, mixed> $overrides
+     */
+    private function throwUnknownOverrides(string $className, array $params, array $overrides): never
+    {
+        $known = array_map(static fn (array $param): string => $param['name'], $params);
+        $unknown = array_values(array_diff(array_map('strval', array_keys($overrides)), $known));
+
+        throw DependencyInvalidArgumentException::unknownParameters($className, $unknown, $known);
     }
 
     /**
