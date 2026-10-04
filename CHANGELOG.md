@@ -13,6 +13,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 ### Performance
 
 - A container built from compiled plans no longer reflects at all. A plan already carried a class's `#[Inject]` properties and methods, but the code that asks whether a class has any read its own memo instead, and `#[Lazy]`, `#[Singleton]` and `#[Factory]` were not in the plan, so every class was reflected again on the request that loaded the cache. Plans now record the three attributes, and every reflection memo reads the plan first. Measured on a Gacela application under PHP's built-in server with opcache and preloading: a request with the cache loaded went from about 2.5% to about 7% faster than one without
+- `loadFile()` and `loadCompiledCache()` no longer call `is_readable()` before reading. Unlike `is_file()`, it is not answered from PHP's stat cache: it was a system call on every load, about 6μs on macOS, more than reading an opcached file. An unreadable file is still reported as unreadable, found by the read instead
 
 ## [2.2.0](https://github.com/gacela-project/container/compare/2.1.0...2.2.0) - 2026-10-04
 

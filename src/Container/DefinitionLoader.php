@@ -96,7 +96,10 @@ final class DefinitionLoader
      */
     public function loadFile(string $file, ?callable $onRegistered = null): array
     {
-        if (!is_file($file) || !is_readable($file)) {
+        // is_file() is answered from the stat cache; is_readable() is a system
+        // call on every load, and costs more than reading an opcached file. An
+        // unreadable file is caught when it is read instead.
+        if (!is_file($file)) {
             throw ContainerException::definitionFileUnreadable($file);
         }
 
@@ -120,7 +123,11 @@ final class DefinitionLoader
          *
          * @var mixed $definitions
          */
-        $definitions = require $file;
+        $definitions = include $file;
+
+        if ($definitions === false && !is_readable($file)) {
+            throw ContainerException::definitionFileUnreadable($file);
+        }
 
         if (!is_array($definitions)) {
             throw ContainerException::definitionFileInvalid($file, 'it did not return an array');

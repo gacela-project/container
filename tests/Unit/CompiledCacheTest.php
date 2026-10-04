@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
+use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\Person;
 use PHPUnit\Framework\TestCase;
 
+use function chmod;
+use function is_readable;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -61,5 +64,25 @@ final class CompiledCacheTest extends TestCase
 
         self::assertInstanceOf(Person::class, $person);
         self::assertSame('', $person->name);
+    }
+
+    public function test_an_unreadable_compiled_cache_is_reported_as_unreadable(): void
+    {
+        $file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'gacela-unreadable-cache-' . uniqid() . '.php';
+        (new Container())->writeCompiledCache([Person::class], $file);
+        chmod($file, 0o000);
+
+        try {
+            if (is_readable($file)) {
+                self::markTestSkipped('chmod has no effect here (root, or a filesystem without permissions)');
+            }
+
+            $this->expectException(ContainerException::class);
+
+            @Container::loadCompiledCache($file);
+        } finally {
+            chmod($file, 0o600);
+            unlink($file);
+        }
     }
 }
