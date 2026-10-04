@@ -22,8 +22,11 @@ use Throwable;
 use WeakMap;
 use WeakReference;
 
+use function array_diff;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
+use function array_values;
 use function class_exists;
 use function count;
 use function is_a;
@@ -240,7 +243,13 @@ final class DependencyResolver
         $this->buildStack[] = $toResolve;
 
         try {
-            return $this->resolveEntryParameters($this->describeClass($toResolve)['params'], $overrides);
+            $params = $this->describeClass($toResolve)['params'];
+
+            if ($overrides !== []) {
+                $this->assertOverridesAreParameters($toResolve, $params, $overrides);
+            }
+
+            return $this->resolveEntryParameters($params, $overrides);
         } finally {
             array_pop($this->buildStack);
         }
@@ -685,6 +694,24 @@ final class DependencyResolver
     private function container(): ?ContainerInterface
     {
         return $this->containerRef?->get() ?? $this->ownerRef?->get();
+    }
+
+    /**
+     * An override is matched by name only, so a misspelled key would otherwise
+     * be dropped and the parameter autowired or defaulted without a word.
+     *
+     * @param class-string $className
+     * @param list<ParamPlan> $params
+     * @param array<string, mixed> $overrides
+     */
+    private function assertOverridesAreParameters(string $className, array $params, array $overrides): void
+    {
+        $known = array_map(static fn (array $param): string => $param['name'], $params);
+        $unknown = array_values(array_diff(array_map('strval', array_keys($overrides)), $known));
+
+        if ($unknown !== []) {
+            throw DependencyInvalidArgumentException::unknownParameters($className, $unknown, $known);
+        }
     }
 
     /**

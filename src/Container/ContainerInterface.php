@@ -48,6 +48,8 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
      *
      * When $parameters are given, they override constructor arguments by
      * parameter name (top level only) and the instance is always built fresh.
+     * The id follows an alias and a class-string binding first, and a key that
+     * names no constructor parameter throws.
      *
      * @template T of object
      *

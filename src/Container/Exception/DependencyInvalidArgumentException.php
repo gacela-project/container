@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace Gacela\Container\Exception;
 
+use Gacela\Container\FuzzyMatcher;
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 
+use function array_map;
+use function array_merge;
+use function array_slice;
+use function array_unique;
+use function array_values;
+use function implode;
 use function in_array;
 use function ltrim;
 use function strtolower;
@@ -163,6 +170,31 @@ Make it public, or move the dependency to the constructor:
   #[Inject]
   public function {$method}(YourClass \$dependency): void { ... }
 TXT;
+        return new self($message);
+    }
+
+    /**
+     * @param list<string> $unknown the keys passed to make() that no constructor parameter has
+     * @param list<string> $known the constructor's parameter names
+     */
+    public static function unknownParameters(string $className, array $unknown, array $known): self
+    {
+        $quoted = implode(', ', array_map(static fn (string $name): string => "'{$name}'", $unknown));
+        $takes = $known === []
+            ? 'It takes no constructor parameters.'
+            : 'Its constructor takes: ' . implode(', ', array_map(static fn (string $name): string => '$' . $name, $known));
+
+        $suggestions = [];
+        foreach ($unknown as $name) {
+            $suggestions = array_merge($suggestions, FuzzyMatcher::findSimilar($name, $known));
+        }
+
+        $message = <<<TXT
+Unknown parameter(s) {$quoted} passed to make() for '{$className}'.
+{$takes}
+TXT;
+        $message .= FuzzyMatcher::renderSuggestions(array_slice(array_values(array_unique($suggestions)), 0, 3));
+
         return new self($message);
     }
 
