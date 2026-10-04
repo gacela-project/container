@@ -17,6 +17,8 @@ use function random_bytes;
 use function rmdir;
 use function scandir;
 use function sys_get_temp_dir;
+use function time;
+use function touch;
 use function unlink;
 
 use const DIRECTORY_SEPARATOR;
@@ -41,6 +43,8 @@ final class PlanCacheFileTest extends TestCase
     protected function tearDown(): void
     {
         @unlink($this->file);
+        @unlink($this->directory . DIRECTORY_SEPARATOR . 'ChangedAfterLoad.php');
+        @unlink($this->directory . DIRECTORY_SEPARATOR . 'UnchangedAfterLoad.php');
         @rmdir($this->directory);
     }
 
@@ -82,6 +86,27 @@ final class PlanCacheFileTest extends TestCase
         self::assertContains(Person::class, PlanCache::fromFile($this->file, 'build-1')->classes());
     }
 
+    public function test_a_class_whose_file_changed_after_the_cache_was_created_is_not_written(): void
+    {
+        $changed = $this->loadedClass('ChangedAfterLoad');
+        $unchanged = $this->loadedClass('UnchangedAfterLoad');
+
+        $plans = new PlanCache();
+        $container = new Container([], [], [], $plans);
+        $container->get($changed);
+        $container->get($unchanged);
+
+        // A deploy lands while the process still holds the plan of the old
+        // file: stamping the new file now would vouch for that plan.
+        touch($this->directory . DIRECTORY_SEPARATOR . 'ChangedAfterLoad.php', time() + 60);
+
+        $plans->writeTo($this->file);
+        $restored = PlanCache::fromFile($this->file)->classes();
+
+        self::assertNotContains($changed, $restored);
+        self::assertContains($unchanged, $restored);
+    }
+
     public function test_writing_leaves_only_the_file_behind(): void
     {
         $plans = new PlanCache();
@@ -91,5 +116,22 @@ final class PlanCacheFileTest extends TestCase
         $plans->writeTo($this->file);
 
         self::assertSame(['.', '..', 'plans.php'], scandir($this->directory));
+    }
+
+    /**
+     * A class loaded from a file older than any plan cache the test creates.
+     *
+     * @return class-string
+     */
+    private function loadedClass(string $basename): string
+    {
+        $name = $basename . bin2hex(random_bytes(6));
+        $file = $this->directory . DIRECTORY_SEPARATOR . $basename . '.php';
+        file_put_contents($file, "<?php\n\nnamespace GacelaTest\\Tmp;\n\nfinal class {$name}\n{\n}\n");
+        touch($file, time() - 60);
+        require $file;
+
+        /** @var class-string */
+        return 'GacelaTest\\Tmp\\' . $name;
     }
 }

@@ -59,8 +59,12 @@ final class CompiledCacheWriter
      * @param CompiledPlans $plans
      * @param string|null $buildStamp identifies the build this file belongs to;
      *   see read() for what it buys
+     * @param int|null $plannedSince when the plans were made from loaded classes,
+     *   skip a class whose file changed at or after this time: it may no longer
+     *   be the file the process loaded, and stamping it now would vouch for a
+     *   plan of the old constructor
      */
-    public static function write(array $plans, string $file, ?string $buildStamp = null): void
+    public static function write(array $plans, string $file, ?string $buildStamp = null, ?int $plannedSince = null): void
     {
         $entries = [];
         $stamps = [];
@@ -72,8 +76,14 @@ final class CompiledCacheWriter
                 continue;
             }
 
+            $stamp = CacheStamp::of($class);
+
+            if ($plannedSince !== null && $stamp !== null && $stamp[1] >= $plannedSince) {
+                continue;
+            }
+
             $entries[] = '        ' . var_export($class, true) . ' => ' . $exportedPlan . ',';
-            $stamps[$class] = CacheStamp::of($class);
+            $stamps[$class] = $stamp;
         }
 
         self::put($file, self::envelope($buildStamp, $stamps, 'plans', $entries));
