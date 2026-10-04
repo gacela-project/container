@@ -620,6 +620,12 @@ final class DependencyCacheManager
             return $flags;
         }
 
+        // A compiled plan already holds both answers.
+        $plan = $this->planRegistry->plans[$class] ?? null;
+        if (isset($plan['singleton'], $plan['factory'])) {
+            return self::$attributeCache[$class] = ['singleton' => $plan['singleton'], 'factory' => $plan['factory']];
+        }
+
         $reflection = new ReflectionClass($class);
 
         return self::$attributeCache[$class] = [

@@ -145,8 +145,11 @@ $plans = $container->compile([UserService::class, OrderService::class]);
 
 - Per-parameter reflection is extracted into plain-data **constructor plans**.
 - The resolver consumes those plans instead of reflecting each time.
+- A plan also records the class's `#[Inject]` properties and methods and its
+  `#[Lazy]`, `#[Singleton]` and `#[Factory]` attributes.
 - A compiled cache seeds the plans on construction, so warmed classes resolve
-  with no `ReflectionClass` calls at runtime.
+  with no `ReflectionClass` calls at runtime. A cache written before a plan
+  recorded the attributes still loads; those classes read the attributes once.
 
 ## What this actually buys you
 
