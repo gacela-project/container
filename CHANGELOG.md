@@ -24,6 +24,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- A constructor parameter with a union or intersection type throws a `DependencyInvalidArgumentException` naming the class and the parameter, instead of a PHP `TypeError` from inside the resolver
+- The error for a scalar parameter nothing supplies names the parameter, and suggests `when()->needs()->give()`, `make()` with the value, or a default value. It suggested `= 'default'` for any type, which does not compile for an `int` or an `array`
+- The error for an interface nothing is bound to names the parameter and class that needed it, prints the resolution chain, and links the container's own docs instead of Gacela's. `getOrFail()` on such an interface says to bind it
+- Every resolution chain in an error starts at the class that was asked for. The first class was missing
 - A `#[Lazy]` or `lazy()` class with no instance properties is constructed. PHP treats a lazy object with no properties as initialized the moment it is created, so the constructor never ran, and a `lazy()` factory was never called: the caller got an unconstructed object. Such a class is now built straight away
 
 ### Performance

@@ -26,21 +26,25 @@ The container fuzzy-matches your existing bindings and suggests near misses,
 which usually means a typo:
 
 ```
-No concrete class was found that implements:
-"App\LogerInterface"
-Did you forget to bind this interface to a concrete class?
+Nothing is bound to "App\LogerInterface", and it cannot be built: it is an interface or an abstract class.
+Needed by parameter $logger of App\UserService::__construct().
+Resolution chain: App\UserController -> App\UserService
+
+Bind it to a concrete class:
+  $container->bind(LogerInterface::class, YourImplementation::class);
 
 Did you mean one of these?
   - App\LoggerInterface
 
-You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings
+See https://github.com/gacela-project/container/blob/main/docs/bindings.md
 ```
 
 **Fix:** bind the interface — `$container->bind(LoggerInterface::class, FileLogger::class)`.
 
 Note the asymmetry: resolving an unbound interface *directly* with `get()`
 returns `null`, while resolving it as somebody's constructor dependency throws.
-Use `getOrFail()` for the strict behaviour at the top level.
+Use `getOrFail()` for the strict behaviour at the top level; for an interface or
+abstract class it throws this same message.
 
 ## `CircularDependencyException`
 
@@ -72,16 +76,29 @@ Add a type hint to the parameter, for example:
 ### Unresolvable scalar
 
 ```
-Unable to resolve parameter of type 'string' in 'UserService'.
+Unable to resolve parameter '$dsn' of type 'string' in 'App\UserService'.
+Resolution chain: App\UserController -> App\UserService
 Scalar types (string, int, float, bool, array) cannot be auto-resolved.
 
-Provide a default value for the parameter:
-  public function __construct(string $param = 'default') { ... }
+Give it a value, in any of these ways:
+  $container->when(UserService::class)->needs('$dsn')->give(<value>);
+  $container->make(UserService::class, ['dsn' => <value>]);
+  a default value on the parameter itself: string $dsn = <value>
 ```
 
-**Fix:** give the parameter a default, or bind it by name with
-`when(UserService::class)->needs('$param')->give(...)`. See the
+A parameter of a callable passed to `resolve()` gets the same message, with
+`resolve($callable, ['dsn' => <value>])` as the way to pass it in. See the
 [cookbook](cookbook.md).
+
+### A union or intersection type
+
+```
+Unable to resolve parameter '$id' in 'App\Lookup'.
+Its type is not a single class (a union or an intersection), so there is nothing to autowire.
+```
+
+followed by the same three ways to give it a value. `validate()` reports the
+same parameter before anything runs.
 
 ### Readonly `#[Inject]` property
 
