@@ -212,7 +212,9 @@ final class CompiledCacheWriter
      */
     private static function load(string $file): array
     {
-        if (!is_file($file) || !is_readable($file)) {
+        // Read on every request that loads the cache: is_readable() would be a
+        // system call each time, so an unreadable file is caught by the read.
+        if (!is_file($file)) {
             throw ContainerException::compiledCacheNotReadable($file);
         }
 
@@ -221,7 +223,11 @@ final class CompiledCacheWriter
          *
          * @var mixed $envelope
          */
-        $envelope = require $file;
+        $envelope = include $file;
+
+        if ($envelope === false && !is_readable($file)) {
+            throw ContainerException::compiledCacheNotReadable($file);
+        }
 
         if (!is_array($envelope)) {
             throw ContainerException::compiledCacheInvalid($file);

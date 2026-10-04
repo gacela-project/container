@@ -10,6 +10,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Performance
+
+- `loadFile()` and `loadCompiledCache()` no longer call `is_readable()` before reading. Unlike `is_file()`, it is not answered from PHP's stat cache: it was a system call on every load, about 6μs on macOS, more than reading an opcached file. An unreadable file is still reported as unreadable, found by the read instead
+
 ## [2.2.0](https://github.com/gacela-project/container/compare/2.1.0...2.2.0) - 2026-10-04
 
 ### Added

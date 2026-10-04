@@ -237,6 +237,31 @@ final class DefinitionLoadingTest extends TestCase
         (new Container())->loadFile(self::fixture('does-not-exist.php'));
     }
 
+    /**
+     * Only is_file() is checked up front: is_readable() would be a system call
+     * on every load. An unreadable file is still reported as unreadable.
+     */
+    public function test_it_rejects_an_unreadable_php_file(): void
+    {
+        $file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'gacela-unreadable-' . uniqid() . '.php';
+        file_put_contents($file, '<?php return [];');
+        chmod($file, 0o000);
+
+        try {
+            if (is_readable($file)) {
+                self::markTestSkipped('chmod has no effect here (root, or a filesystem without permissions)');
+            }
+
+            $this->expectException(ContainerException::class);
+            $this->expectExceptionMessage('could not be read');
+
+            @(new Container())->loadFile($file);
+        } finally {
+            chmod($file, 0o600);
+            unlink($file);
+        }
+    }
+
     public function test_it_rejects_an_unsupported_extension(): void
     {
         $this->expectException(ContainerException::class);
