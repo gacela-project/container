@@ -22,6 +22,10 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 - `compileReport()` says an interface with nothing bound to it is one, instead of calling it "not a loadable class"
 - PHPStan keeps its result cache in `.cache/phpstan`, so several checkouts analysing at once no longer share one in the system temp directory, and `composer phpstan` runs with a 1GB memory limit: a cold run ran its worker out of the default 128MB, which `composer test` reported as an internal error
 
+### Fixed
+
+- A `#[Lazy]` or `lazy()` class with no instance properties is constructed. PHP treats a lazy object with no properties as initialized the moment it is created, so the constructor never ran, and a `lazy()` factory was never called: the caller got an unconstructed object. Such a class is now built straight away
+
 ### Performance
 
 - A container built from compiled plans no longer reflects at all. A plan already carried a class's `#[Inject]` properties and methods, but the code that asks whether a class has any read its own memo instead, and `#[Lazy]`, `#[Singleton]` and `#[Factory]` were not in the plan, so every class was reflected again on the request that loaded the cache. Plans now record the three attributes, and every reflection memo reads the plan first. Measured on a Gacela application under PHP's built-in server with opcache and preloading: a request with the cache loaded went from about 2.5% to about 7% faster than one without
