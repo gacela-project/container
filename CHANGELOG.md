@@ -10,8 +10,13 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Added
+
+- `PlanCache::writeTo()` and `PlanCache::fromFile()` carry a plan cache from one process to the next. Under PHP-FPM every request started by reflecting the same classes again; a request can now write what it planned and the next one start from it, with nothing resolved to produce the file. It is the `writeCompiledCache()` format, so an entry whose class changed is dropped on read. `fromFile()` gives an empty cache for a missing, unreadable or foreign file instead of throwing
+
 ### Fixed
 
+- A compiled cache file is written beside its target and renamed over it. It was written in place, so a request that included it during a write could read half a file and fail with a parse error
 - A `#[Lazy]` or `lazy()` class with no instance properties is constructed. PHP treats a lazy object with no properties as initialized the moment it is created, so the constructor never ran, and a `lazy()` factory was never called: the caller got an unconstructed object. Such a class is now built straight away
 
 ### Performance

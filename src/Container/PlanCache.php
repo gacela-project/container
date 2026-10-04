@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Gacela\Container\Exception\ContainerException;
+
 use function array_keys;
 use function count;
 
@@ -57,6 +59,41 @@ final class PlanCache
     public function __construct(array $compiledPlans = [])
     {
         $this->registry = new PlanRegistry($compiledPlans);
+    }
+
+    /**
+     * A cache seeded from a file writeTo() wrote, so a new process starts
+     * with what an earlier one planned instead of reflecting it again.
+     *
+     * Entries whose class changed since are dropped, as loadCompiledCache()
+     * drops them; pass the $buildStamp used at write time to trust the whole
+     * file on one comparison instead. A plan cache only saves reflection, so a
+     * file that is missing, unreadable or from another container version gives
+     * an empty cache rather than an error: the first request of a deploy, or
+     * one after an upgrade, plans by reflection and can write the file again.
+     */
+    public static function fromFile(string $file, ?string $buildStamp = null): self
+    {
+        try {
+            return new self(CompiledCacheWriter::read($file, $buildStamp));
+        } catch (ContainerException) {
+            return new self();
+        }
+    }
+
+    /**
+     * Write every plan held so far to $file, in the format fromFile() and
+     * loadCompiledCache() read. Nothing is resolved to produce it: this is
+     * what the containers sharing this cache have already planned, so calling
+     * it at the end of a request persists exactly the classes that request
+     * needed. The file is replaced in one rename, so a process reading it
+     * meanwhile never sees half of it.
+     *
+     * @throws ContainerException when the file cannot be written
+     */
+    public function writeTo(string $file, ?string $buildStamp = null): void
+    {
+        CompiledCacheWriter::write($this->registry->plans, $file, $buildStamp);
     }
 
     /**
