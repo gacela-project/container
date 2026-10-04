@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Attribute\Lazy;
+use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
@@ -24,6 +26,7 @@ use function array_key_exists;
 use function array_keys;
 use function class_exists;
 use function count;
+use function is_a;
 use function is_callable;
 use function is_object;
 use function is_string;
@@ -409,7 +412,8 @@ final class DependencyResolver
         }
 
         return isset($this->lazyClasses[$className])
-            || (self::$lazyAttribute[$className] ??= (new ReflectionClass($className))->getAttributes(Lazy::class, ReflectionAttribute::IS_INSTANCEOF) !== []);
+            || (self::$lazyAttribute[$className] ??= $this->planRegistry->plans[$className]['lazy']
+                ?? (new ReflectionClass($className))->getAttributes(Lazy::class, ReflectionAttribute::IS_INSTANCEOF) !== []);
     }
 
     /**
@@ -1087,6 +1091,7 @@ final class DependencyResolver
                 'params' => $params,
                 'props' => $this->describeProperties($className),
                 'methods' => $this->describeMethods($className),
+                ...self::classAttributes($reflection),
             ];
         }
 
@@ -1108,6 +1113,29 @@ final class DependencyResolver
     }
 
     /**
+     * The class attributes a plan records, read in one pass while the class is
+     * reflected anyway, so a plan loaded from a compiled cache answers them
+     * without reflecting again.
+     *
+     * @param ReflectionClass<object> $reflection
+     *
+     * @return array{lazy: bool, singleton: bool, factory: bool}
+     */
+    private static function classAttributes(ReflectionClass $reflection): array
+    {
+        $flags = ['lazy' => false, 'singleton' => false, 'factory' => false];
+
+        foreach ($reflection->getAttributes() as $attribute) {
+            $name = $attribute->getName();
+            $flags['lazy'] = $flags['lazy'] || is_a($name, Lazy::class, true);
+            $flags['singleton'] = $flags['singleton'] || is_a($name, Singleton::class, true);
+            $flags['factory'] = $flags['factory'] || is_a($name, Factory::class, true);
+        }
+
+        return $flags;
+    }
+
+    /**
      * The #[Inject] properties of $className, including inherited private ones.
      *
      * @param class-string $className
@@ -1116,7 +1144,7 @@ final class DependencyResolver
      */
     private function describeProperties(string $className): array
     {
-        return self::$propertyPlans[$className] ??= $this->scanProperties($className);
+        return self::$propertyPlans[$className] ??= $this->planRegistry->plans[$className]['props'] ?? $this->scanProperties($className);
     }
 
     /**
@@ -1167,7 +1195,7 @@ final class DependencyResolver
      */
     private function describeMethods(string $className): array
     {
-        return self::$methodPlans[$className] ??= $this->scanMethods($className);
+        return self::$methodPlans[$className] ??= $this->planRegistry->plans[$className]['methods'] ?? $this->scanMethods($className);
     }
 
     /**
