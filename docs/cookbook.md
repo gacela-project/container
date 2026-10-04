@@ -223,7 +223,8 @@ $service = $container->make(ReportService::class, ['format' => 'csv']);
 ```
 
 Overrides apply to the top-level constructor only, and the instance is always
-built fresh.
+built fresh. A bound interface builds its bound class, and a key that names no
+constructor parameter throws. See [runtime parameters](resolution.md#runtime-parameters).
 
 ## Wire a container per environment
 

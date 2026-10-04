@@ -92,6 +92,7 @@ See [introspection](services.md#introspection).
 | `loadFile(string $file, ?callable $onRegistered = null): array` | Load definitions from a `.php` file returning an array, a `.json` file, or a `.yaml`/`.yml` one when a YAML parser is installed; returns the ids it registered |
 | `set(string $id, mixed $instance): void` | Register a service |
 | `remove(string $id): void` | Remove a service |
+| `forget(string $id): void` | Drop what was built for a service and keep how to build it: a closure-registered service is built again on the next `get()`, a `factory()` is left as it is. On `Container` only, not on `ContainerInterface`, which does not grow within 2.x; a wrapper forwards it by hand |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
 | `factory(Closure $instance): Closure` | Mark a service as a factory (new instance each time) |
 | `extend(string $id, Closure $instance): Closure` | Wrap/modify a service |

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use Gacela\Container\ClassSource;
 use Gacela\Container\CompilationSkipReason;
 use Gacela\Container\Container;
 use Gacela\Container\ContainerCompiler;
@@ -331,6 +332,13 @@ final class ContainerCompilerTest extends TestCase
         yield 'injected parameter' => [ServiceWithPromotedInject::class, CompilationSkipReason::InjectedParameter];
         yield 'scalar parameter' => [Person::class, CompilationSkipReason::ScalarParameter];
         yield 'blocked dependency' => [DatabaseRepository::class, CompilationSkipReason::Dependency];
+    }
+
+    public function test_a_dependency_on_an_unbound_interface_is_explained_as_one(): void
+    {
+        $report = (new Container())->compileReport(ClassSource::fromList([ServiceWithRepository::class]));
+
+        self::assertStringContainsString('interface with nothing bound to it', (string) $report->explain(ServiceWithRepository::class));
     }
 
     public function test_a_compiled_class_has_no_reason_and_no_explanation(): void

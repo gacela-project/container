@@ -8,7 +8,11 @@ use Gacela\Container\FuzzyMatcher;
 use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
+use function implode;
+use function interface_exists;
 use function sprintf;
+use function strrpos;
+use function substr;
 
 /**
  * @api
@@ -17,29 +21,43 @@ final class DependencyNotFoundException extends RuntimeException implements NotF
 {
     /**
      * @param list<string> $suggestions
+     * @param string|null $neededBy what asked for it, for example "parameter $mailer of App\\Notifier::__construct()"
+     * @param list<string> $resolutionChain
      */
-    public static function mapNotFoundForClassName(string $className, array $suggestions = []): self
+    public static function mapNotFoundForClassName(string $className, array $suggestions = [], ?string $neededBy = null, array $resolutionChain = []): self
     {
-        $message = <<<TXT
-No concrete class was found that implements:
-"{$className}"
-Did you forget to bind this interface to a concrete class?
+        $message = sprintf('Nothing is bound to "%s", and it cannot be built: it is an interface or an abstract class.', $className);
 
-TXT;
-
-        $block = FuzzyMatcher::renderSuggestions($suggestions);
-
-        if ($block !== '') {
-            $message .= $block . "\n";
+        if ($neededBy !== null) {
+            $message .= "\nNeeded by " . $neededBy . '.';
         }
 
-        $message .= 'You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings';
+        if ($resolutionChain !== []) {
+            $message .= "\nResolution chain: " . implode(' -> ', $resolutionChain);
+        }
 
-        return new self($message);
+        $message .= sprintf("\n\nBind it to a concrete class:\n  \$container->bind(%s::class, YourImplementation::class);\n", self::shortName($className));
+
+        $message .= FuzzyMatcher::renderSuggestions($suggestions);
+
+        return new self($message . "\nSee https://github.com/gacela-project/container/blob/main/docs/bindings.md");
     }
 
     public static function unresolvableId(string $id): self
     {
+        // get() already refuses an abstract class, so only an unbound interface
+        // comes back as null.
+        if (interface_exists($id)) {
+            return self::mapNotFoundForClassName($id);
+        }
+
         return new self(sprintf('Could not resolve a non-null instance for "%s".', $id));
+    }
+
+    private static function shortName(string $className): string
+    {
+        $position = strrpos($className, '\\');
+
+        return $position === false ? $className : substr($className, $position + 1);
     }
 }

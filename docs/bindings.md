@@ -78,9 +78,12 @@ $container->bindIf(LoggerInterface::class, FileLogger::class);      // no-op if 
 $container->singletonIf(CacheInterface::class, ArrayCache::class);  // no-op if already bound
 ```
 
-`bound()` differs from PSR-11 `has()`: `has()` reports whether an id can be
-retrieved from the instance registry, while `bound()` also accounts for
-bindings.
+`bound()` differs from PSR-11 `has()`. `has()` answers whether `get()` can
+return something for the id: a binding, a stored instance, or a class the
+container can autowire. `bound()` answers whether the id was registered: a
+binding, a stored instance or an alias. So `has(SomeClass::class)` is true for
+any autowirable class, while `bound()` stays false until you register it, which
+is what lets `bindIf()` add a default without overriding a registration.
 
 ### Deferred registration
 
@@ -269,9 +272,13 @@ Create multiple names for the same service:
 $container->alias('db', PDO::class);
 
 // Access via alias or original name
-$db1 = $container->get('db');        // Same instance
-$db2 = $container->get(PDO::class);  // Same instance
+$db1 = $container->get('db');        // resolves PDO::class
+$db2 = $container->get(PDO::class);
 ```
+
+An alias resolves to whatever its target resolves to. `$db1` and `$db2` are the
+same object only when the target is shared (a `singleton()`, a stored instance
+or a `#[Singleton]` class); a plain binding builds a new one each time.
 
 An alias whose *name* is a class or interface is followed for a constructor
 parameter typed as it too, so `alias(Clock::class, 'clock.frozen')` redirects

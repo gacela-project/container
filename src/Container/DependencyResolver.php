@@ -22,15 +22,20 @@ use Throwable;
 use WeakMap;
 use WeakReference;
 
+use function array_diff;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
+use function array_values;
 use function class_exists;
 use function count;
+use function in_array;
 use function is_a;
 use function is_callable;
 use function is_object;
 use function is_string;
 use function method_exists;
+use function sprintf;
 
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
@@ -76,6 +81,16 @@ final class DependencyResolver
 
     /** @var list<class-string> */
     private array $buildStack = [];
+
+    /**
+     * The parameter whose class is being resolved, so a missing binding can
+     * name what needed it.
+     *
+     * Read only when its type is the one that turned out unbound.
+     */
+    private ?string $parameterInFocus = null;
+
+    private ?string $typeInFocus = null;
 
     /**
      * Property plans keyed by class, shared across containers.
@@ -244,7 +259,34 @@ final class DependencyResolver
         $this->buildStack[] = $toResolve;
 
         try {
-            return $this->resolveEntryParameters($this->describeClass($toResolve)['params'], $overrides);
+            $params = $this->describeClass($toResolve)['params'];
+
+            // An override is matched by name only, so a misspelled key would
+            // otherwise be dropped without a word. Checked inline and up front:
+            // this runs on every make() with parameters, and a wrong key should
+            // be reported before the parameter it missed fails to autowire.
+            foreach ($overrides as $key => $_) {
+                foreach ($params as $param) {
+                    if ($param['name'] === $key) {
+                        continue 2;
+                    }
+                }
+
+                $this->throwUnknownOverrides($toResolve, $params, $overrides);
+            }
+
+            // resolveEntryParameters() inlined: every get() of an unplanned
+            // class and every make() comes through here.
+            $dependencies = [];
+
+            foreach ($params as $param) {
+                /** @psalm-suppress MixedAssignment */
+                $dependencies[] = array_key_exists($param['name'], $overrides)
+                    ? $overrides[$param['name']]
+                    : $this->resolveParameter($param);
+            }
+
+            return $dependencies;
         } finally {
             array_pop($this->buildStack);
         }
@@ -701,6 +743,19 @@ final class DependencyResolver
     }
 
     /**
+     * @param class-string $className
+     * @param list<ParamPlan> $params
+     * @param array<string, mixed> $overrides
+     */
+    private function throwUnknownOverrides(string $className, array $params, array $overrides): never
+    {
+        $known = array_map(static fn (array $param): string => $param['name'], $params);
+        $unknown = array_values(array_diff(array_map('strval', array_keys($overrides)), $known));
+
+        throw DependencyInvalidArgumentException::unknownParameters($className, $unknown, $known);
+    }
+
+    /**
      * Entry-point parameters (top-level class or callable) must all be
      * resolvable; an untyped parameter is a hard error here.
      *
@@ -746,8 +801,9 @@ final class DependencyResolver
         if ($param['isScalar'] && !$param['hasDefault']) {
             throw DependencyInvalidArgumentException::unableToResolve(
                 $param['type'] ?? $param['name'],
-                $param['declaringClass'] ?? '',
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
                 $this->getResolutionChain(),
+                $param['name'],
             );
         }
 
@@ -759,8 +815,21 @@ final class DependencyResolver
             return $param['default'];
         }
 
+        // A union or intersection type names no single class to build.
+        if ($param['type'] === null) {
+            throw DependencyInvalidArgumentException::unsupportedType(
+                $param['name'],
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
+                $this->getResolutionChain(),
+            );
+        }
+
         /** @var class-string $type */
         $type = $param['type'];
+        $this->parameterInFocus = $this->isCallableParameter()
+            ? sprintf('parameter $%s of the callable passed to resolve()', $param['name'])
+            : sprintf('parameter $%s of %s::__construct()', $param['name'], $param['declaringClass'] ?? '?');
+        $this->typeInFocus = $type;
 
         return $this->resolveClass($type);
     }
@@ -944,7 +1013,9 @@ final class DependencyResolver
 
         $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($knownBindings));
 
-        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
+        $neededBy = $this->typeInFocus === $abstract ? $this->parameterInFocus : null;
+
+        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions, $neededBy, $this->getResolutionChain());
     }
 
     /**
@@ -1559,11 +1630,25 @@ final class DependencyResolver
     }
 
     /**
+     * A callable's own parameters are resolved with nothing on either stack;
+     * a constructor's, always with its class on one of them.
+     */
+    private function isCallableParameter(): bool
+    {
+        return $this->buildStack === [] && $this->resolvingStack === [];
+    }
+
+    /**
      * @return list<string>
      */
     private function getResolutionChain(): array
     {
-        return array_keys($this->resolvingStack);
+        // The class asked for first is on the build stack, not the resolving
+        // one: without it the chain began one class too late.
+        $root = $this->buildStack[0] ?? null;
+        $chain = array_keys($this->resolvingStack);
+
+        return $root === null || in_array($root, $chain, true) ? $chain : [$root, ...$chain];
     }
 
     private function isScalar(string $paramTypeName): bool

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
+use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use GacelaTest\Fake\ClassWithObjectDependencies;
+use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\Person;
+use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
 use GacelaTest\Fake\ServiceWithScalarDependency;
@@ -69,5 +72,72 @@ final class RuntimeParametersTest extends TestCase
         );
 
         self::assertSame('HI', $result);
+    }
+
+    public function test_make_with_parameters_builds_the_bound_concrete(): void
+    {
+        $container = new Container();
+        $container->bind(PersonInterface::class, Person::class);
+
+        $person = $container->make(PersonInterface::class, ['name' => 'Frodo']);
+
+        self::assertInstanceOf(Person::class, $person);
+        self::assertSame('Frodo', $person->name);
+    }
+
+    public function test_make_with_parameters_follows_an_alias(): void
+    {
+        $container = new Container();
+        $container->bind(PersonInterface::class, Person::class);
+        $container->alias('hobbit', PersonInterface::class);
+
+        /** @phpstan-ignore argument.type, argument.templateType */
+        $person = $container->make('hobbit', ['name' => 'Sam']);
+
+        self::assertInstanceOf(Person::class, $person);
+        self::assertSame('Sam', $person->name);
+    }
+
+    public function test_make_with_parameters_in_a_scope_follows_the_parent_binding(): void
+    {
+        $container = new Container();
+        $container->bind(PersonInterface::class, Person::class);
+
+        $person = $container->createScope()->make(PersonInterface::class, ['name' => 'Pippin']);
+
+        self::assertInstanceOf(Person::class, $person);
+        self::assertSame('Pippin', $person->name);
+    }
+
+    public function test_make_rejects_a_parameter_the_constructor_does_not_have(): void
+    {
+        $container = new Container();
+
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $this->expectExceptionMessageMatches(
+            "/'apiKy'.*ServiceWithScalarDependency.*\\\$person, \\\$apiKey.*Did you mean.*- apiKey/s",
+        );
+
+        $container->make(ServiceWithScalarDependency::class, ['apiKy' => 'xyz']);
+    }
+
+    public function test_make_names_every_unknown_parameter(): void
+    {
+        $container = new Container();
+
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $this->expectExceptionMessage("'nope', 'other'");
+
+        $container->make(Person::class, ['name' => 'Merry', 'nope' => 1, 'other' => 2]);
+    }
+
+    public function test_make_rejects_parameters_for_a_class_without_a_constructor(): void
+    {
+        $container = new Container();
+
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $this->expectExceptionMessage('takes no constructor parameters');
+
+        $container->make(ClassWithoutDependencies::class, ['name' => 'x']);
     }
 }

@@ -70,7 +70,12 @@ final class ClassDependencyResolverTest extends TestCase
 
     public function test_missing_interface_dependency(): void
     {
-        $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(PersonInterface::class));
+        $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(
+            PersonInterface::class,
+            [],
+            'parameter $person of ' . ClassWithInterfaceDependencies::class . '::__construct()',
+            [ClassWithInterfaceDependencies::class],
+        ));
 
         $resolver = new DependencyResolver();
         $resolver->resolveDependencies(ClassWithInterfaceDependencies::class);
@@ -78,7 +83,7 @@ final class ClassDependencyResolverTest extends TestCase
 
     public function test_missing_default_raw_dependency_value(): void
     {
-        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', PersonWithoutDefaultValues::class));
+        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', PersonWithoutDefaultValues::class, [PersonWithoutDefaultValues::class], 'name'));
 
         $resolver = new DependencyResolver();
         $resolver->resolveDependencies(PersonWithoutDefaultValues::class);
@@ -103,7 +108,7 @@ final class ClassDependencyResolverTest extends TestCase
 
     public function test_missing_param_types_on_dependency_value(): void
     {
-        $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name'));
+        $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name', [PersonWithoutParamType::class]));
 
         $resolver = new DependencyResolver();
         $resolver->resolveDependencies(PersonWithoutParamType::class);

@@ -14,15 +14,34 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 - `PlanCache::writeTo()` and `PlanCache::fromFile()` carry a plan cache from one process to the next. Under PHP-FPM every request started by reflecting the same classes again; a request can now write what it planned and the next one start from it, with nothing resolved to produce the file. It is the `writeCompiledCache()` format, so an entry whose class changed is dropped on read. `fromFile()` gives an empty cache for a missing, unreadable or foreign file instead of throwing
 
+### Documentation
+
+- `docs/bindings.md` described `has()` and `bound()` wrongly: `has()` is true for anything `get()` can return, an autowirable class included, and `bound()` only for a registration. Its alias example promised the same instance, which holds only for a shared target
+- `ContainerInterface::set()` said an instance cannot be overridden; it can until it is first read
+- `forget()` is listed in the API reference, which also says why it is on `Container` and not on `ContainerInterface` until 3.0
+- The README links Gacela's container wrapper instead of a line number in a file that has since changed
+
+### Changed
+
+- `compileReport()` says an interface with nothing bound to it is one, instead of calling it "not a loadable class"
+- PHPStan keeps its result cache in `.cache/phpstan`, so several checkouts analysing at once no longer share one in the system temp directory, and `composer phpstan` runs with a 1GB memory limit: a cold run ran its worker out of the default 128MB, which `composer test` reported as an internal error
+
 ### Fixed
 
 - A compiled cache file is written beside its target and renamed over it. It was written in place, so a request that included it during a write could read half a file and fail with a parse error
+- A constructor parameter with a union or intersection type throws a `DependencyInvalidArgumentException` naming the class and the parameter, instead of a PHP `TypeError` from inside the resolver
+- The error for a scalar parameter nothing supplies names the parameter, and suggests `when()->needs()->give()`, `make()` with the value, or a default value. It suggested `= 'default'` for any type, which does not compile for an `int` or an `array`
+- The error for an interface nothing is bound to names the parameter and class that needed it, prints the resolution chain, and links the container's own docs instead of Gacela's. `getOrFail()` on such an interface says to bind it
+- Every resolution chain in an error starts at the class that was asked for. The first class was missing
 - A `#[Lazy]` or `lazy()` class with no instance properties is constructed. PHP treats a lazy object with no properties as initialized the moment it is created, so the constructor never ran, and a `lazy()` factory was never called: the caller got an unconstructed object. Such a class is now built straight away
+- `make()` with parameters resolves the id the way `make()` without them does: through an alias, then a class-string binding, here or in a parent scope. It built the id as given, so `bind(Cache::class, Redis::class)` followed by `make(Cache::class, ['host' => 'b'])` failed with `Cannot instantiate interface Cache`, and an alias failed with a reflection error. A caller that relied on getting the unbound class back now gets the bound one
+- ⚠ `make()` throws `DependencyInvalidArgumentException` when a parameter key matches no constructor parameter, naming the class, the unknown keys and the parameters it has, with a suggestion when one is close. A misspelled key such as `['hots' => 'z']` was ignored, and the parameter was autowired or given its default. A caller that passed extra keys on purpose now has to drop them
 
 ### Performance
 
 - A container built from compiled plans no longer reflects at all. A plan already carried a class's `#[Inject]` properties and methods, but the code that asks whether a class has any read its own memo instead, and `#[Lazy]`, `#[Singleton]` and `#[Factory]` were not in the plan, so every class was reflected again on the request that loaded the cache. Plans now record the three attributes, and every reflection memo reads the plan first. Measured on a Gacela application under PHP's built-in server with opcache and preloading: a request with the cache loaded went from about 2.5% to about 7% faster than one without
 - `loadFile()` and `loadCompiledCache()` no longer call `is_readable()` before reading. Unlike `is_file()`, it is not answered from PHP's stat cache: it was a system call on every load, about 6μs on macOS, more than reading an opcached file. An unreadable file is still reported as unreadable, found by the read instead
+- `get()` and `make()` no longer call into the `afterResolving()` machinery when no hook is registered, which most containers never do: `get()` of a stored instance is about 12% faster. Measured interleaved against `main` with phpbench, PHP 8.5, no opcache
 
 ## [2.2.0](https://github.com/gacela-project/container/compare/2.1.0...2.2.0) - 2026-10-04
 
