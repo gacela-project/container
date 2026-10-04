@@ -25,6 +25,15 @@ final class InstanceRegistry
     private array $frozenInstances = [];
 
     /**
+     * The closure a shared service was registered with, kept once get() has
+     * replaced it with what it built, so the built instance can be dropped
+     * without dropping the registration.
+     *
+     * @var array<string,object>
+     */
+    private array $definitions = [];
+
+    /**
      * Whether a class declares __invoke, keyed by class name.
      *
      * get() asked method_exists() on every read of a stored instance, to answer
@@ -60,6 +69,7 @@ final class InstanceRegistry
             throw ContainerException::frozenInstanceOverride($id);
         }
 
+        unset($this->definitions[$id]);
         $this->instances[$id] = $instance;
     }
 
@@ -101,6 +111,7 @@ final class InstanceRegistry
         /** @var mixed $resolvedService */
         $resolvedService = $invokable($container);
 
+        $this->definitions[$id] = $instance;
         $this->instances[$id] = $resolvedService;
 
         return $resolvedService;
@@ -114,7 +125,24 @@ final class InstanceRegistry
         unset(
             $this->instances[$id],
             $this->frozenInstances[$id],
+            $this->definitions[$id],
         );
+    }
+
+    /**
+     * Put back the closure a shared service was registered with, so the next
+     * get() builds it again. False when no built instance replaced one.
+     */
+    public function restoreDefinition(string $id): bool
+    {
+        if (!isset($this->definitions[$id])) {
+            return false;
+        }
+
+        $this->instances[$id] = $this->definitions[$id];
+        unset($this->definitions[$id]);
+
+        return true;
     }
 
     public function isFrozen(string $id): bool

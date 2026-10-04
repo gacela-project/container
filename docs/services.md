@@ -76,9 +76,12 @@ id and nothing else. Both kinds fire in registration order, interleaved.
 Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with
 overridden arguments.
 
-A callback that throws **removes the instance from the container**: a service
-whose post-construction wiring failed should not be handed to the next caller as
-though it had succeeded. The exception propagates either way.
+A callback that throws **drops the built instance**: a service whose
+post-construction wiring failed should not be handed to the next caller as
+though it had succeeded. The registration stays, so a service registered with a
+closure is built again on the next `get()`, and a `factory()` is untouched. An
+object stored as it is has nothing to be rebuilt from, so it is removed. The
+exception propagates either way. `forget($id)` does the same on demand.
 
 ## Introspection
 

@@ -823,9 +823,10 @@ final class Container implements FullContainerInterface, ArrayAccess
      * logger", is one call rather than one per implementation. Any other id
      * matches exactly.
      *
-     * A callback that throws **removes the instance from the container**, so a
+     * A callback that throws **drops the built instance** (see forget()), so a
      * service whose post-construction wiring failed is not handed to the next
-     * caller as though it had succeeded. The exception propagates either way.
+     * caller as though it had succeeded; one registered with a closure is built
+     * again on the next get(). The exception propagates either way.
      *
      * Callbacks fire for the resolutions their own container performs. A scope
      * resolving an id its parent registered is a resolution the parent
@@ -923,6 +924,26 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $this->instanceRegistry->remove($id);
+    }
+
+    /**
+     * Drop what was built for `$id`, keeping how to build it.
+     *
+     * Unlike remove(), a service registered with a closure is built again on
+     * the next get(), and a factory, which keeps nothing, is left as it is.
+     * An object stored as it is has nothing to be rebuilt from, so it goes,
+     * as with remove().
+     */
+    public function forget(string $id): void
+    {
+        $this->cacheManager->dropArgBuilders();
+
+        $id = $this->aliasRegistry->resolve($id);
+        if ($this->instanceRegistry->restoreDefinition($id) || $this->isFactory($id)) {
+            return;
+        }
+
         $this->instanceRegistry->remove($id);
     }
 
@@ -1509,7 +1530,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             } catch (Throwable $exception) {
                 // Wiring that failed halfway leaves an object the application
                 // believes is configured. Drop it rather than serve it again.
-                $this->remove($id);
+                $this->forget($id);
 
                 throw $exception;
             }
