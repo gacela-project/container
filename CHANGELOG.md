@@ -10,6 +10,13 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Fixed
+
+- A constructor parameter with a union or intersection type throws a `DependencyInvalidArgumentException` naming the class and the parameter, instead of a PHP `TypeError` from inside the resolver
+- The error for a scalar parameter nothing supplies names the parameter, and suggests `when()->needs()->give()`, `make()` with the value, or a default value. It suggested `= 'default'` for any type, which does not compile for an `int` or an `array`
+- The error for an interface nothing is bound to names the parameter and class that needed it, prints the resolution chain, and links the container's own docs instead of Gacela's. `getOrFail()` on such an interface says to bind it
+- Every resolution chain in an error starts at the class that was asked for. The first class was missing
+
 ### Performance
 
 - A container built from compiled plans no longer reflects at all. A plan already carried a class's `#[Inject]` properties and methods, but the code that asks whether a class has any read its own memo instead, and `#[Lazy]`, `#[Singleton]` and `#[Factory]` were not in the plan, so every class was reflected again on the request that loaded the cache. Plans now record the three attributes, and every reflection memo reads the plan first. Measured on a Gacela application under PHP's built-in server with opcache and preloading: a request with the cache loaded went from about 2.5% to about 7% faster than one without

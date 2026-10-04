@@ -26,11 +26,13 @@ use function array_key_exists;
 use function array_keys;
 use function class_exists;
 use function count;
+use function in_array;
 use function is_a;
 use function is_callable;
 use function is_object;
 use function is_string;
 use function method_exists;
+use function sprintf;
 
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
@@ -76,6 +78,16 @@ final class DependencyResolver
 
     /** @var list<class-string> */
     private array $buildStack = [];
+
+    /**
+     * The parameter whose class is being resolved, so a missing binding can
+     * name what needed it.
+     *
+     * Read only when its type is the one that turned out unbound.
+     */
+    private ?string $parameterInFocus = null;
+
+    private ?string $typeInFocus = null;
 
     /**
      * Property plans keyed by class, shared across containers.
@@ -733,8 +745,9 @@ final class DependencyResolver
         if ($param['isScalar'] && !$param['hasDefault']) {
             throw DependencyInvalidArgumentException::unableToResolve(
                 $param['type'] ?? $param['name'],
-                $param['declaringClass'] ?? '',
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
                 $this->getResolutionChain(),
+                $param['name'],
             );
         }
 
@@ -746,8 +759,21 @@ final class DependencyResolver
             return $param['default'];
         }
 
+        // A union or intersection type names no single class to build.
+        if ($param['type'] === null) {
+            throw DependencyInvalidArgumentException::unsupportedType(
+                $param['name'],
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
+                $this->getResolutionChain(),
+            );
+        }
+
         /** @var class-string $type */
         $type = $param['type'];
+        $this->parameterInFocus = $this->isCallableParameter()
+            ? sprintf('parameter $%s of the callable passed to resolve()', $param['name'])
+            : sprintf('parameter $%s of %s::__construct()', $param['name'], $param['declaringClass'] ?? '?');
+        $this->typeInFocus = $type;
 
         return $this->resolveClass($type);
     }
@@ -931,7 +957,9 @@ final class DependencyResolver
 
         $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($knownBindings));
 
-        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
+        $neededBy = $this->typeInFocus === $abstract ? $this->parameterInFocus : null;
+
+        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions, $neededBy, $this->getResolutionChain());
     }
 
     /**
@@ -1504,11 +1532,25 @@ final class DependencyResolver
     }
 
     /**
+     * A callable's own parameters are resolved with nothing on either stack;
+     * a constructor's, always with its class on one of them.
+     */
+    private function isCallableParameter(): bool
+    {
+        return $this->buildStack === [] && $this->resolvingStack === [];
+    }
+
+    /**
      * @return list<string>
      */
     private function getResolutionChain(): array
     {
-        return array_keys($this->resolvingStack);
+        // The class asked for first is on the build stack, not the resolving
+        // one: without it the chain began one class too late.
+        $root = $this->buildStack[0] ?? null;
+        $chain = array_keys($this->resolvingStack);
+
+        return $root === null || in_array($root, $chain, true) ? $chain : [$root, ...$chain];
     }
 
     private function isScalar(string $paramTypeName): bool

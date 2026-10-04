@@ -71,7 +71,11 @@ final class CallableDependencyResolverTest extends TestCase
 
     public function test_missing_interface_dependency(): void
     {
-        $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(PersonInterface::class));
+        $this->expectExceptionObject(DependencyNotFoundException::mapNotFoundForClassName(
+            PersonInterface::class,
+            [],
+            'parameter $person of the callable passed to resolve()',
+        ));
 
         $resolver = new DependencyResolver();
 
@@ -82,7 +86,7 @@ final class CallableDependencyResolverTest extends TestCase
 
     public function test_missing_default_raw_dependency_value(): void
     {
-        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', self::class));
+        $this->expectExceptionObject(DependencyInvalidArgumentException::unableToResolve('string', '', [], 'name'));
 
         $resolver = new DependencyResolver();
         $resolver->resolveCallableDependencies(static function (string $name) {

@@ -6,9 +6,15 @@ namespace Gacela\Container\Exception;
 
 use Gacela\Container\FuzzyMatcher;
 use Psr\Container\NotFoundExceptionInterface;
+use ReflectionClass;
 use RuntimeException;
 
+use function class_exists;
+use function implode;
+use function interface_exists;
 use function sprintf;
+use function strrpos;
+use function substr;
 
 /**
  * @api
@@ -17,29 +23,46 @@ final class DependencyNotFoundException extends RuntimeException implements NotF
 {
     /**
      * @param list<string> $suggestions
+     * @param string|null $neededBy what asked for it, for example "parameter $mailer of App\\Notifier::__construct()"
+     * @param list<string> $resolutionChain
      */
-    public static function mapNotFoundForClassName(string $className, array $suggestions = []): self
+    public static function mapNotFoundForClassName(string $className, array $suggestions = [], ?string $neededBy = null, array $resolutionChain = []): self
     {
-        $message = <<<TXT
-No concrete class was found that implements:
-"{$className}"
-Did you forget to bind this interface to a concrete class?
+        $message = sprintf('Nothing is bound to "%s", and it cannot be built: it is an interface or an abstract class.', $className);
 
-TXT;
+        if ($neededBy !== null) {
+            $message .= "\nNeeded by " . $neededBy . '.';
+        }
+
+        if ($resolutionChain !== []) {
+            $message .= "\nResolution chain: " . implode(' -> ', $resolutionChain);
+        }
+
+        $message .= sprintf("\n\nBind it to a concrete class:\n  \$container->bind(%s::class, YourImplementation::class);\n", self::shortName($className));
 
         $block = FuzzyMatcher::renderSuggestions($suggestions);
 
         if ($block !== '') {
-            $message .= $block . "\n";
+            $message .= "\n" . $block . "\n";
         }
 
-        $message .= 'You might find some help here: https://gacela-project.com/docs/bootstrap/#bindings';
-
-        return new self($message);
+        return new self($message . "\nSee https://github.com/gacela-project/container/blob/main/docs/bindings.md");
     }
 
     public static function unresolvableId(string $id): self
     {
+        // The usual reason: an interface or abstract class with nothing bound.
+        if (interface_exists($id) || (class_exists($id) && (new ReflectionClass($id))->isAbstract())) {
+            return self::mapNotFoundForClassName($id);
+        }
+
         return new self(sprintf('Could not resolve a non-null instance for "%s".', $id));
+    }
+
+    private static function shortName(string $className): string
+    {
+        $position = strrpos($className, '\\');
+
+        return $position === false ? $className : substr($className, $position + 1);
     }
 }
