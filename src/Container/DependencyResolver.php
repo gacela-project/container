@@ -29,11 +29,13 @@ use function array_map;
 use function array_values;
 use function class_exists;
 use function count;
+use function in_array;
 use function is_a;
 use function is_callable;
 use function is_object;
 use function is_string;
 use function method_exists;
+use function sprintf;
 
 /**
  * @psalm-import-type BindingsMap from ContainerInterface
@@ -81,6 +83,16 @@ final class DependencyResolver
     private array $buildStack = [];
 
     /**
+     * The parameter whose class is being resolved, so a missing binding can
+     * name what needed it.
+     *
+     * Read only when its type is the one that turned out unbound.
+     */
+    private ?string $parameterInFocus = null;
+
+    private ?string $typeInFocus = null;
+
+    /**
      * Property plans keyed by class, shared across containers.
      *
      * A class definition cannot change within a process, so this is a pure memo
@@ -112,6 +124,9 @@ final class DependencyResolver
      * @var array<class-string, bool>
      */
     private static array $lazyAttribute = [];
+
+    /** @var array<class-string, bool> */
+    private static array $hasInstanceProperties = [];
 
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
@@ -201,6 +216,7 @@ final class DependencyResolver
         self::$propertyPlans = [];
         self::$methodPlans = [];
         self::$lazyAttribute = [];
+        self::$hasInstanceProperties = [];
         self::$lazyObjectsAvailable = null;
     }
 
@@ -459,6 +475,15 @@ final class DependencyResolver
     public function newLazyInstance(string $className): object
     {
         $factory = $this->lazyFactories[$className] ?? null;
+
+        // PHP marks a lazy object with no properties initialized the moment it
+        // is created, so its initializer never runs: a ghost would never be
+        // constructed, and a proxy would be an unconstructed $className rather
+        // than what the factory returns. Such a class is built now instead.
+        if (!self::hasInstanceProperties($className)) {
+            /** @var object */
+            return $factory === null ? $this->constructNow($className) : $factory($this->container());
+        }
 
         return $factory === null
             ? $this->newLazyGhost($className)
@@ -776,8 +801,9 @@ final class DependencyResolver
         if ($param['isScalar'] && !$param['hasDefault']) {
             throw DependencyInvalidArgumentException::unableToResolve(
                 $param['type'] ?? $param['name'],
-                $param['declaringClass'] ?? '',
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
                 $this->getResolutionChain(),
+                $param['name'],
             );
         }
 
@@ -789,8 +815,21 @@ final class DependencyResolver
             return $param['default'];
         }
 
+        // A union or intersection type names no single class to build.
+        if ($param['type'] === null) {
+            throw DependencyInvalidArgumentException::unsupportedType(
+                $param['name'],
+                $this->isCallableParameter() ? '' : $param['declaringClass'] ?? '',
+                $this->getResolutionChain(),
+            );
+        }
+
         /** @var class-string $type */
         $type = $param['type'];
+        $this->parameterInFocus = $this->isCallableParameter()
+            ? sprintf('parameter $%s of the callable passed to resolve()', $param['name'])
+            : sprintf('parameter $%s of %s::__construct()', $param['name'], $param['declaringClass'] ?? '?');
+        $this->typeInFocus = $type;
 
         return $this->resolveClass($type);
     }
@@ -974,7 +1013,51 @@ final class DependencyResolver
 
         $suggestions = FuzzyMatcher::findSimilar($abstract, array_keys($knownBindings));
 
-        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions);
+        $neededBy = $this->typeInFocus === $abstract ? $this->parameterInFocus : null;
+
+        throw DependencyNotFoundException::mapNotFoundForClassName($abstract, $suggestions, $neededBy, $this->getResolutionChain());
+    }
+
+    /**
+     * What a ghost's initializer does, on an instance built now.
+     *
+     * @param class-string $className
+     */
+    private function constructNow(string $className): object
+    {
+        /** @psalm-suppress MixedMethodCall */
+        $instance = new $className(...$this->resolveDependencies($className));
+
+        if ($this->hasInjectedProperties($className)) {
+            $this->injectPropertiesOn($instance, $className);
+        }
+
+        $this->callInjectedMethods($instance, $className, $this->describeMethods($className));
+
+        return $instance;
+    }
+
+    /**
+     * Whether $className or an ancestor declares an instance property, which
+     * is what PHP needs to keep a lazy object uninitialized.
+     *
+     * @param class-string $className
+     */
+    private static function hasInstanceProperties(string $className): bool
+    {
+        if (isset(self::$hasInstanceProperties[$className])) {
+            return self::$hasInstanceProperties[$className];
+        }
+
+        for ($class = new ReflectionClass($className); $class instanceof ReflectionClass; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                if (!$property->isStatic()) {
+                    return self::$hasInstanceProperties[$className] = true;
+                }
+            }
+        }
+
+        return self::$hasInstanceProperties[$className] = false;
     }
 
     /**
@@ -1547,11 +1630,25 @@ final class DependencyResolver
     }
 
     /**
+     * A callable's own parameters are resolved with nothing on either stack;
+     * a constructor's, always with its class on one of them.
+     */
+    private function isCallableParameter(): bool
+    {
+        return $this->buildStack === [] && $this->resolvingStack === [];
+    }
+
+    /**
      * @return list<string>
      */
     private function getResolutionChain(): array
     {
-        return array_keys($this->resolvingStack);
+        // The class asked for first is on the build stack, not the resolving
+        // one: without it the chain began one class too late.
+        $root = $this->buildStack[0] ?? null;
+        $chain = array_keys($this->resolvingStack);
+
+        return $root === null || in_array($root, $chain, true) ? $chain : [$root, ...$chain];
     }
 
     private function isScalar(string $paramTypeName): bool

@@ -16,7 +16,9 @@ use function array_values;
 use function implode;
 use function in_array;
 use function ltrim;
+use function strrpos;
 use function strtolower;
+use function substr;
 
 /**
  * @api
@@ -44,16 +46,19 @@ TXT;
 
     /**
      * @param list<string> $resolutionChain
+     * @param string|null $parameterName names the parameter; the message falls back to a placeholder without it
      */
-    public static function unableToResolve(string $parameter, string $className, array $resolutionChain = []): self
+    public static function unableToResolve(string $parameter, string $className, array $resolutionChain = [], ?string $parameterName = null): self
     {
         $chainInfo = self::formatResolutionChain($resolutionChain);
+        $name = $parameterName ?? 'param';
+        $shortClass = self::shortName($className);
 
         // A name that is no built-in type is a class or interface that does not
         // exist: suggesting a default value would be advice no PHP accepts.
         if (!in_array(strtolower(ltrim($parameter, '?')), self::BUILT_IN_TYPES, true)) {
             $message = <<<TXT
-Unable to resolve parameter of type '{$parameter}' in '{$className}'.{$chainInfo}
+Unable to resolve parameter '\${$name}' of type '{$parameter}' in '{$className}'.{$chainInfo}
 No class or interface '{$parameter}' exists.
 
 Check the type's import and spelling, and that the autoloader can find it.
@@ -61,12 +66,56 @@ TXT;
             return new self($message);
         }
 
-        $message = <<<TXT
-Unable to resolve parameter of type '{$parameter}' in '{$className}'.{$chainInfo}
+        if ($className === '') {
+            $message = <<<TXT
+Unable to resolve parameter '\${$name}' of type '{$parameter}' of the callable.{$chainInfo}
 Scalar types (string, int, float, bool, array) cannot be auto-resolved.
 
-Provide a default value for the parameter:
-  public function __construct({$parameter} \$param = 'default') { ... }
+Pass it in: \$container->resolve(\$callable, ['{$name}' => <value>]), or give the parameter a default value.
+TXT;
+            return new self($message);
+        }
+
+        $message = <<<TXT
+Unable to resolve parameter '\${$name}' of type '{$parameter}' in '{$className}'.{$chainInfo}
+Scalar types (string, int, float, bool, array) cannot be auto-resolved.
+
+Give it a value, in any of these ways:
+  \$container->when({$shortClass}::class)->needs('\${$name}')->give(<value>);
+  \$container->make({$shortClass}::class, ['{$name}' => <value>]);
+  a default value on the parameter itself: {$parameter} \${$name} = <value>
+TXT;
+        return new self($message);
+    }
+
+    /**
+     * A union or intersection type names no single class to build.
+     *
+     * @param list<string> $resolutionChain
+     */
+    public static function unsupportedType(string $parameterName, string $className, array $resolutionChain = []): self
+    {
+        $chainInfo = self::formatResolutionChain($resolutionChain);
+        $shortClass = self::shortName($className);
+
+        if ($className === '') {
+            $message = <<<TXT
+Unable to resolve parameter '\${$parameterName}' of the callable.{$chainInfo}
+Its type is not a single class (a union or an intersection), so there is nothing to autowire.
+
+Pass it in: \$container->resolve(\$callable, ['{$parameterName}' => <value>]), or give the parameter a default value.
+TXT;
+            return new self($message);
+        }
+
+        $message = <<<TXT
+Unable to resolve parameter '\${$parameterName}' in '{$className}'.{$chainInfo}
+Its type is not a single class (a union or an intersection), so there is nothing to autowire.
+
+Give it a value, in any of these ways:
+  \$container->when({$shortClass}::class)->needs('\${$parameterName}')->give(<value>);
+  \$container->make({$shortClass}::class, ['{$parameterName}' => <value>]);
+  a default value on the parameter itself
 TXT;
         return new self($message);
     }
@@ -209,5 +258,12 @@ TXT;
 
         $formatted = implode(' -> ', $chain);
         return "\nResolution chain: {$formatted}";
+    }
+
+    private static function shortName(string $className): string
+    {
+        $position = strrpos($className, '\\');
+
+        return $position === false ? $className : substr($className, $position + 1);
     }
 }

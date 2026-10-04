@@ -261,6 +261,11 @@ What you get back is a **real instance** of the class, not a proxy subclass:
 no generated proxy class and no extra dependency — this uses PHP's native lazy
 objects.
 
+A class with no instance properties, its own or inherited, cannot be lazy: PHP
+treats a lazy object with nothing to defer as initialized at once and would skip
+the constructor. The container builds such a class straight away instead, and a
+`lazy()` factory for it is called straight away.
+
 Dependencies are resolved *inside* the initializer, so a lazy service that is
 never touched costs nothing to build, and neither does its subtree.
 
