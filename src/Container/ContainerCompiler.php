@@ -13,6 +13,7 @@ use ReflectionClass;
 use function array_keys;
 use function implode;
 use function in_array;
+use function interface_exists;
 use function is_string;
 use function sprintf;
 use function var_export;
@@ -304,7 +305,13 @@ final class ContainerCompiler
         }
 
         if (!class_exists($class)) {
-            $this->skip($class, CompilationSkipReason::NotInstantiable, 'it is not a loadable class');
+            $this->skip(
+                $class,
+                CompilationSkipReason::NotInstantiable,
+                interface_exists($class)
+                    ? 'it is an interface with nothing bound to it, so there is no class to write a `new` for'
+                    : 'it is not a loadable class',
+            );
             return false;
         }
 

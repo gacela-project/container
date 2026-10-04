@@ -10,6 +10,18 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+### Documentation
+
+- `docs/bindings.md` described `has()` and `bound()` wrongly: `has()` is true for anything `get()` can return, an autowirable class included, and `bound()` only for a registration. Its alias example promised the same instance, which holds only for a shared target
+- `ContainerInterface::set()` said an instance cannot be overridden; it can until it is first read
+- `forget()` is listed in the API reference, which also says why it is on `Container` and not on `ContainerInterface` until 3.0
+- The README links Gacela's container wrapper instead of a line number in a file that has since changed
+
+### Changed
+
+- `compileReport()` says an interface with nothing bound to it is one, instead of calling it "not a loadable class"
+- PHPStan keeps its result cache in `.cache/phpstan`, so several checkouts analysing at once no longer share one in the system temp directory, and `composer phpstan` runs with a 1GB memory limit: a cold run ran its worker out of the default 128MB, which `composer test` reported as an internal error
+
 ### Fixed
 
 - A `#[Lazy]` or `lazy()` class with no instance properties is constructed. PHP treats a lazy object with no properties as initialized the moment it is created, so the constructor never ran, and a `lazy()` factory was never called: the caller got an unconstructed object. Such a class is now built straight away

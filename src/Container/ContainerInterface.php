@@ -108,7 +108,9 @@ interface ContainerInterface extends PsrContainerInterface, ArrayAccess
     public function singletonIf(string $abstract, string|callable|object|null $concrete = null): void;
 
     /**
-     * Set a new instance. You cannot override an existing instance, but you can extend it.
+     * Store an instance, or a closure that builds it, under $id. It can be
+     * replaced until it is first read; after that, set() throws, and extend()
+     * is the way to change it.
      */
     public function set(string $id, mixed $instance): void;
 
