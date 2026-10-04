@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ## Unreleased
 
+## [2.2.0](https://github.com/gacela-project/container/compare/2.1.0...2.2.0) - 2026-10-04
+
 ### Added
 
 - `Container::forget($id)` drops what was built for an id and keeps how to build it: a closure-registered service is built again on the next `get()`, a `factory()` is left as it is
