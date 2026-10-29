@@ -240,6 +240,12 @@ $container->tag([
 $handler = $container->taggedByKey('notification.handlers', 'sms');
 ```
 
+Named keys must remain strings in a PHP array. PHP converts integer-like keys
+such as `'0'`, `'1'` and `'-1'` to integers, so those entries are unkeyed: they
+can be iterated with `tagged()` but cannot be looked up with `taggedByKey()`.
+Keys such as `'01'`, `'+1'` and `'1.0'` stay strings and remain valid names.
+`taggedByKey()` accepts exactly the names listed by `taggedKeys()`.
+
 - Only the entry asked for is built. Registering a hundred handlers constructs
   none of them.
 - The instance comes from the container's own cache, so a `singleton()` still

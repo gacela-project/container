@@ -16,6 +16,7 @@ use WeakReference;
 
 use function class_exists;
 use function count;
+use function in_array;
 use function interface_exists;
 use function is_int;
 use function is_object;
@@ -1071,9 +1072,10 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function taggedByKey(string $tag, string $key): mixed
     {
         $ids = $this->taggedIds($tag);
+        $keys = self::stringKeys($ids);
 
-        if (!isset($ids[$key])) {
-            throw ContainerException::unknownTagKey($tag, $key, self::stringKeys($ids));
+        if (!in_array($key, $keys, true)) {
+            throw ContainerException::unknownTagKey($tag, $key, $keys);
         }
 
         return $this->get($ids[$key]);
