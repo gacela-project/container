@@ -24,11 +24,11 @@ use WeakReference;
 
 use function array_diff;
 use function array_key_exists;
+use function array_key_last;
 use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
-use function count;
 use function in_array;
 use function is_a;
 use function is_callable;
@@ -517,10 +517,12 @@ final class DependencyResolver
     public function injectPropertiesOn(object $instance, string $className): void
     {
         $this->resolvingStack[$className] = true;
+        $this->buildStack[] = $className;
 
         try {
             $this->injectProperties($instance, $this->describeProperties($className));
         } finally {
+            array_pop($this->buildStack);
             // The stack has to be unwound even when a property fails to
             // resolve, or the next resolution on this container reports a
             // resolution chain containing a class it never touched.
@@ -1181,6 +1183,7 @@ final class DependencyResolver
     private function instantiateFromPlan(string $className, array $plan): object
     {
         $this->resolvingStack[$className] = true;
+        $this->buildStack[] = $className;
 
         try {
             /** @var list<mixed> $args */
@@ -1217,6 +1220,7 @@ final class DependencyResolver
 
             return $instance;
         } finally {
+            array_pop($this->buildStack);
             unset($this->resolvingStack[$className]);
         }
     }
@@ -1705,18 +1709,12 @@ final class DependencyResolver
      */
     private function getContextualBinding(string $abstract): mixed
     {
-        if ($this->contextualBindings === []) {
+        if ($this->contextualBindings === [] || $this->buildStack === []) {
             return null;
         }
 
-        // Walk the build stack from the end (most specific context) outward
-        for ($i = count($this->buildStack) - 1; $i >= 0; --$i) {
-            $concrete = $this->buildStack[$i];
-            if (isset($this->contextualBindings[$concrete][$abstract])) {
-                return $this->contextualBindings[$concrete][$abstract];
-            }
-        }
+        $concrete = $this->buildStack[array_key_last($this->buildStack)];
 
-        return null;
+        return $this->contextualBindings[$concrete][$abstract] ?? null;
     }
 }

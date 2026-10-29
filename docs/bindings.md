@@ -147,6 +147,8 @@ $container->when([ServiceA::class, ServiceB::class])
     ->give(RedisCache::class);
 ```
 
+A type binding applies to the class receiving the dependency, in its constructor and its `#[Inject]` properties and methods. If `Service` needs `Repository`, the repository's dependencies use bindings for `Repository`, then the global bindings. Bindings for `Service` do not carry into the repository. Inherited properties and methods use bindings for the class being built.
+
 ### Named (scalar) contextual bindings
 
 `needs()` also accepts a `$`-prefixed **parameter name**, to inject a scalar,

@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Type contextual bindings follow the class receiving each dependency, including nested constructors and `#[Inject]` properties. A root class's binding no longer leaks into its children. Inherited properties and setters use the class being built. See [contextual bindings](docs/bindings.md#contextual-bindings)
 - Named contextual bindings inject callable strings, arrays, and invokable objects unchanged. Only closures are invoked, so a value such as `'date'` no longer calls the PHP function. See [named bindings](docs/bindings.md#named-scalar-contextual-bindings)
 - Generated factories respect registered dependencies on the receiving container, including stored instances, aliases, singletons, and scope overrides. The compiler also refuses to inline dependencies provided through `set()` or an alias. See [registration precedence](docs/performance.md#registration-still-wins)
 
