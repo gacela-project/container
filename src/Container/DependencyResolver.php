@@ -1127,14 +1127,14 @@ final class DependencyResolver
          * @phpstan-ignore method.notFound, return.type, closure.unusedUse
          */
         return $reflection->newLazyGhost(function (object $instance) use ($className, $ownerContainer): void {
-            $dependencies = $this->resolveDependencies($className);
+            if (method_exists($instance, '__construct')) {
+                $dependencies = $this->resolveDependencies($className);
 
-            /**
-             * @psalm-suppress MixedMethodCall, DirectConstructorCall
-             *
-             * @phpstan-ignore method.notFound
-             */
-            $instance->__construct(...$dependencies);
+                /**
+                 * @psalm-suppress MixedMethodCall, DirectConstructorCall
+                 */
+                $instance->__construct(...$dependencies);
+            }
 
             // Deferred with the constructor, not run eagerly at ghost creation:
             // resolving them up front would defeat the point of being lazy.
