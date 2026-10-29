@@ -104,6 +104,9 @@ final class DependencyCacheManager
      */
     private ?ContainerInterface $parent = null;
 
+    /** @var WeakReference<self>|null */
+    private ?WeakReference $parentManagerRef = null;
+
     private PlanRegistry $planRegistry;
 
     /** @var array<class-string, true> Classes made lazy through Container::lazy() */
@@ -213,6 +216,7 @@ final class DependencyCacheManager
     public function inheritFrom(self $parentManager, ContainerInterface $parent): void
     {
         $this->parent = $parent;
+        $this->parentManagerRef = WeakReference::create($parentManager);
         $this->planRegistry = $parentManager->planRegistry;
 
         // Copied rather than chained, like Container does with contextual
@@ -498,6 +502,20 @@ final class DependencyCacheManager
         return $this->createInstance($class);
     }
 
+    /**
+     * @param class-string $class
+     */
+    public function instantiateContextual(string $class): object
+    {
+        $owner = $this->contextualSingletonOwner($class) ?? $this;
+        $instance = $owner->instantiate($class);
+        if ($owner !== $this) {
+            $owner->afterResolving?->__invoke($class, $instance);
+        }
+
+        return $instance;
+    }
+
     public function getCacheSize(): int
     {
         return count($this->resolvedKeys);
@@ -528,6 +546,19 @@ final class DependencyCacheManager
         }
 
         return self::$instantiable[$class] = true;
+    }
+
+    private function contextualSingletonOwner(string $class): ?self
+    {
+        if ($this->ownsSingleton($class)) {
+            return $this;
+        }
+
+        if (isset($this->bindings[$class])) {
+            return null;
+        }
+
+        return $this->parentManagerRef?->get()?->contextualSingletonOwner($class);
     }
 
     /**

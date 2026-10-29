@@ -15,6 +15,7 @@ use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
 use GacelaTest\Fake\SingletonAttributeService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use function sys_get_temp_dir;
@@ -95,22 +96,108 @@ final class SingletonParameterTest extends TestCase
         }
     }
 
-    public function test_a_contextual_target_keeps_its_registered_singleton_lifetime(): void
+    #[DataProvider('contextualSingletonScopes')]
+    public function test_a_contextual_target_keeps_its_registered_singleton_lifetime(int $depth): void
     {
-        $container = new Container();
-        $container->singleton(CompilableDependency::class);
-        $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
-        $container->when(CompilableConsumer::class)
+        $parent = new Container();
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
             ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+        $calls = 0;
+        $parent->afterResolving(CompilableDependency::class, static function () use (&$calls): void {
+            ++$calls;
+        });
+        $container = $parent;
+        for ($i = 0; $i < $depth; ++$i) {
+            $container = $container->createScope();
+        }
 
         $first = $container->get(CompilableConsumer::class)->dependency;
         self::assertSame(CompilableDependency::class, $first::class);
         self::assertSame($first, $container->get(CompilableConsumer::class)->dependency);
+        self::assertSame($first, $parent->get(CompilableConsumer::class)->dependency);
+        self::assertSame($first, $parent->createScope()->get(CompilableConsumer::class)->dependency);
+        self::assertSame(1, $calls);
 
-        $container->forget(CompilableDependency::class);
+        $parent->forget(CompilableDependency::class);
         $rebuilt = $container->get(CompilableConsumer::class)->dependency;
         self::assertNotSame($first, $rebuilt);
+        self::assertSame($rebuilt, $parent->get(CompilableConsumer::class)->dependency);
         self::assertSame($rebuilt, $container->get(CompilableConsumer::class)->dependency);
+        self::assertSame(2, $calls);
+        if ($depth > 0) {
+            $container->forget(CompilableDependency::class);
+            self::assertSame($rebuilt, $container->get(CompilableConsumer::class)->dependency);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function contextualSingletonScopes(): iterable
+    {
+        yield 'root' => [0];
+        yield 'child scope' => [1];
+        yield 'grandchild scope' => [2];
+    }
+
+    public function test_existing_scopes_see_a_late_contextual_singleton_registration(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $sibling = $parent->createScope();
+        $scope->get(CompilableConsumer::class);
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+
+        $first = $scope->get(CompilableConsumer::class)->dependency;
+        self::assertSame(CompilableDependency::class, $first::class);
+        self::assertSame($first, $parent->get(CompilableConsumer::class)->dependency);
+        self::assertSame($first, $sibling->get(CompilableConsumer::class)->dependency);
+    }
+
+    public function test_a_scope_keeps_its_contextual_target_when_shadowing_an_inherited_singleton(): void
+    {
+        $parent = new Container();
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+        $shared = $parent->get(CompilableConsumer::class)->dependency;
+        $scope = $parent->createScope();
+        $scope->singleton(CompilableDependency::class);
+        $scope->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $local = $scope->get(CompilableConsumer::class)->dependency;
+        self::assertSame(CompilableDependency::class, $local::class);
+        self::assertNotSame($shared, $local);
+        self::assertSame($local, $scope->createScope()->get(CompilableConsumer::class)->dependency);
+
+        $scope->forget(CompilableDependency::class);
+        self::assertNotSame($local, $scope->get(CompilableConsumer::class)->dependency);
+        self::assertSame($shared, $parent->get(CompilableConsumer::class)->dependency);
+
+        $transientScope = $parent->createScope();
+        $transientScope->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $first = $transientScope->get(CompilableConsumer::class)->dependency;
+        self::assertSame(CompilableDependency::class, $first::class);
+        self::assertNotSame($shared, $first);
+        self::assertNotSame($first, $transientScope->get(CompilableConsumer::class)->dependency);
+    }
+
+    public function test_a_contextual_interface_target_still_uses_its_concrete_singleton_binding(): void
+    {
+        $container = new Container();
+        $container->singleton(RepositoryInterface::class, InMemoryRepository::class);
+        $container->when(ServiceWithRepository::class)
+            ->needs(RepositoryInterface::class)->give(RepositoryInterface::class);
+
+        self::assertSame(
+            $container->get(RepositoryInterface::class),
+            $container->createScope()->get(ServiceWithRepository::class)->repository,
+        );
     }
 
     public function test_a_scope_shares_a_singleton_parameter_it_resolved_itself(): void

@@ -335,6 +335,8 @@ See [bindings](bindings.md#deferred-registration).
 A contextual class target keeps its singleton lifetime even when a global binding
 replaces that class for other consumers. Selecting `Heavy::class` explicitly
 shares the cached `Heavy` instance, and `forget(Heavy::class)` clears that cache.
+Scopes share an inherited singleton registration unless they shadow its binding;
+forgetting it on the parent clears the shared instance for subsequent lookups.
 
 ### PHP version
 

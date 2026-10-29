@@ -933,9 +933,8 @@ final class DependencyResolver
             $binding = $this->bindings[$paramTypeName] ?? $this->parent?->getBindings()[$paramTypeName] ?? null;
             $cacheManager = $this->cacheManagerRef?->get();
             if ($binding !== null && $binding !== $paramTypeName && $cacheManager !== null
-                && ($cacheManager->ownsSingleton($paramTypeName)
-                    || $this->isSingletonClass($paramTypeName, $this->describeClass($paramTypeName)))) {
-                return $this->instantiateSingleton($cacheManager, $paramTypeName);
+                && $cacheManager->isInstantiable($paramTypeName)) {
+                return $this->instantiateContextual($cacheManager, $paramTypeName);
             }
         }
 
@@ -1039,13 +1038,13 @@ final class DependencyResolver
     /**
      * @param class-string $class
      */
-    private function instantiateSingleton(DependencyCacheManager $cacheManager, string $class): object
+    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): object
     {
         $this->checkCircularDependency($class);
         $this->resolvingStack[$class] = true;
 
         try {
-            $instance = $cacheManager->instantiate($class);
+            $instance = $cacheManager->instantiateContextual($class);
             $this->afterResolving?->__invoke($class, $instance);
 
             return $instance;
