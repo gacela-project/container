@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `extend()` passes literal callable arrays to extensions as array values instead of invoking them. Callable string values are rejected as non-extendable when the extension is registered. Closures and invokable objects still supply their results to extensions. See [extending services](docs/services.md#extending-services)
 - Scopes recognize `factory()` and `protect()` marks from their ancestors for closures stored locally, including marks added after scope creation. Factories still receive the storing scope, extensions keep inherited factory behavior, and child marks stay isolated from ancestors and siblings. See [closure marks](docs/scopes.md#closure-marks)
 - Invokable objects passed to `bind()`, `singleton()`, or type-based contextual `give()` are injected unchanged as shared instances. Closures and callable arrays remain factories, while string bindings remain class names. See the [upgrade example](UPGRADE.md#invokable-object-bindings) if the object was intended as a factory
 - Integer array offsets resolve the same string service id for assignment, lookup, `isset()` and `unset()`. Append syntax and offsets other than strings or integers now throw `TypeError` instead of being coerced during assignment. Explicit empty-string ids remain supported. See [array access](docs/resolution.md#array-access)

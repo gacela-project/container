@@ -37,6 +37,12 @@ $container->extend('logger', function ($logger, $container) {
 after the service has been read throws a `ContainerException` because the
 service is frozen.
 
+Extensions follow the same value rules as `get()`: closures and invokable
+objects are called, and the extension receives their result. Arrays remain
+values even when they name a callable method. Scalar values, including strings
+that name functions or static methods, cannot be extended and raise a
+`ContainerException` when `extend()` is called.
+
 An id registered with `bind()` or `singleton()` throws a `ContainerException`
 when passed to `extend()`, including through an alias. Those registrations do
 not consume scheduled extensions. Use `set()` with a closure instead, and wrap
