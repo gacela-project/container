@@ -20,6 +20,7 @@ use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\PersonWithoutParamType;
 use GacelaTest\Fake\ServiceWithUntypedMiddleParameter;
+use GacelaTest\Fake\ServiceWithUntypedVariadicParameter;
 use PHPUnit\Framework\TestCase;
 
 final class ClassDependencyResolverTest extends TestCase
@@ -186,6 +187,19 @@ final class ClassDependencyResolverTest extends TestCase
 
         for ($i = 0; $i < 3; ++$i) {
             self::assertInstanceOf(PersonWithoutParamType::class, $container->resolve($callable));
+        }
+    }
+
+    public function test_a_nested_untyped_variadic_remains_optional(): void
+    {
+        $container = new Container();
+        $callable = static fn (ServiceWithUntypedVariadicParameter $service): ServiceWithUntypedVariadicParameter => $service;
+
+        for ($i = 0; $i < 3; ++$i) {
+            $service = $container->resolve($callable);
+
+            self::assertSame('default-label', $service->label);
+            self::assertSame([], $service->values);
         }
     }
 

@@ -1191,6 +1191,10 @@ final class DependencyResolver
             $args = [];
 
             foreach ($plan['params'] as $param) {
+                if (!$param['hasType'] && ($param['isVariadic'] ?? false)) {
+                    continue;
+                }
+
                 /** @psalm-suppress MixedAssignment */
                 $args[] = $this->resolveParameter($param);
             }
@@ -1634,6 +1638,7 @@ final class DependencyResolver
         return [
             'name' => $parameter->getName(),
             'hasType' => $parameter->hasType(),
+            'isVariadic' => $parameter->isVariadic(),
             'type' => $typeName,
             'isScalar' => $isScalar,
             'inject' => $this->readInjectImplementation($parameter),

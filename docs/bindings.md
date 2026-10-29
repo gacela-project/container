@@ -168,7 +168,7 @@ $container->when(ReportService::class)
 The binding is scoped to the class named in `when()`; the same parameter name on
 another class is unaffected.
 
-Named bindings also supply untyped parameters, including parameters between typed ones. Without a named binding, an untyped parameter keeps its declared default. An untyped parameter with no supplied value or default throws `DependencyInvalidArgumentException` at any depth.
+Named bindings also supply untyped parameters, including parameters between typed ones. Without a named binding, an untyped parameter keeps its declared default. A required untyped parameter with no supplied value or default throws `DependencyInvalidArgumentException` at any depth.
 
 For a named need, only a closure is invoked. Strings naming functions, callable
 arrays, and invokable objects are injected unchanged. Wrap a callable in a
