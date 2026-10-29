@@ -88,6 +88,9 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private array $afterResolvingCallbacks = [];
 
+    /** @var array<string, SingletonMemo> */
+    private array $singletonMemos = [];
+
     /** @var WeakMap<object, array<int, true>>|null */
     private ?WeakMap $appliedHooks = null;
 
@@ -523,6 +526,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function bind(string $abstract, string|callable|object $concrete): void
     {
         $this->cacheManager->dropArgBuilders();
+        unset($this->singletonMemos[$abstract]);
 
         /**
          * @psalm-suppress PropertyTypeCoercion
@@ -551,7 +555,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         if (is_callable($concrete)) {
-            $this->bind($abstract, $this->memoizeCallable($concrete));
+            $memo = new SingletonMemo();
+            $this->bind($abstract, $this->memoizeCallable($concrete, $memo));
+            $this->singletonMemos[$abstract] = $memo;
             return;
         }
 
@@ -950,7 +956,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Forget an instance stored on this container.
+     * Remove a stored instance or evict a singleton cached on this container.
      *
      * A scope only forgets what it stored itself; removing an id it inherits
      * would mutate the ancestor holding it. After removing a shadowing entry,
@@ -962,11 +968,13 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $this->forgetSingleton($id);
         $this->instanceRegistry->remove($id);
     }
 
     /**
-     * Drop what was built for `$id`, keeping how to build it.
+     * Drop what was built for `$id`, including cached singleton values,
+     * keeping how to build it.
      *
      * Unlike remove(), a service registered with a closure is built again on
      * the next get(), and a factory, which keeps nothing, is left as it is.
@@ -978,6 +986,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $this->forgetSingleton($id);
         if ($this->instanceRegistry->restoreDefinition($id) || $this->isFactory($id)) {
             return;
         }
@@ -1623,21 +1632,22 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * @return Closure(): mixed
      */
-    private function memoizeCallable(callable $factory): Closure
+    private function memoizeCallable(callable $factory, SingletonMemo $memo): Closure
     {
         $containerRef = WeakReference::create($this);
-        $resolved = null;
-        $hasResolved = false;
 
-        return static function () use ($factory, $containerRef, &$resolved, &$hasResolved): mixed {
-            if (!$hasResolved) {
-                /** @var mixed $resolved */
-                $resolved = $factory($containerRef->get()?->forClosures());
-                $hasResolved = true;
-            }
+        return static fn (): mixed => $memo->resolve($factory, $containerRef->get()?->forClosures());
+    }
 
-            return $resolved;
-        };
+    private function forgetSingleton(string $id): void
+    {
+        ($this->singletonMemos[$id] ?? null)?->forget();
+        $this->cacheManager->forget($id);
+
+        $concrete = $this->bindings[$id] ?? null;
+        if (is_string($concrete)) {
+            $this->cacheManager->forget($concrete);
+        }
     }
 
     private function createInstance(string $class): ?object
