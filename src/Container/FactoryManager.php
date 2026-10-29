@@ -139,7 +139,7 @@ final class FactoryManager
 
     public function generateExtendedInstance(Closure $instance, mixed $factory): Closure
     {
-        if (is_callable($factory)) {
+        if (is_object($factory) && is_callable($factory)) {
             return static function (ContainerInterface $c) use ($instance, $factory): mixed {
                 /** @var mixed $result */
                 $result = $factory($c);

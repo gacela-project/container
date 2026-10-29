@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use ArrayObject;
+use DateTime;
 use Gacela\Container\Container;
+use Gacela\Container\ContainerInterface;
 use Gacela\Container\Exception\CircularDependencyException;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
@@ -19,10 +21,13 @@ use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ClassWithRelationship;
 use GacelaTest\Fake\ControllerUsingService;
 use GacelaTest\Fake\DatabaseRepository;
+use GacelaTest\Fake\ForwardingContainer;
+use GacelaTest\Fake\InvokableHandler;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ClassContainerTest extends TestCase
@@ -733,5 +738,83 @@ final class ClassContainerTest extends TestCase
 
         $container = new Container();
         $container->get(ControllerUsingService::class);
+    }
+
+    /**
+     * @param array{object|string, string} $literal
+     */
+    #[DataProvider('literalCallableArrays')]
+    public function test_extending_a_literal_callable_array_passes_the_array_to_the_extension(array $literal): void
+    {
+        $container = new Container();
+        $container->set('config', $literal);
+        $container->extend('config', static fn (array $value): array => [$value, 'extended']);
+
+        self::assertSame([$literal, 'extended'], $container->get('config'));
+        self::assertSame([$literal, 'extended'], $container->get('config'));
+    }
+
+    /**
+     * @return iterable<string, array{array{object|string, string}}>
+     */
+    public static function literalCallableArrays(): iterable
+    {
+        yield 'internal static method' => [[DateTime::class, 'createFromFormat']];
+        yield 'user static method' => [[InvokableHandler::class, 'statically']];
+        yield 'instance method' => [[new InvokableHandler(), 'handle']];
+    }
+
+    #[DataProvider('literalCallableStrings')]
+    public function test_extending_a_callable_string_is_rejected_without_replacing_the_value(string $literal): void
+    {
+        $container = new Container();
+        $container->set('config', $literal);
+
+        try {
+            $container->extend('config', static fn (string $value): string => $value . '!');
+            self::fail('A string value is not extendable');
+        } catch (ContainerException) {
+        }
+
+        self::assertFalse($container->isFrozen('config'));
+        self::assertSame($literal, $container->get('config'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function literalCallableStrings(): iterable
+    {
+        yield 'function name' => ['strtoupper'];
+        yield 'static method name' => [InvokableHandler::class . '::statically'];
+    }
+
+    public function test_extending_an_invokable_factory_still_uses_its_result(): void
+    {
+        $container = new Container();
+        $container->set('service', new InvokableHandler());
+        $container->extend('service', static fn (string $value): string => $value . '!');
+
+        self::assertSame('invoked!', $container->get('service'));
+        self::assertSame('invoked!', $container->get('service'));
+    }
+
+    public function test_a_literal_array_extension_receives_the_storing_scope_facade(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $facade = new ForwardingContainer($scope);
+        $scope->withSelfReference($facade);
+        $literal = [InvokableHandler::class, 'statically'];
+        $scope->set('config', $literal);
+        $seen = null;
+        $scope->extend('config', static function (array $value, ContainerInterface $container) use (&$seen): array {
+            $seen = $container;
+
+            return $value;
+        });
+
+        self::assertSame($literal, $scope->get('config'));
+        self::assertSame($facade, $seen);
     }
 }
