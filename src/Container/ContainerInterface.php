@@ -25,7 +25,7 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
  *     memory_usage: string
  * }
  *
- * @extends ArrayAccess<string, mixed>
+ * @extends ArrayAccess<int|string, mixed>
  *
  * @api
  */

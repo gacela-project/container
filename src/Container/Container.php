@@ -10,6 +10,7 @@ use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
 use Throwable;
+use TypeError;
 use WeakMap;
 use WeakReference;
 
@@ -32,7 +33,7 @@ use function max;
  *
  * @psalm-type ResolvedHook = array{id: string, byType: bool, callback: Closure}
  *
- * @implements ArrayAccess<string, mixed>
+ * @implements ArrayAccess<int|string, mixed>
  *
  * Implements the deprecated FullContainerInterface on purpose: that is what
  * keeps a 1.5 typehint accepting a container. It adds nothing — everything it
@@ -766,25 +767,25 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function offsetExists(mixed $offset): bool
     {
-        return $this->has($offset);
+        return $this->has(self::offsetId($offset));
     }
 
     #[Override]
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->get($offset);
+        return $this->get(self::offsetId($offset));
     }
 
     #[Override]
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        $this->set((string) $offset, $value);
+        $this->set(self::offsetId($offset), $value);
     }
 
     #[Override]
     public function offsetUnset(mixed $offset): void
     {
-        $this->remove($offset);
+        $this->remove(self::offsetId($offset));
     }
 
     #[Override]
@@ -1348,6 +1349,15 @@ final class Container implements FullContainerInterface, ArrayAccess
             'cached_dependencies' => $stats->cachedDependencies,
             'memory_usage' => $stats->processMemoryFormatted(),
         ];
+    }
+
+    private static function offsetId(mixed $offset): string
+    {
+        if (!is_string($offset) && !is_int($offset)) {
+            throw new TypeError('Container offsets must be strings or integers; an explicit service id is required.');
+        }
+
+        return (string) $offset;
     }
 
     /**
