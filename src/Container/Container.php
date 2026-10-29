@@ -13,7 +13,6 @@ use Throwable;
 use WeakMap;
 use WeakReference;
 
-use function array_key_exists;
 use function class_exists;
 use function count;
 use function interface_exists;
@@ -89,8 +88,8 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private array $afterResolvingCallbacks = [];
 
-    /** @var array<string, mixed> */
-    private array $singletonValues = [];
+    /** @var array<string, SingletonMemo> */
+    private array $singletonMemos = [];
 
     /** @var WeakMap<object, array<int, true>>|null */
     private ?WeakMap $appliedHooks = null;
@@ -527,7 +526,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function bind(string $abstract, string|callable|object $concrete): void
     {
         $this->cacheManager->dropArgBuilders();
-        unset($this->singletonValues[$abstract]);
+        unset($this->singletonMemos[$abstract]);
 
         /**
          * @psalm-suppress PropertyTypeCoercion
@@ -556,7 +555,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         if (is_callable($concrete)) {
-            $this->bind($abstract, $this->memoizeCallable($abstract, $concrete));
+            $memo = new SingletonMemo();
+            $this->bind($abstract, $this->memoizeCallable($concrete, $memo));
+            $this->singletonMemos[$abstract] = $memo;
             return;
         }
 
@@ -1624,28 +1625,16 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * @return Closure(): mixed
      */
-    private function memoizeCallable(string $id, callable $factory): Closure
+    private function memoizeCallable(callable $factory, SingletonMemo $memo): Closure
     {
         $containerRef = WeakReference::create($this);
 
-        return static function () use ($id, $factory, $containerRef): mixed {
-            $container = $containerRef->get();
-            if ($container === null) {
-                return $factory(null);
-            }
-
-            if (!array_key_exists($id, $container->singletonValues)) {
-                /** @psalm-suppress MixedAssignment */
-                $container->singletonValues[$id] = $factory($container->forClosures());
-            }
-
-            return $container->singletonValues[$id];
-        };
+        return static fn (): mixed => $memo->resolve($factory, $containerRef->get()?->forClosures());
     }
 
     private function forgetSingleton(string $id): void
     {
-        unset($this->singletonValues[$id]);
+        ($this->singletonMemos[$id] ?? null)?->forget();
         $this->cacheManager->forget($id);
 
         $concrete = $this->bindings[$id] ?? null;

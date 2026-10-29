@@ -243,14 +243,72 @@ final class SingletonEvictionTest extends TestCase
         self::assertSame('second', $second->name);
     }
 
-    public function test_callable_singleton_memoization_does_not_keep_its_owner_alive(): void
+    public function test_a_running_singleton_factory_cannot_fill_a_replacement_registration(): void
     {
         $container = new Container();
-        $container->singleton(Person::class, static fn (): Person => new Person());
-        $container->get(Person::class);
-        $reference = WeakReference::create($container);
-        unset($container);
+        $container->singleton(Person::class, static function (ContainerInterface $current): Person {
+            $current->singleton(Person::class, static fn (): Person => new Person('replacement'));
 
-        self::assertNull($reference->get());
+            return new Person('original');
+        });
+        $original = $container->get(Person::class);
+        $replacement = $container->get(Person::class);
+
+        self::assertSame('original', $original->name);
+        self::assertSame('replacement', $replacement->name);
+        self::assertNotSame($original, $replacement);
+        self::assertSame($replacement, $container->get(Person::class));
+    }
+
+    public function test_an_exported_singleton_factory_cannot_fill_a_replacement_registration(): void
+    {
+        $container = new Container();
+        $container->singleton(Person::class, static fn (): Person => new Person('original'));
+        $exported = $container->getBindings()[Person::class];
+        self::assertInstanceOf(Closure::class, $exported);
+        $container->singleton(Person::class, static fn (): Person => new Person('replacement'));
+        $original = $exported();
+        $replacement = $container->get(Person::class);
+
+        self::assertSame('original', $original->name);
+        self::assertSame('replacement', $replacement->name);
+        self::assertNotSame($original, $replacement);
+        self::assertSame($original, $exported());
+        self::assertSame($replacement, $container->get(Person::class));
+    }
+
+    public function test_an_exported_singleton_factory_keeps_its_own_memo_after_replacement(): void
+    {
+        $container = new Container();
+        $container->singleton(Person::class, static fn (): Person => new Person('original'));
+        $exported = $container->getBindings()[Person::class];
+        self::assertInstanceOf(Closure::class, $exported);
+        $original = $exported();
+        $container->singleton(Person::class, static fn (): Person => new Person('replacement'));
+        $replacement = $container->get(Person::class);
+
+        self::assertSame('replacement', $replacement->name);
+        self::assertSame($original, $exported());
+        self::assertNotSame($original, $replacement);
+    }
+
+    public function test_callable_singleton_memoization_does_not_keep_its_owner_alive(): void
+    {
+        $wasEnabled = gc_enabled();
+        gc_disable();
+
+        try {
+            $container = new Container();
+            $container->singleton(Person::class, static fn (): Person => new Person());
+            $container->get(Person::class);
+            $reference = WeakReference::create($container);
+            unset($container);
+
+            self::assertNull($reference->get());
+        } finally {
+            if ($wasEnabled) {
+                gc_enable();
+            }
+        }
     }
 }
