@@ -58,7 +58,7 @@ final class BindingResolver
         $this->parent = $parent;
     }
 
-    public function resolve(string $class, DependencyCacheManager $cacheManager): ?object
+    public function resolve(string $class, DependencyCacheManager $cacheManager): mixed
     {
         if (isset($this->bindings[$class])) {
             /** @var mixed $binding */
@@ -79,8 +79,7 @@ final class BindingResolver
                     return $lazyProxy;
                 }
 
-                /** @var mixed $binding */
-                $binding = $binding($this->containerRef?->get() ?? $this->ownerRef?->get());
+                return $binding($this->containerRef?->get() ?? $this->ownerRef?->get());
             }
 
             if (is_object($binding)) {

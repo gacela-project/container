@@ -63,6 +63,21 @@ $container->extend(LoggerInterface::class, static fn ($logger) => new LoggerDeco
 For a shared service previously registered with `singleton()`, pass the closure
 to `set()` without wrapping it in `factory()`.
 
+### Binding factory results
+
+Binding factories now return their values unchanged. A returned class-name string is a value; it no longer causes another object to be constructed. To register an object through its class name, pass the class name directly or construct the object in the factory:
+
+```php
+// Before: the returned class name was instantiated implicitly.
+$container->bind(LoggerInterface::class, static fn () => FileLogger::class);
+
+// After: register the class directly.
+$container->bind(LoggerInterface::class, FileLogger::class);
+
+// Or return the constructed object.
+$container->bind(LoggerInterface::class, static fn () => new FileLogger('/var/log/app.log'));
+```
+
 ## 2.0.x → 2.1
 
 One change in runtime behaviour, with nothing to write on your side.
