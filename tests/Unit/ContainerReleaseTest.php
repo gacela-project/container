@@ -258,6 +258,58 @@ final class ContainerReleaseTest extends TestCase
         self::assertSame($container, $received);
     }
 
+    public function test_a_container_with_an_unresolved_singleton_callable_is_released(): void
+    {
+        $container = new Container();
+        $container->singleton('svc', static fn (): object => new ClassWithoutDependencies());
+
+        $reference = WeakReference::create($container);
+        unset($container);
+
+        self::assertNull($reference->get());
+    }
+
+    public function test_a_container_with_a_resolved_singleton_callable_is_released(): void
+    {
+        $container = new Container();
+        $container->singleton('svc', static fn (): object => new ClassWithoutDependencies());
+        $service = $container->get('svc');
+
+        $reference = WeakReference::create($container);
+        unset($container);
+
+        self::assertNull($reference->get());
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service);
+    }
+
+    public function test_a_scope_with_an_unresolved_singleton_callable_is_released(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $scope->singleton('svc', static fn (): object => new ClassWithoutDependencies());
+
+        $reference = WeakReference::create($scope);
+        unset($scope);
+
+        self::assertNull($reference->get());
+        self::assertFalse($parent->bound('svc'));
+    }
+
+    public function test_a_scope_with_a_resolved_singleton_callable_is_released(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $scope->singleton('svc', static fn (): object => new ClassWithoutDependencies());
+        $service = $scope->get('svc');
+
+        $reference = WeakReference::create($scope);
+        unset($scope);
+
+        self::assertNull($reference->get());
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service);
+        self::assertFalse($parent->bound('svc'));
+    }
+
     private static function reportGeneratorFactory(): Closure
     {
         return static fn (ContainerInterface $container): ExpensiveReportGenerator => new ExpensiveReportGenerator(new ClassWithoutDependencies());

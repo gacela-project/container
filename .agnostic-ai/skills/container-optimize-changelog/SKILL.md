@@ -1,7 +1,6 @@
 ---
 name: container-optimize-changelog
-description: "Prepare Gacela Container Unreleased notes: account for commits, merge duplicate entries, tighten prose, and verify links. Accept --dry-run, --release, or --version X.Y.Z."
-disable-model-invocation: true
+description: "Prepare or tighten Gacela Container Unreleased notes when release notes or changelog cleanup is requested. Supports dry run and release-version suggestions."
 ---
 
 # Prepare container release notes
