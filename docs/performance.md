@@ -526,6 +526,27 @@ it with [`lazy()`](bindings.md#deferred-registration). See
 
 Reproduce any of this with `composer bench`.
 
+## Cache file permissions
+
+Plan and factory caches contain PHP that executes when loaded. Both loaders
+check the file before including it. When PHP can read the effective user id,
+the cache must belong to that user, and directories in the resolved POSIX path
+must be owned by that user or root. On POSIX, files must not be writable by
+the group or other users. A directory writable by others must have the sticky
+bit set, as a system temporary directory normally does.
+
+Use a private cache directory and generate caches as the account that loads
+them. The writers create staging files with mode `0600` before writing code,
+then publish the complete file with one rename. New and rewritten files keep
+that private mode, including when the process uses a permissive umask. Writing
+into an unsafe directory is refused too.
+
+`loadCompiledCache()` and `loadCompiledFactories()` throw a `ContainerException`
+for an untrusted file. `PlanCache::fromFile()` treats it as an empty cache and
+falls back to reflection. Windows uses its directory access controls; POSIX
+permission-bit checks are skipped there. The ownership check is skipped only
+when PHP does not provide `posix_geteuid()`.
+
 ## Staleness
 
 Regenerate the cache whenever a compiled constructor changes. When that does not
@@ -561,7 +582,7 @@ $plans = Container::loadCompiledCache($file, getenv('DEPLOY_SHA'));
 | At write | At load | Result |
 |---|---|---|
 | no stamp | no stamp | every entry checked individually |
-| stamp | same stamp | file taken whole — no `stat` at all |
+| stamp | same stamp | file taken whole, no per-entry `stat` |
 | stamp | different stamp | file discarded whole, everything reflects |
 | stamp | no stamp | every entry checked individually |
 | no stamp | stamp | every entry checked individually |
