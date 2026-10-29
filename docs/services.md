@@ -37,6 +37,8 @@ $container->extend('logger', function ($logger, $container) {
 after the service has been read throws a `ContainerException` because the
 service is frozen.
 
+If applying scheduled extensions fails during `set()`, the previous local registration is restored, including stored `null`, or a new id remains absent. The pending extensions for that attempt are discarded and the original exception propagates.
+
 An id registered with `bind()` or `singleton()` throws a `ContainerException`
 when passed to `extend()`, including through an alias. Those registrations do
 not consume scheduled extensions. Use `set()` with a closure instead, and wrap
