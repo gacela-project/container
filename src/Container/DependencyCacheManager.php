@@ -8,6 +8,7 @@ use Closure;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionAttribute;
 use ReflectionClass;
 use WeakReference;
@@ -381,6 +382,14 @@ final class DependencyCacheManager
      */
     public function instantiateWith(string $class, array $overrides): object
     {
+        if (!class_exists($class)) {
+            throw DependencyNotFoundException::unresolvableId($class);
+        }
+
+        if (!$this->isInstantiable($class)) {
+            throw ContainerException::classNotInstantiable($class);
+        }
+
         $this->resolvedKeys[$class] = true;
 
         $resolver = $this->getDependencyResolver();
