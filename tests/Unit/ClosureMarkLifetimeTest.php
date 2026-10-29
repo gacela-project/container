@@ -139,10 +139,6 @@ final class ClosureMarkLifetimeTest extends TestCase
         self::assertSame($closure, $container->get('cfg'));
     }
 
-    /**
-     * extend() moves the mark from the original closure to the wrapper, and the
-     * wrapper is what the container now holds.
-     */
     public function test_an_extended_factory_stays_a_factory(): void
     {
         $container = new Container();
@@ -153,6 +149,87 @@ final class ClosureMarkLifetimeTest extends TestCase
         $container->extend('svc', static fn (object $instance): object => $instance);
 
         self::assertNotSame($container->get('svc'), $container->get('svc'));
+    }
+
+    public function test_extending_one_factory_id_preserves_other_ids_using_the_original_closure(): void
+    {
+        $container = new Container();
+        $factory = $container->factory(static fn (): object => new ClassWithoutDependencies());
+        $container->set('extended', $factory);
+        $container->set('original', $factory);
+        $extensions = 0;
+        $container->extend('extended', static function (object $instance) use (&$extensions): object {
+            ++$extensions;
+
+            return $instance;
+        });
+        $container->set('reused', $factory);
+
+        self::assertTrue($container->isFactory('extended'));
+        self::assertTrue($container->isFactory('original'));
+        self::assertTrue($container->isFactory('reused'));
+        self::assertNotSame($container->get('extended'), $container->get('extended'));
+        self::assertNotSame($container->get('original'), $container->get('original'));
+        self::assertNotSame($container->get('reused'), $container->get('reused'));
+        self::assertSame(2, $extensions);
+    }
+
+    public function test_extending_a_scope_factory_preserves_other_ids_and_descendant_marks(): void
+    {
+        $parent = new Container();
+        $parent->set('label', 'parent');
+        $scope = $parent->createScope();
+        $scope->set('label', 'scope');
+        $factory = $scope->factory(static fn (ContainerInterface $current): object => (object) ['label' => $current->get('label')]);
+        $parent->set('service', $factory);
+        $scope->set('extended', $factory);
+        $scope->set('original', $factory);
+        $descendant = $scope->createScope();
+        $descendant->set('label', 'descendant');
+        $descendant->set('service', $factory);
+        $scope->extend('extended', static function (object $instance, ContainerInterface $current): object {
+            $instance->extensionLabel = $current->get('label');
+
+            return $instance;
+        });
+
+        self::assertTrue($scope->isFactory('original'));
+        self::assertTrue($descendant->isFactory('service'));
+        self::assertFalse($parent->isFactory('service'));
+        $extended = $scope->get('extended');
+        self::assertSame('scope', $extended->label);
+        self::assertSame('scope', $extended->extensionLabel);
+        self::assertNotSame($extended, $scope->get('extended'));
+        self::assertNotSame($scope->get('original'), $scope->get('original'));
+        $nested = $descendant->get('service');
+        self::assertSame('descendant', $nested->label);
+        self::assertNotSame($nested, $descendant->get('service'));
+        self::assertObjectNotHasProperty('extensionLabel', $nested);
+        $inParent = $parent->get('service');
+        self::assertSame('parent', $inParent->label);
+        self::assertSame($inParent, $parent->get('service'));
+    }
+
+    public function test_shared_factory_marks_do_not_retain_removed_wrappers_or_original_closures(): void
+    {
+        $container = new Container();
+        $payload = new ClassWithoutDependencies();
+        $factory = $container->factory(static fn (): object => $payload);
+        $container->set('extended', $factory);
+        $container->set('original', $factory);
+        $wrapper = $container->extend('extended', static fn (object $instance): object => $instance);
+        $originalReference = WeakReference::create($factory);
+        $wrapperReference = WeakReference::create($wrapper);
+        $payloadReference = WeakReference::create($payload);
+        unset($factory, $wrapper, $payload);
+        $container->remove('extended');
+
+        self::assertNull($wrapperReference->get());
+        self::assertNotNull($originalReference->get());
+        $container->remove('original');
+
+        self::assertNull($originalReference->get());
+        self::assertNull($payloadReference->get());
     }
 
     public function test_many_unregistered_marks_retain_nothing(): void

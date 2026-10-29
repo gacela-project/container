@@ -142,21 +142,17 @@ final class FactoryManager
         return isset($this->currentlyExtending[$id]);
     }
 
-    /**
-     * Transfer factory status from one instance to another.
-     * Used when extending a factory service.
-     */
+    // Other ids may still use the original closure as a factory.
     public function transferFactoryStatus(mixed $from, Closure $to): void
     {
         if ($from instanceof Closure && $this->isFactory($from)) {
-            unset($this->factoryInstances[$from]);
             $this->factoryInstances[$to] = true;
         }
     }
 
     public function generateExtendedInstance(Closure $instance, mixed $factory): Closure
     {
-        if (is_callable($factory)) {
+        if (is_object($factory) && is_callable($factory)) {
             return static function (ContainerInterface $c) use ($instance, $factory): mixed {
                 /** @var mixed $result */
                 $result = $factory($c);
