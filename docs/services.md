@@ -32,6 +32,17 @@ $container->extend('logger', function ($logger, $container) {
 });
 ```
 
+`extend()` applies to services registered through `set()`. Calling it before
+`set()` schedules the extension until that service is registered. Calling it
+after the service has been read throws a `ContainerException` because the
+service is frozen.
+
+An id registered with `bind()` or `singleton()` throws a `ContainerException`
+when passed to `extend()`, including through an alias. Those registrations do
+not consume scheduled extensions. Use `set()` with a closure instead, and wrap
+the closure in `factory()` when each resolution should produce a new instance.
+See the [upgrade example](../UPGRADE.md#extending-bindings).
+
 ## Protecting closures
 
 Prevent a closure from being executed on resolution (return it as-is):
