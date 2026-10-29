@@ -94,6 +94,16 @@ final class CallableDependencyResolverTest extends TestCase
         });
     }
 
+    public function test_an_untyped_parameter_uses_its_declared_default(): void
+    {
+        $resolver = new DependencyResolver();
+        $callable = static fn ($value = 'default'): mixed => $value;
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertSame(['default'], $resolver->resolveCallableDependencies($callable));
+        }
+    }
+
     public function test_missing_param_types_on_dependency_value(): void
     {
         $this->expectExceptionObject(DependencyInvalidArgumentException::noParameterTypeFor('name'));
