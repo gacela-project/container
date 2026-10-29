@@ -7,7 +7,7 @@ namespace Gacela\Container;
 use Gacela\Container\Exception\ContainerException;
 use Throwable;
 
-use function bin2hex;
+use function basename;
 use function dirname;
 use function file_put_contents;
 use function implode;
@@ -17,7 +17,6 @@ use function is_file;
 use function is_readable;
 use function is_string;
 use function is_writable;
-use function random_bytes;
 use function rename;
 use function unlink;
 use function var_export;
@@ -151,13 +150,19 @@ final class CompiledCacheWriter
         // Written beside the target and renamed over it: a request that
         // includes the file while it is being written sees the old file or the
         // new one, never half of one, which would be a parse error.
-        $temporary = $file . '.' . bin2hex(random_bytes(6)) . '.tmp';
-
-        if (@file_put_contents($temporary, $code) === false) {
+        $temporary = CacheFile::createTemporary(dirname($file));
+        if ($temporary === false) {
             throw ContainerException::compiledCacheNotWritable($file);
         }
 
-        if (!@rename($temporary, $file)) {
+        if (@file_put_contents($temporary, $code) === false) {
+            @unlink($temporary);
+
+            throw ContainerException::compiledCacheNotWritable($file);
+        }
+
+        $destination = dirname($temporary) . DIRECTORY_SEPARATOR . basename($file);
+        if (!@rename($temporary, $destination)) {
             @unlink($temporary);
 
             throw ContainerException::compiledCacheNotWritable($file);
@@ -237,10 +242,13 @@ final class CompiledCacheWriter
      */
     private static function load(string $file): array
     {
-        // Read on every request that loads the cache: is_readable() would be a
-        // system call each time, so an unreadable file is caught by the read.
         if (!is_file($file)) {
             throw ContainerException::compiledCacheNotReadable($file);
+        }
+
+        $trusted = CacheFile::trustedPath($file);
+        if ($trusted === null) {
+            throw ContainerException::compiledCacheUntrusted($file);
         }
 
         /**
@@ -248,9 +256,9 @@ final class CompiledCacheWriter
          *
          * @var mixed $envelope
          */
-        $envelope = include $file;
+        $envelope = include $trusted;
 
-        if ($envelope === false && !is_readable($file)) {
+        if ($envelope === false && !is_readable($trusted)) {
             throw ContainerException::compiledCacheNotReadable($file);
         }
 

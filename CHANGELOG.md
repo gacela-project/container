@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Plan and compiled-factory loaders refuse foreign-owned or writable PHP caches before executing them. POSIX directory ownership and writable-directory checks also protect the cache path. Cache writers create private staging files from the moment they are opened, including under a permissive umask, and keep atomic publication. See [cache permissions](docs/performance.md#cache-file-permissions) and the [upgrade steps](UPGRADE.md#cache-ownership-and-permissions)
 - Class-typed constructor parameters keep their declared defaults on repeated resolution and with generated factories installed. Both optimizations now leave these classes and their consumers to the runtime resolver. Compilation reports explain the refusal as `DefaultParameter`. See [generated constructor code](docs/performance.md#what-it-will-not-compile)
 - Closure bindings fall back to their owning container when a facade passed to `withSelfReference()` has been released. Live and replacement facades still receive the call.
 
