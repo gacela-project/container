@@ -10,6 +10,7 @@ use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
 use Gacela\Container\Exception\CircularDependencyException;
+use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionAttribute;
@@ -30,6 +31,7 @@ use function array_map;
 use function array_values;
 use function class_exists;
 use function in_array;
+use function interface_exists;
 use function is_a;
 use function is_callable;
 use function is_object;
@@ -991,6 +993,9 @@ final class DependencyResolver
         if (!$plan['instantiable']) {
             $paramTypeName = $this->resolveConcreteForAbstract($paramTypeName);
             $plan = $this->describeClass($paramTypeName);
+            if (!$plan['instantiable']) {
+                throw ContainerException::classNotInstantiable($paramTypeName);
+            }
         }
 
         // Deferred here rather than in instantiateFromPlan(): a lazy target must
@@ -1261,6 +1266,10 @@ final class DependencyResolver
         $plan = $this->planRegistry->plans[$className] ?? null;
 
         if ($plan === null) {
+            if (!class_exists($className) && !interface_exists($className)) {
+                throw DependencyNotFoundException::unresolvableId($className);
+            }
+
             $reflection = new ReflectionClass($className);
             $constructor = $reflection->getConstructor();
 
