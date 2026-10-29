@@ -13,6 +13,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 ### Fixed
 
 - `bound()` recognizes alias registrations, including inherited aliases and chains, so conditional bindings cannot create unreachable entries behind an alias. Unregistered autowirable classes remain unbound. See [conditional registration](docs/bindings.md#conditional-registration)
+- `extend()` passes literal callable arrays to extensions as array values instead of invoking them. Callable string values are rejected as non-extendable when the extension is registered. Closures and invokable objects still supply their results to extensions. See [extending services](docs/services.md#extending-services)
 - `extend()` preserves factory behavior for other ids registered with the same closure. Reusing that closure later, or in a descendant scope, still creates a fresh instance on every read. See [extending services](docs/services.md#extending-services)
 - Stored `null` values count as registered services, freeze when read, and suppress autowiring or inherited scope values. This includes aliases, `load()` value definitions, and shared definitions that return `null`. See [value definitions](docs/definitions.md#entry-forms)
 - `set()` and array assignment through an alias write to its canonical target, honoring frozen services and scheduled extensions without creating unreachable registrations. Alias chains and scope-local shadowing follow the same rules as reads. See [service aliasing](docs/bindings.md#service-aliasing)
