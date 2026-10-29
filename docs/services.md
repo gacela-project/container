@@ -37,6 +37,8 @@ $container->extend('logger', function ($logger, $container) {
 after the service has been read throws a `ContainerException` because the
 service is frozen.
 
+If applying scheduled extensions fails during `set()`, the previous local registration is restored, including stored `null`, or a new id remains absent. The pending extensions for that attempt are discarded and the original exception propagates.
+
 Extensions follow the same value rules as `get()`: closures and invokable
 objects are called, and the extension receives their result. Arrays remain
 values even when they name a callable method. Scalar values, including strings

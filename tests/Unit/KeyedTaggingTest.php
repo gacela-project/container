@@ -12,6 +12,7 @@ use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\Person;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use function array_keys;
@@ -230,5 +231,98 @@ final class KeyedTaggingTest extends TestCase
             $container->get(DatabaseRepository::class),
             $container->taggedByKey('services', 'repository'),
         );
+    }
+
+    #[DataProvider('positionalKeyLookups')]
+    public function test_integer_positions_cannot_be_looked_up_as_keys_or_resolved(string $key, bool $scoped): void
+    {
+        $parent = new Container();
+        $calls = 0;
+        $factory = static function () use (&$calls): ClassWithoutDependencies {
+            ++$calls;
+
+            return new ClassWithoutDependencies();
+        };
+        $parent->bind('first', $factory);
+        $parent->bind('second', $factory);
+        $parent->tag('first', 'handlers');
+        $parent->tag(['named' => Person::class], 'handlers');
+        $container = $scoped ? $parent->createScope() : $parent;
+        $container->tag('second', 'handlers');
+        self::assertSame(['named'], $container->taggedKeys('handlers'));
+        $rejected = false;
+
+        try {
+            $container->taggedByKey('handlers', $key);
+        } catch (ContainerException) {
+            $rejected = true;
+        }
+
+        self::assertSame(0, $calls);
+        self::assertTrue($rejected);
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function positionalKeyLookups(): iterable
+    {
+        yield 'first position on root' => ['0', false];
+        yield 'second position on root' => ['1', false];
+        yield 'inherited first position' => ['0', true];
+        yield 'local second position' => ['1', true];
+    }
+
+    public function test_integer_string_map_keys_remain_ordered_unkeyed_entries(): void
+    {
+        $container = new Container();
+        $container->tag(['1' => ClassWithoutDependencies::class, '2' => Person::class], 'versions');
+        $container->tag(['2' => InMemoryRepository::class], 'versions');
+        $container->tag(['1' => ClassWithoutDependencies::class], 'versions');
+        $entries = iterator_to_array($container->tagged('versions'));
+
+        self::assertSame([], $container->taggedKeys('versions'));
+        self::assertSame([0, 1, 2], array_keys($entries));
+        self::assertInstanceOf(ClassWithoutDependencies::class, $entries[0]);
+        self::assertInstanceOf(Person::class, $entries[1]);
+        self::assertInstanceOf(InMemoryRepository::class, $entries[2]);
+        $this->expectException(ContainerException::class);
+
+        $container->taggedByKey('versions', '1');
+    }
+
+    public function test_numeric_looking_string_keys_keep_their_exact_identity(): void
+    {
+        $container = new Container();
+        $container->tag([
+            '01' => InMemoryRepository::class,
+            '+1' => Person::class,
+            '1.0' => DatabaseRepository::class,
+        ], 'handlers');
+
+        self::assertSame(['01', '+1', '1.0'], $container->taggedKeys('handlers'));
+        self::assertInstanceOf(InMemoryRepository::class, $container->taggedByKey('handlers', '01'));
+        self::assertInstanceOf(Person::class, $container->taggedByKey('handlers', '+1'));
+        self::assertInstanceOf(DatabaseRepository::class, $container->taggedByKey('handlers', '1.0'));
+        self::assertSame(['01', '+1', '1.0'], array_keys(iterator_to_array($container->tagged('handlers'))));
+        $this->expectException(ContainerException::class);
+
+        $container->taggedByKey('handlers', '1');
+    }
+
+    public function test_scope_merging_keeps_string_key_overrides_and_positional_deduplication(): void
+    {
+        $parent = new Container();
+        $parent->tag(['01' => InMemoryRepository::class, '1.0' => Person::class], 'handlers');
+        $parent->tag(ClassWithoutDependencies::class, 'handlers');
+        $scope = $parent->createScope();
+        $scope->tag(['01' => DatabaseRepository::class, '+1' => InMemoryRepository::class], 'handlers');
+        $scope->tag(ClassWithoutDependencies::class, 'handlers');
+
+        self::assertSame(['01', '1.0', '+1'], $scope->taggedKeys('handlers'));
+        self::assertSame(['01', '1.0', 0, '+1'], array_keys(iterator_to_array($scope->tagged('handlers'))));
+        self::assertInstanceOf(DatabaseRepository::class, $scope->taggedByKey('handlers', '01'));
+        self::assertInstanceOf(InMemoryRepository::class, $scope->taggedByKey('handlers', '+1'));
+        self::assertInstanceOf(InMemoryRepository::class, $parent->taggedByKey('handlers', '01'));
     }
 }

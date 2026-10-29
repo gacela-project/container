@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Named tag lookups
+
+`taggedByKey()` no longer accepts integer positions. If a tag used integer-like
+names such as `'1'` and `'2'`, change both registration and lookup to names PHP
+keeps as strings:
+
+```php
+$container->tag([
+    'v1' => V1::class,
+    'v2' => V2::class,
+], 'api.versions');
+
+$handler = $container->taggedByKey('api.versions', 'v1');
+```
+
+See [keyed tag names](docs/bindings.md#keyed-tags) for the key policy.
+
 ### Invokable object bindings
 
 Objects passed to `bind()`, `singleton()`, or type-based contextual `give()` are now injected unchanged even when they declare `__invoke`. If you used such an object as a factory, wrap it in a closure:

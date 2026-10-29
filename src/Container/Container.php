@@ -16,6 +16,7 @@ use WeakReference;
 
 use function class_exists;
 use function count;
+use function in_array;
 use function interface_exists;
 use function is_int;
 use function is_object;
@@ -682,16 +683,17 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Whether a binding or instance is registered for the given id (alias-aware).
+     * Whether a binding, instance or alias is registered for the given id.
      */
     #[Override]
     public function bound(string $id): bool
     {
-        $id = $this->aliasRegistry->resolve($id);
+        $resolvedId = $this->aliasRegistry->resolve($id);
 
-        return isset($this->bindings[$id])
-            || $this->instanceRegistry->has($id)
-            || ($this->parent?->bound($id) ?? false);
+        return $resolvedId !== $id
+            || isset($this->bindings[$resolvedId])
+            || $this->instanceRegistry->has($resolvedId)
+            || ($this->parent?->bound($resolvedId) ?? false);
     }
 
     /**
@@ -795,6 +797,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $hadPrevious = $this->instanceRegistry->has($id);
+        /** @var mixed $previous */
+        $previous = $this->instanceRegistry->getRaw($id);
         $this->instanceRegistry->set($id, $instance);
 
         // Nested resolution has no way to reach the instance registry, and a
@@ -807,7 +812,16 @@ final class Container implements FullContainerInterface, ArrayAccess
             return;
         }
 
-        $this->extendService($id);
+        try {
+            $this->extendService($id);
+        } catch (Throwable $exception) {
+            $this->instanceRegistry->remove($id);
+            if ($hadPrevious) {
+                $this->instanceRegistry->set($id, $previous);
+            }
+
+            throw $exception;
+        }
     }
 
     /**
@@ -1071,9 +1085,10 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function taggedByKey(string $tag, string $key): mixed
     {
         $ids = $this->taggedIds($tag);
+        $keys = self::stringKeys($ids);
 
-        if (!isset($ids[$key])) {
-            throw ContainerException::unknownTagKey($tag, $key, self::stringKeys($ids));
+        if (!in_array($key, $keys, true)) {
+            throw ContainerException::unknownTagKey($tag, $key, $keys);
         }
 
         return $this->get($ids[$key]);
@@ -1711,13 +1726,8 @@ final class Container implements FullContainerInterface, ArrayAccess
             return;
         }
 
-        $this->factoryManager->setCurrentlyExtending($id);
-
-        foreach ($this->factoryManager->getPendingExtensions($id) as $instance) {
-            $this->extend($id, $instance);
-        }
-
-        $this->factoryManager->clearPendingExtensions($id);
-        $this->factoryManager->setCurrentlyExtending(null);
+        $this->factoryManager->applyPendingExtensions($id, function (Closure $extension) use ($id): void {
+            $this->extend($id, $extension);
+        });
     }
 }

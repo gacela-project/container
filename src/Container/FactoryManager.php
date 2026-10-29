@@ -43,7 +43,8 @@ final class FactoryManager
     /** @var WeakMap<Closure, true> */
     private WeakMap $protectedInstances;
 
-    private ?string $currentlyExtending = null;
+    /** @var array<string, true> */
+    private array $currentlyExtending = [];
 
     /**
      * @param array<string, list<Closure>> $instancesToExtend
@@ -119,14 +120,26 @@ final class FactoryManager
         unset($this->instancesToExtend[$id]);
     }
 
-    public function setCurrentlyExtending(?string $id): void
+    /**
+     * @param Closure(Closure): void $apply
+     */
+    public function applyPendingExtensions(string $id, Closure $apply): void
     {
-        $this->currentlyExtending = $id;
+        $this->currentlyExtending[$id] = true;
+
+        try {
+            foreach ($this->getPendingExtensions($id) as $extension) {
+                $apply($extension);
+            }
+        } finally {
+            $this->clearPendingExtensions($id);
+            unset($this->currentlyExtending[$id]);
+        }
     }
 
     public function isCurrentlyExtending(string $id): bool
     {
-        return $this->currentlyExtending === $id;
+        return isset($this->currentlyExtending[$id]);
     }
 
     // Other ids may still use the original closure as a factory.

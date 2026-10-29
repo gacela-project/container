@@ -86,7 +86,7 @@ Register defaults only when nothing is bound yet — useful for packages that
 provide overridable bindings:
 
 ```php
-$container->bound(LoggerInterface::class);   // true if a binding OR instance exists (alias-aware)
+$container->bound(LoggerInterface::class);   // true for a binding, instance or alias
 
 $container->bindIf(LoggerInterface::class, FileLogger::class);      // no-op if already bound
 $container->singletonIf(CacheInterface::class, ArrayCache::class);  // no-op if already bound
@@ -98,6 +98,8 @@ container can autowire. `bound()` answers whether the id was registered: a
 binding, a stored instance or an alias. So `has(SomeClass::class)` is true for
 any autowirable class, while `bound()` stays false until you register it, which
 is what lets `bindIf()` add a default without overriding a registration.
+
+An alias counts as registered even when its final target has no binding or stored instance. This includes inherited aliases and alias chains, so `bindIf()` and `singletonIf()` leave them unchanged. Use `has()` to check whether the alias target can be resolved; cyclic aliases raise `ContainerException`.
 
 ### Deferred registration
 
@@ -239,6 +241,12 @@ $container->tag([
 
 $handler = $container->taggedByKey('notification.handlers', 'sms');
 ```
+
+Named keys must remain strings in a PHP array. PHP converts integer-like keys
+such as `'0'`, `'1'` and `'-1'` to integers, so those entries are unkeyed: they
+can be iterated with `tagged()` but cannot be looked up with `taggedByKey()`.
+Keys such as `'01'`, `'+1'` and `'1.0'` stay strings and remain valid names.
+`taggedByKey()` accepts exactly the names listed by `taggedKeys()`.
 
 - Only the entry asked for is built. Registering a hundred handlers constructs
   none of them.
