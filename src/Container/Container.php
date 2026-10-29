@@ -828,6 +828,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             /** @var mixed $instance */
             $instance = $this->parent->get($id);
         } else {
+            /** @var mixed $instance */
             $instance = $this->createInstance($id);
         }
 
@@ -1660,7 +1661,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
     }
 
-    private function createInstance(string $class): ?object
+    private function createInstance(string $class): mixed
     {
         if ($this->compiledFactories !== [] && $this->afterResolvingCallbacks === [] && !$this->runtimeOwns($class)) {
             $factory = $this->compiledFactories[$class] ?? null;
