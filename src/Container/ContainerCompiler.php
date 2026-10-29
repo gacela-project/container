@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Closure;
 use Gacela\Container\Attribute\Factory;
 use Gacela\Container\Attribute\Lazy;
 use Gacela\Container\Attribute\Singleton;
@@ -57,15 +58,20 @@ final class ContainerCompiler
      */
     private ?array $expressions = null;
 
+    /** @var array<class-string, array<class-string, true>> */
+    private array $dependencies = [];
+
     /**
      * @param CompiledPlans $plans
      * @param BindingsMap $bindings
      * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
+     * @param (Closure(string): bool)|null $provides
      */
     public function __construct(
         private array $plans,
         private array $bindings = [],
         private array $lazyClasses = [],
+        private ?Closure $provides = null,
     ) {
     }
 
@@ -84,7 +90,14 @@ final class ContainerCompiler
         $stamps = [];
 
         foreach ($this->expressions() as $class => $expression) {
-            $entries[] = '        ' . var_export($class, true) . ' => static fn (): object => ' . $expression . ',';
+            $factory = 'static fn (): object => ' . $expression;
+            $dependencies = array_keys($this->dependencies[$class] ?? []);
+
+            if ($dependencies !== []) {
+                $factory = '\\' . CompiledFactory::class . '::track(' . $factory . ', ' . var_export($dependencies, true) . ')';
+            }
+
+            $entries[] = '        ' . var_export($class, true) . ' => ' . $factory . ',';
             $stamps[$class] = CacheStamp::of($class);
         }
 
@@ -278,6 +291,9 @@ final class ContainerCompiler
             ));
         }
 
+        $this->dependencies[$class][$type] = true;
+        $this->dependencies[$class] += $this->dependencies[$type] ?? [];
+
         return $expression;
     }
 
@@ -286,11 +302,11 @@ final class ContainerCompiler
      */
     private function isEligible(string $class): bool
     {
-        if (isset($this->bindings[$class])) {
+        if (isset($this->bindings[$class]) || ($this->provides !== null && ($this->provides)($class))) {
             $this->skip(
                 $class,
                 CompilationSkipReason::Bound,
-                'it is bound, and the binding could be changed after compilation',
+                'it is registered, and the registration could be changed after compilation',
             );
             return false;
         }

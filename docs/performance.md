@@ -274,6 +274,12 @@ Order does not matter, and neither does whether the build container had the same
 bindings — the generated file cannot quietly out-vote the container you
 configured.
 
+Generated factories also record every dependency they inline. If the receiving
+container provides one through a binding, singleton, stored instance, alias, or
+parent scope, the consumer uses normal resolution instead. This applies to
+registrations made before or after installing the factories. Stored instances
+and aliases on the compiling container also prevent inlining.
+
 ### Asking why
 
 `compileReport()` answers the same question programmatically, and adds the part
