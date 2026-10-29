@@ -166,6 +166,10 @@ $container->when(ReportService::class)
 The binding is scoped to the class named in `when()`; the same parameter name on
 another class is unaffected.
 
+For a named need, only a closure is invoked. Strings naming functions, callable
+arrays, and invokable objects are injected unchanged. Wrap a callable in a
+closure when you want it invoked.
+
 `null` is a value like any other here — "this consumer gets no logger" is a real
 answer, and a nullable parameter with no default has no other way to say it:
 

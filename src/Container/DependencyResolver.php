@@ -887,7 +887,7 @@ final class DependencyResolver
 
         /** @var mixed $value */
         $value = $bindings[$key];
-        if (is_callable($value)) {
+        if ($value instanceof Closure) {
             return [true, $value($this->container())];
         }
 

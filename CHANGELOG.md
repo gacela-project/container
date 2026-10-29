@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Named contextual bindings inject callable strings, arrays, and invokable objects unchanged. Only closures are invoked, so a value such as `'date'` no longer calls the PHP function. See [named bindings](docs/bindings.md#named-scalar-contextual-bindings)
 - Generated factories respect registered dependencies on the receiving container, including stored instances, aliases, singletons, and scope overrides. The compiler also refuses to inline dependencies provided through `set()` or an alias. See [registration precedence](docs/performance.md#registration-still-wins)
 
 ## [2.3.0](https://github.com/gacela-project/container/compare/2.2.0...2.3.0) - 2026-10-04
