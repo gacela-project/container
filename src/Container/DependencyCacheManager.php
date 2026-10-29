@@ -272,6 +272,11 @@ final class DependencyCacheManager
         return isset($this->singletonInstances[$class]) || isset($this->forcedSingletons[$class]);
     }
 
+    public function forget(string $id): void
+    {
+        unset($this->singletonInstances[$id]);
+    }
+
     /**
      * @param class-string $class
      */

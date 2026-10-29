@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `forget()` and `remove()` evict cached class, callable, and `#[Singleton]` instances, including aliases and class-string mappings, while keeping singleton registrations. A failed resolution hook now discards a half-configured singleton so the next call builds a fresh instance. See [resolution hooks](docs/services.md#resolution-hooks)
 - Type-matched `afterResolving()` hooks configure nested constructor dependencies and binding results, including scope-local hooks for parent-provided services. Containers with hooks use runtime resolution so composed builders and generated factories cannot skip those callbacks. See [resolution hooks](docs/services.md#resolution-hooks)
 - Plan and compiled-factory loaders refuse foreign-owned or writable PHP caches before executing them. POSIX directory ownership and writable-directory checks also protect the cache path. Cache writers create private staging files from the moment they are opened, including under a permissive umask, and keep atomic publication. See [cache permissions](docs/performance.md#cache-file-permissions) and the [upgrade steps](UPGRADE.md#cache-ownership-and-permissions)
 - `afterResolving()` runs each hook registration once per object, so reading a shared service repeatedly no longer repeats configuration such as adding log handlers. Fresh and replacement objects still receive hooks, including through scopes. See [resolution hooks](docs/services.md#resolution-hooks)
