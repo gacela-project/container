@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use ArrayObject;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
+use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -284,4 +287,158 @@ final class AliasResolutionTest extends TestCase
         self::assertSame($instance, $scope->get('first'));
     }
 
+    #[DataProvider('aliasWriteMethods')]
+    public function test_writing_through_an_alias_chain_updates_only_the_canonical_registration(bool $arrayWrite): void
+    {
+        $container = new Container();
+        $container->set('db', 'primary');
+        $container->alias('connection', 'database');
+        $container->alias('database', 'db');
+
+        self::writeAlias($container, 'connection', 'replica', $arrayWrite);
+
+        self::assertSame(['db'], $container->getRegisteredServices());
+        self::assertSame('replica', $container->get('connection'));
+        self::assertSame('replica', $container->get('db'));
+        $container->remove('connection');
+        self::assertSame([], $container->getRegisteredServices());
+        self::assertFalse($container->has('connection'));
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_writing_through_an_alias_cannot_bypass_freezing(bool $arrayWrite): void
+    {
+        $container = new Container();
+        $container->set('db', 'primary');
+        $container->alias('database', 'db');
+        self::assertSame('primary', $container->get('database'));
+
+        try {
+            self::writeAlias($container, 'database', 'replica', $arrayWrite);
+            self::fail('A frozen canonical service cannot be overwritten');
+        } catch (ContainerException) {
+        }
+
+        self::assertSame(['db'], $container->getRegisteredServices());
+        self::assertSame('primary', $container->get('database'));
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_writing_through_an_alias_applies_scheduled_extensions(bool $arrayWrite): void
+    {
+        $container = new Container();
+        $container->alias('connection', 'database');
+        $container->alias('database', 'db');
+        $container->extend('connection', static fn (object $service): ArrayObject => new ArrayObject(['wrapped' => $service]));
+        $service = new ClassWithoutDependencies();
+
+        self::writeAlias($container, 'connection', $service, $arrayWrite);
+        $extended = $container->get('db');
+
+        self::assertInstanceOf(ArrayObject::class, $extended);
+        self::assertSame($service, $extended['wrapped']);
+        self::assertSame($extended, $container->get('connection'));
+        self::assertSame(['db'], $container->getRegisteredServices());
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_scope_writes_through_inherited_aliases_shadow_the_canonical_id_locally(bool $arrayWrite): void
+    {
+        $parent = new Container();
+        $parent->set('db', 'parent');
+        $parent->alias('connection', 'database');
+        $parent->alias('database', 'db');
+        self::assertSame('parent', $parent->get('connection'));
+        $scope = $parent->createScope();
+
+        self::writeAlias($scope, 'connection', 'scope', $arrayWrite);
+
+        self::assertSame('scope', $scope->get('connection'));
+        self::assertSame('scope', $scope->get('db'));
+        self::assertSame('parent', $parent->get('db'));
+        self::assertSame(['db'], $scope->getRegisteredServices());
+        $scope->remove('connection');
+        self::assertSame('parent', $scope->get('connection'));
+        self::assertSame(['db'], $scope->getRegisteredServices());
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_scope_writes_honor_a_local_override_of_an_inherited_alias_link(bool $arrayWrite): void
+    {
+        $parent = new Container();
+        $parent->set('db', 'parent');
+        $parent->alias('connection', 'database');
+        $parent->alias('database', 'db');
+        self::assertSame('parent', $parent->get('connection'));
+        $scope = $parent->createScope();
+        $scope->alias('database', 'scope.db');
+
+        self::writeAlias($scope, 'connection', 'scope', $arrayWrite);
+
+        self::assertSame('scope', $scope->get('scope.db'));
+        self::assertSame('scope', $scope->get('connection'));
+        self::assertSame('parent', $parent->get('connection'));
+        self::assertSame(['db', 'scope.db'], $scope->getRegisteredServices());
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_an_alias_write_is_visible_to_a_typed_constructor_parameter(bool $arrayWrite): void
+    {
+        $container = new Container();
+        $container->alias(RepositoryInterface::class, 'repository');
+        $repository = new InMemoryRepository();
+
+        self::writeAlias($container, RepositoryInterface::class, $repository, $arrayWrite);
+        $service = $container->get(ServiceWithRepository::class);
+
+        self::assertInstanceOf(ServiceWithRepository::class, $service);
+        self::assertSame($repository, $service->repository);
+        self::assertSame(['repository'], $container->getRegisteredServices());
+    }
+
+    #[DataProvider('aliasWriteMethods')]
+    public function test_an_alias_cycle_rejects_writes_without_creating_a_registration(bool $arrayWrite): void
+    {
+        $container = new Container();
+        $container->alias('first', 'second');
+        $container->alias('second', 'first');
+
+        try {
+            self::writeAlias($container, 'first', 'value', $arrayWrite);
+            self::fail('An alias cycle must reject the write');
+        } catch (ContainerException) {
+        }
+
+        self::assertSame([], $container->getRegisteredServices());
+    }
+
+    public function test_an_integer_array_write_follows_its_string_alias(): void
+    {
+        $container = new Container();
+        $container->alias('1', 'db');
+
+        $container[1] = 'value';
+
+        self::assertSame('value', $container->get('db'));
+        self::assertSame('value', $container[1]);
+        self::assertSame(['db'], $container->getRegisteredServices());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function aliasWriteMethods(): iterable
+    {
+        yield 'set' => [false];
+        yield 'array assignment' => [true];
+    }
+
+    private static function writeAlias(Container $container, string $id, mixed $value, bool $arrayWrite): void
+    {
+        if ($arrayWrite) {
+            $container[$id] = $value;
+        } else {
+            $container->set($id, $value);
+        }
+    }
 }

@@ -43,6 +43,8 @@ values even when they name a callable method. Scalar values, including strings
 that name functions or static methods, cannot be extended and raise a
 `ContainerException` when `extend()` is called.
 
+An extension wraps only the chosen id. Other ids that use the same factory closure keep creating a fresh instance on each read.
+
 An id registered with `bind()` or `singleton()` throws a `ContainerException`
 when passed to `extend()`, including through an alias. Those registrations do
 not consume scheduled extensions. Use `set()` with a closure instead, and wrap

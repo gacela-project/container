@@ -6,6 +6,7 @@ namespace Gacela\Container;
 
 use Gacela\Container\Exception\ContainerException;
 
+use function array_key_exists;
 use function is_object;
 use function method_exists;
 
@@ -57,7 +58,7 @@ final class InstanceRegistry
 
     public function has(string $id): bool
     {
-        return isset($this->instances[$id]);
+        return array_key_exists($id, $this->instances);
     }
 
     /**
