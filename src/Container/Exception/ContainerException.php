@@ -35,6 +35,18 @@ TXT;
         return new self($message);
     }
 
+    public static function compiledCacheUntrusted(string $file): self
+    {
+        $message = <<<TXT
+The compiled cache '{$file}' is not trusted and was not executed.
+
+Generate the cache as the user that loads it. On POSIX, remove group/world
+write permissions from the file and use directories controlled by that user
+or the system. Shared writable directories must have sticky-bit protection.
+TXT;
+        return new self($message);
+    }
+
     public static function compiledCacheInvalid(string $file): self
     {
         $message = <<<TXT
