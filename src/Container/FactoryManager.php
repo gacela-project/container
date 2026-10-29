@@ -21,6 +21,8 @@ use function is_object;
  */
 final class FactoryManager
 {
+    private ?self $parent = null;
+
     /**
      * Weak, because a mark need only outlive the closure it marks.
      *
@@ -58,6 +60,11 @@ final class FactoryManager
         $this->protectedInstances = $protectedInstances;
     }
 
+    public function inheritFrom(self $parent): void
+    {
+        $this->parent = $parent;
+    }
+
     /**
      * Mark a closure as a factory (always creates new instances).
      */
@@ -76,12 +83,14 @@ final class FactoryManager
 
     public function isFactory(mixed $instance): bool
     {
-        return $instance instanceof Closure && isset($this->factoryInstances[$instance]);
+        return $instance instanceof Closure
+            && (isset($this->factoryInstances[$instance]) || $this->parent?->isFactory($instance) === true);
     }
 
     public function isProtected(mixed $instance): bool
     {
-        return $instance instanceof Closure && isset($this->protectedInstances[$instance]);
+        return $instance instanceof Closure
+            && (isset($this->protectedInstances[$instance]) || $this->parent?->isProtected($instance) === true);
     }
 
     /**
@@ -126,7 +135,7 @@ final class FactoryManager
      */
     public function transferFactoryStatus(mixed $from, Closure $to): void
     {
-        if ($from instanceof Closure && isset($this->factoryInstances[$from])) {
+        if ($from instanceof Closure && $this->isFactory($from)) {
             unset($this->factoryInstances[$from]);
             $this->factoryInstances[$to] = true;
         }

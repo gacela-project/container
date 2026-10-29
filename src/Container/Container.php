@@ -282,6 +282,7 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         $scope->aliasRegistry->inheritFrom($this->aliasRegistry);
         $scope->bindingResolver->inheritFrom($this->bindingResolver);
+        $scope->factoryManager->inheritFrom($this->factoryManager);
         $scope->cacheManager->inheritFrom($this->cacheManager, $this);
 
         $this->rememberScope($scope);
@@ -793,6 +794,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     {
         $this->cacheManager->dropArgBuilders();
 
+        $id = $this->aliasRegistry->resolve($id);
         $this->instanceRegistry->set($id, $instance);
 
         // Nested resolution has no way to reach the instance registry, and a
