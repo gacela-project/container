@@ -251,6 +251,18 @@ TXT;
         return new self($message);
     }
 
+    public static function boundInstanceExtend(string $id): self
+    {
+        $message = <<<TXT
+The service '{$id}' is a binding and cannot be extended.
+extend() applies to services registered with set().
+
+Register the service through set(), then call extend().
+Use factory() with set() when each resolution needs a new instance.
+TXT;
+        return new self($message);
+    }
+
     public static function frozenInstanceExtend(string $id): self
     {
         $message = <<<TXT

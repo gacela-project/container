@@ -1128,6 +1128,10 @@ final class Container implements FullContainerInterface, ArrayAccess
         // which is true for any instantiable class. Here the question is
         // narrower — is there something stored to extend right now?
         if (!$this->instanceRegistry->has($id)) {
+            if (isset($this->bindings[$id])) {
+                throw ContainerException::boundInstanceExtend($id);
+            }
+
             // Scheduling would be a silent no-op: anything an ancestor owns is
             // resolved by that ancestor, so the pending extension here would
             // never fire. A binding counts, not just a stored instance.

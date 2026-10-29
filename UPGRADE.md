@@ -20,6 +20,30 @@ must also satisfy the [cache file permissions](docs/performance.md#cache-file-pe
 rules. New and rewritten caches are private to their writer; a deployment that
 shares caches across accounts must arrange ownership before loading them.
 
+### Extending bindings
+
+`extend()` now throws a `ContainerException` for an id registered with `bind()`
+or `singleton()`. Previously it returned normally but never applied the
+extension. Register the service through `set()` before extending it.
+
+To keep a `bind()` service creating a new instance on every resolution, use
+`factory()`:
+
+```php
+// Before: the extension was ignored.
+$container->bind(LoggerInterface::class, FileLogger::class);
+$container->extend(LoggerInterface::class, static fn ($logger) => new LoggerDecorator($logger));
+
+// After: each resolution creates and decorates a new logger.
+$container->set(LoggerInterface::class, $container->factory(
+    static fn () => new FileLogger('/var/log/app.log'),
+));
+$container->extend(LoggerInterface::class, static fn ($logger) => new LoggerDecorator($logger));
+```
+
+For a shared service previously registered with `singleton()`, pass the closure
+to `set()` without wrapping it in `factory()`.
+
 ## 2.0.x → 2.1
 
 One change in runtime behaviour, with nothing to write on your side.
