@@ -30,7 +30,6 @@ use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
-use function implode;
 use function in_array;
 use function interface_exists;
 use function is_a;
@@ -39,7 +38,6 @@ use function is_callable;
 use function is_object;
 use function is_string;
 use function method_exists;
-use function sort;
 use function sprintf;
 
 /**
@@ -78,8 +76,8 @@ final class DependencyResolver
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
-    /** @var array<class-string, array<string, true>> */
-    private array $resolvingRoots = [];
+    /** @var array<string, string> */
+    private array $resolvingFactories = [];
 
     /** @var array<class-string, true> guards the recursion in composeBuilder() */
     private array $buildingBuilders = [];
@@ -265,20 +263,6 @@ final class DependencyResolver
      */
     public function resolveDependencies(string $toResolve, array $overrides = []): array
     {
-        $overrideKey = '';
-
-        if ($overrides !== []) {
-            $overrideNames = array_keys($overrides);
-            sort($overrideNames, SORT_STRING);
-            $overrideKey = implode("\0", $overrideNames);
-        }
-
-        // Overrides can finish reentrant construction by supplying the cyclic argument.
-        if (isset($this->resolvingRoots[$toResolve][$overrideKey])) {
-            throw CircularDependencyException::create([...$this->getResolutionChain(), $toResolve]);
-        }
-
-        $this->resolvingRoots[$toResolve][$overrideKey] = true;
         $this->buildStack[] = $toResolve;
 
         try {
@@ -312,11 +296,6 @@ final class DependencyResolver
             return $dependencies;
         } finally {
             array_pop($this->buildStack);
-            unset($this->resolvingRoots[$toResolve][$overrideKey]);
-
-            if ($this->resolvingRoots[$toResolve] === []) {
-                unset($this->resolvingRoots[$toResolve]);
-            }
         }
     }
 
@@ -919,10 +898,26 @@ final class DependencyResolver
         /** @var mixed $value */
         $value = $bindings[$key];
         if ($value instanceof Closure) {
-            return [true, $value($this->container())];
+            return [true, $this->invokeFactory($key, $value, $declaringClass)];
         }
 
         return [true, $value];
+    }
+
+    private function invokeFactory(string $id, callable $factory, ?string $consumer = null): mixed
+    {
+        $key = $consumer . "\0" . $id . "\0" . CallableKey::for($factory);
+        if (isset($this->resolvingFactories[$key])) {
+            throw CircularDependencyException::create([...$this->getResolutionChain(), ...array_values($this->resolvingFactories), $id]);
+        }
+
+        $this->resolvingFactories[$key] = $id;
+
+        try {
+            return $factory($this->container());
+        } finally {
+            unset($this->resolvingFactories[$key]);
+        }
     }
 
     /**
@@ -935,7 +930,7 @@ final class DependencyResolver
         if ($contextualBinding !== null) {
             if ($contextualBinding instanceof Closure || (is_array($contextualBinding) && is_callable($contextualBinding))) {
                 /** @psalm-suppress MixedAssignment */
-                $instance = $contextualBinding($this->container());
+                $instance = $this->invokeFactory($paramTypeName, $contextualBinding, $this->buildStack[array_key_last($this->buildStack)] ?? null);
                 $this->afterResolving?->__invoke($paramTypeName, $instance);
 
                 return $instance;
@@ -990,7 +985,7 @@ final class DependencyResolver
             }
 
             /** @psalm-suppress MixedAssignment */
-            $instance = $bindClass($this->container());
+            $instance = $this->invokeFactory($paramTypeName, $bindClass);
             $this->afterResolving?->__invoke($paramTypeName, $instance);
 
             return $instance;

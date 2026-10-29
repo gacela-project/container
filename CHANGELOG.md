@@ -12,7 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
-- Cycles through closure or callable-array binding and singleton factories raise `CircularDependencyException` instead of exhausting memory when they re-enter constructor resolution. Failed attempts leave the container ready to retry, and finite `make()` calls with constructor overrides still work. See [circular dependencies](docs/error-handling.md#circulardependencyexception)
+- Cycles through closure or callable-array binding and singleton factories raise `CircularDependencyException` instead of exhausting memory when they repeat an unfinished factory during constructor resolution. Failed attempts leave the container ready to retry; finite re-entry can use overrides, ready values, or replacement registrations. See [circular dependencies](docs/error-handling.md#circulardependencyexception)
 - Cycles through an interface's class-string binding raise `CircularDependencyException` instead of exhausting memory. Contextual bindings can still select a separate inner implementation for a decorator
 - Class-string bindings from a concrete class to a subclass now apply to nested constructor parameters, including scope-local and `lazy()` replacements. Nested resolution uses the same target lifetime as `get()`, including after constructor builders or generated factories have been installed. See [registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too)
 - `set()` restores the previous registration when a scheduled extension cannot be applied. Failed attempts clear pending extensions and preserve the original exception, so later registrations can be extended normally. See [extending services](docs/services.md#extending-services)

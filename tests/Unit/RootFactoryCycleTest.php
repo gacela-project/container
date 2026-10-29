@@ -110,6 +110,87 @@ final class RootFactoryCycleTest extends TestCase
     }
 
     #[DataProvider('registrations')]
+    public function test_a_factory_can_publish_a_ready_dependency_before_reentering_its_consumer(string $registration): void
+    {
+        $container = new Container();
+        $ready = new Person('ready');
+        $calls = 0;
+        self::register($container, $registration, static function (ContainerInterface $current) use ($container, $registration, $ready, &$calls): Person {
+            ++$calls;
+            if ($registration === 'contextual') {
+                $container->when(ClassWithObjectDependencies::class)->needs(Person::class)->give($ready);
+            } else {
+                $current->set(Person::class, $ready);
+            }
+
+            return $current->get(ClassWithObjectDependencies::class)->person;
+        });
+
+        for ($attempt = 0; $attempt < 3; ++$attempt) {
+            self::assertSame($ready, $container->get(ClassWithObjectDependencies::class)->person);
+        }
+
+        self::assertSame(1, $calls);
+    }
+
+    #[DataProvider('registrations')]
+    public function test_a_replacement_factory_can_finish_reentrant_resolution(string $registration): void
+    {
+        $container = new Container();
+        $ready = new Person('rebound');
+        self::register($container, $registration, static function (ContainerInterface $current) use ($container, $registration, $ready): Person {
+            self::register($container, $registration, static fn (): Person => $ready);
+
+            return $current->get(ClassWithObjectDependencies::class)->person;
+        });
+
+        self::assertSame($ready, $container->get(ClassWithObjectDependencies::class)->person);
+        self::assertSame($ready, $container->get(ClassWithObjectDependencies::class)->person);
+    }
+
+    public function test_the_same_contextual_factory_can_serve_a_different_consumer_during_reentry(): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $factory = static function (ContainerInterface $current) use (&$calls): Person {
+            if (++$calls === 1) {
+                return $current->make(ServiceWithScalarDependency::class, ['apiKey' => 'configured'])->person;
+            }
+
+            return new Person('nested');
+        };
+        $container->when(ClassWithObjectDependencies::class)->needs(Person::class)->give($factory);
+        $container->when(ServiceWithScalarDependency::class)->needs(Person::class)->give($factory);
+
+        self::assertSame('nested', $container->get(ClassWithObjectDependencies::class)->person->name);
+        self::assertSame(2, $calls);
+    }
+
+    public function test_the_same_named_factory_can_supply_another_parameter_during_reentry(): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $factory = static function (ContainerInterface $current) use (&$calls): Person {
+            if (++$calls === 1) {
+                $person = $current->make(ServiceWithMixedConstructor::class, ['first' => new Person('supplied')])->second;
+                self::assertInstanceOf(Person::class, $person);
+
+                return $person;
+            }
+
+            return new Person('nested');
+        };
+        $container->when(ServiceWithMixedConstructor::class)->needs('$first')->give($factory);
+        $container->when(ServiceWithMixedConstructor::class)->needs('$second')->give($factory);
+
+        $service = $container->get(ServiceWithMixedConstructor::class);
+
+        self::assertSame('nested', $service->first?->name);
+        self::assertSame('nested', $service->second?->name);
+        self::assertSame(3, $calls);
+    }
+
+    #[DataProvider('registrations')]
     public function test_acyclic_nested_factories_keep_the_current_scope_facade(string $registration): void
     {
         $parent = new Container();
