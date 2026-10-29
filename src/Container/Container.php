@@ -12,6 +12,7 @@ use Override;
 use Throwable;
 use WeakReference;
 
+use function array_key_exists;
 use function class_exists;
 use function count;
 use function interface_exists;
@@ -86,6 +87,9 @@ final class Container implements FullContainerInterface, ArrayAccess
      * @var list<ResolvedHook>
      */
     private array $afterResolvingCallbacks = [];
+
+    /** @var array<string, mixed> */
+    private array $singletonValues = [];
 
     /**
      * What service closures are handed. This container unless a decorator said
@@ -519,6 +523,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     public function bind(string $abstract, string|callable|object $concrete): void
     {
         $this->cacheManager->dropArgBuilders();
+        unset($this->singletonValues[$abstract]);
 
         /**
          * @psalm-suppress PropertyTypeCoercion
@@ -547,7 +552,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         if (is_callable($concrete)) {
-            $this->bind($abstract, $this->memoizeCallable($concrete));
+            $this->bind($abstract, $this->memoizeCallable($abstract, $concrete));
             return;
         }
 
@@ -940,7 +945,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Forget an instance stored on this container.
+     * Remove a stored instance or evict a singleton cached on this container.
      *
      * A scope only forgets what it stored itself; removing an id it inherits
      * would mutate the ancestor holding it. After removing a shadowing entry,
@@ -952,11 +957,13 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $this->forgetSingleton($id);
         $this->instanceRegistry->remove($id);
     }
 
     /**
-     * Drop what was built for `$id`, keeping how to build it.
+     * Drop what was built for `$id`, including cached singleton values,
+     * keeping how to build it.
      *
      * Unlike remove(), a service registered with a closure is built again on
      * the next get(), and a factory, which keeps nothing, is left as it is.
@@ -968,6 +975,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $id = $this->aliasRegistry->resolve($id);
+        $this->forgetSingleton($id);
         if ($this->instanceRegistry->restoreDefinition($id) || $this->isFactory($id)) {
             return;
         }
@@ -1581,21 +1589,34 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * @return Closure(): mixed
      */
-    private function memoizeCallable(callable $factory): Closure
+    private function memoizeCallable(string $id, callable $factory): Closure
     {
         $containerRef = WeakReference::create($this);
-        $resolved = null;
-        $hasResolved = false;
 
-        return static function () use ($factory, $containerRef, &$resolved, &$hasResolved): mixed {
-            if (!$hasResolved) {
-                /** @var mixed $resolved */
-                $resolved = $factory($containerRef->get()?->forClosures());
-                $hasResolved = true;
+        return static function () use ($id, $factory, $containerRef): mixed {
+            $container = $containerRef->get();
+            if ($container === null) {
+                return $factory(null);
             }
 
-            return $resolved;
+            if (!array_key_exists($id, $container->singletonValues)) {
+                /** @psalm-suppress MixedAssignment */
+                $container->singletonValues[$id] = $factory($container->forClosures());
+            }
+
+            return $container->singletonValues[$id];
         };
+    }
+
+    private function forgetSingleton(string $id): void
+    {
+        unset($this->singletonValues[$id]);
+        $this->cacheManager->forget($id);
+
+        $concrete = $this->bindings[$id] ?? null;
+        if (is_string($concrete)) {
+            $this->cacheManager->forget($concrete);
+        }
     }
 
     private function createInstance(string $class): ?object

@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `forget()` and `remove()` evict cached class, callable, and `#[Singleton]` instances, including aliases and class-string mappings, while keeping singleton registrations. A failed resolution hook now discards a half-configured singleton so the next call builds a fresh instance. See [resolution hooks](docs/services.md#resolution-hooks)
 - `extend()` throws a `ContainerException` for an id registered with `bind()` or `singleton()`, instead of silently ignoring the extension. Register the service through `set()` to extend it. See the [upgrade example](UPGRADE.md#extending-bindings)
 - Class-typed constructor parameters keep their declared defaults on repeated resolution and with generated factories installed. Both optimizations now leave these classes and their consumers to the runtime resolver. Compilation reports explain the refusal as `DefaultParameter`. See [generated constructor code](docs/performance.md#what-it-will-not-compile)
 - Closure bindings fall back to their owning container when a facade passed to `withSelfReference()` has been released. Live and replacement facades still receive the call.
