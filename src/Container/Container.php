@@ -1614,14 +1614,14 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private function memoizeCallable(callable $factory): Closure
     {
-        $container = $this;
+        $containerRef = WeakReference::create($this);
         $resolved = null;
         $hasResolved = false;
 
-        return static function () use ($factory, $container, &$resolved, &$hasResolved): mixed {
+        return static function () use ($factory, $containerRef, &$resolved, &$hasResolved): mixed {
             if (!$hasResolved) {
                 /** @var mixed $resolved */
-                $resolved = $factory($container);
+                $resolved = $factory($containerRef->get()?->forClosures());
                 $hasResolved = true;
             }
 

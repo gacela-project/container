@@ -271,4 +271,77 @@ final class DecoratorSeamsTest extends TestCase
         self::assertContains('db.dsn', $seen);
         self::assertContains('repository', $seen);
     }
+
+    public function test_a_singleton_callable_receives_the_facade_and_runs_once(): void
+    {
+        $container = new Container();
+        $facade = new ForwardingContainer($container);
+        $container->withSelfReference($facade);
+        $seen = null;
+        $calls = 0;
+
+        $container->singleton('svc', static function (ContainerInterface $c) use (&$seen, &$calls): object {
+            $seen = $c;
+            ++$calls;
+
+            return new ClassWithoutDependencies();
+        });
+
+        self::assertSame($container->get('svc'), $container->get('svc'));
+        self::assertSame($facade, $seen);
+        self::assertSame(1, $calls);
+    }
+
+    public function test_a_singleton_callable_uses_a_facade_registered_after_it(): void
+    {
+        $container = new Container();
+        $seen = null;
+        $container->singleton('svc', static function (ContainerInterface $c) use (&$seen): object {
+            $seen = $c;
+
+            return new ClassWithoutDependencies();
+        });
+        $facade = new ForwardingContainer($container);
+        $container->withSelfReference($facade);
+        $container->get('svc');
+
+        self::assertSame($facade, $seen);
+    }
+
+    public function test_a_singleton_callable_uses_the_replacement_facade(): void
+    {
+        $container = new Container();
+        $original = new ForwardingContainer($container);
+        $container->withSelfReference($original);
+        $seen = null;
+        $container->singleton('svc', static function (ContainerInterface $c) use (&$seen): object {
+            $seen = $c;
+
+            return new ClassWithoutDependencies();
+        });
+        $replacement = new ForwardingContainer($container);
+        $container->withSelfReference($replacement);
+        $container->get('svc');
+
+        self::assertSame($replacement, $seen);
+    }
+
+    public function test_a_singleton_callable_falls_back_when_its_facade_is_dropped(): void
+    {
+        $container = new Container();
+        $facade = new ForwardingContainer($container);
+        $container->withSelfReference($facade);
+        $seen = null;
+        $container->singleton('svc', static function (ContainerInterface $c) use (&$seen): object {
+            $seen = $c;
+
+            return new ClassWithoutDependencies();
+        });
+        $reference = WeakReference::create($facade);
+        unset($facade);
+        $container->get('svc');
+
+        self::assertNull($reference->get());
+        self::assertSame($container, $seen);
+    }
 }
