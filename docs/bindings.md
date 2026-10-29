@@ -290,6 +290,11 @@ or a `#[Singleton]` class); a plain binding builds a new one each time.
 
 Aliases can target other aliases: `alias('connection', 'db')` follows the existing `db` mapping all the way to `PDO::class`. Each link uses the nearest scope's alias, so a local alias can override an intermediate parent link. Parent alias changes remain visible to existing scopes. A cycle, including an alias pointing to itself, throws `ContainerException` when resolved.
 
+`set()` and array assignment through an alias write to its final target id.
+They honor that target's frozen state and scheduled extensions, and create only
+the canonical registration. A scope writes its own local target, following the
+normal [scope shadowing rules](scopes.md), while its parent's value stays unchanged.
+
 An alias whose *name* is a class or interface is followed for a constructor
 parameter typed as it too, so `alias(Clock::class, 'clock.frozen')` redirects
 every injection of `Clock` — see
