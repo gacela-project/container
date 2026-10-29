@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Type-matched `afterResolving()` hooks configure nested constructor dependencies and binding results, including scope-local hooks for parent-provided services. Containers with hooks use runtime resolution so composed builders and generated factories cannot skip those callbacks. See [resolution hooks](docs/services.md#resolution-hooks)
 - Plan and compiled-factory loaders refuse foreign-owned or writable PHP caches before executing them. POSIX directory ownership and writable-directory checks also protect the cache path. Cache writers create private staging files from the moment they are opened, including under a permissive umask, and keep atomic publication. See [cache permissions](docs/performance.md#cache-file-permissions) and the [upgrade steps](UPGRADE.md#cache-ownership-and-permissions)
 - `afterResolving()` runs each hook registration once per object, so reading a shared service repeatedly no longer repeats configuration such as adding log handlers. Fresh and replacement objects still receive hooks, including through scopes. See [resolution hooks](docs/services.md#resolution-hooks)
 - `extend()` throws a `ContainerException` for an id registered with `bind()` or `singleton()`, instead of silently ignoring the extension. Register the service through `set()` to extend it. See the [upgrade example](UPGRADE.md#extending-bindings)
