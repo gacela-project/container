@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Invokable object bindings
+
+Objects passed to `bind()`, `singleton()`, or type-based contextual `give()` are now injected unchanged even when they declare `__invoke`. If you used such an object as a factory, wrap it in a closure:
+
+```php
+// Before: the object was invoked as a factory.
+$container->bind(HandlerInterface::class, $factory);
+
+// After: explicitly invoke it to build the service.
+$container->bind(HandlerInterface::class, Closure::fromCallable($factory));
+```
+
+The same wrapper works with `singleton()` and type-based `give()`. See [bindings](docs/bindings.md#fluent-registration) for the supported instance and factory forms.
+
 ### Explicit array offsets
 
 Array access accepts string and integer service ids. Append syntax now throws

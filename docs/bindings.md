@@ -39,15 +39,17 @@ $container->get(CacheInterface::class); // same instance every time
 `singleton()` accepts the same concrete forms as `bind()`:
 
 - a **class-string** — the resolved instance is created once and reused
-- an **object** — stored as-is (already a single shared instance)
-- a **closure** — memoized, so it runs only on the first resolution
+- an **object**, including one with `__invoke`, is stored as-is as a shared instance
+- a **closure or callable array** is a factory, memoized on the first resolution
 - **omitted** — the `$abstract` itself is treated as the concrete class
 
 A **string concrete is always read as a class name**, never as a callable. That
 matters in the one case where it is ambiguous: PHP keeps classes and functions
 in separate tables, so `App\Mailer` can name both, and a container that asked
 `is_callable()` first would call the function and hand back whatever it
-returned. Pass a closure when you want something invoked.
+returned. Use a closure or callable array when you want a factory invoked.
+
+These object and factory rules also apply to type-based contextual `give()`. An invokable object passed to `set()` acts as a shared service definition and is called on the first `get()`. If an invokable object was intended as a factory for `bind()`, `singleton()`, or type-based `give()`, see the [upgrade example](../UPGRADE.md#invokable-object-bindings).
 
 ### Container-aware closures
 
