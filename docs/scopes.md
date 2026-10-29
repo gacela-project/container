@@ -130,6 +130,12 @@ collector — so a worker may run with `gc_disable()` without scopes piling up.
 Earlier releases had every container point back at its own collaborators, which
 made it a reference cycle and left disposal to whenever the collector next ran.
 
+Callable `singleton()` registrations also release with their container, whether
+or not the factory has run. Their factory receives the owner's current live
+facade from `withSelfReference()`, or the owner itself if no facade remains.
+Changing the facade before the first resolution takes effect without registering
+the singleton again.
+
 The exception is an **uninitialized lazy instance**, which keeps the container
 that produced it alive until first touch — see [`#[Lazy]`](attributes.md#lazy).
 
