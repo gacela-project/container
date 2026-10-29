@@ -8,9 +8,12 @@ use ArrayObject;
 use Closure;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\FactoryManager;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
+use RuntimeException;
 
 final class ExtendSchedulingTest extends TestCase
 {
@@ -164,4 +167,154 @@ final class ExtendSchedulingTest extends TestCase
 
         self::assertEquals(new ArrayObject(['extended']), $container->get('service'));
     }
+    public function test_failed_scheduled_wrapping_restores_an_absent_registration(): void
+    {
+        $container = new Container();
+        $container->extend('service', static fn (object $service): object => $service);
+
+        try {
+            $container->set('service', $container->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        self::assertFalse($container->has('service'));
+        self::assertFalse($container->bound('service'));
+        self::assertFalse($container->isFrozen('service'));
+        self::assertNotContains('service', $container->getRegisteredServices());
+    }
+
+    public function test_failed_scheduled_wrapping_discards_old_callbacks_and_allows_new_extensions(): void
+    {
+        $container = new Container();
+        $container->extend('service', static function (): never {
+            throw new RuntimeException('stale extension was applied');
+        });
+
+        try {
+            $container->set('service', $container->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        $container->remove('service');
+        $container->extend('service', static fn (object $service): ArrayObject => new ArrayObject(['fresh']));
+        $container->set('service', new ClassWithoutDependencies());
+
+        self::assertEquals(new ArrayObject(['fresh']), $container->get('service'));
+    }
+
+    #[DataProvider('previousRegistrations')]
+    public function test_failed_scheduled_wrapping_restores_the_previous_local_registration(mixed $previous, mixed $expected): void
+    {
+        $container = new Container();
+        $container->set('service', $previous);
+        $property = new ReflectionProperty(Container::class, 'factoryManager');
+        $manager = $property->getValue($container);
+        self::assertInstanceOf(FactoryManager::class, $manager);
+        $manager->scheduleExtension('service', static fn (object $service): object => $service);
+
+        try {
+            $container->set('service', $container->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        self::assertTrue($container->bound('service'));
+        self::assertFalse($container->isFrozen('service'));
+        self::assertSame($expected, $container->get('service'));
+    }
+
+    /**
+     * @return iterable<string, array{mixed, mixed}>
+     */
+    public static function previousRegistrations(): iterable
+    {
+        yield 'stored null' => [null, null];
+        $instance = new ClassWithoutDependencies();
+        yield 'stored instance' => [$instance, $instance];
+        yield 'shared definition' => [static fn (): object => $instance, $instance];
+    }
+
+    public function test_failed_scope_wrapping_restores_the_parent_service(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $scope->extend('service', static fn (object $service): object => $service);
+        $instance = new ClassWithoutDependencies();
+        $parent->set('service', $instance);
+
+        try {
+            $scope->set('service', $scope->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        self::assertSame($instance, $scope->get('service'));
+        self::assertSame($instance, $parent->get('service'));
+    }
+
+    public function test_failed_wrapping_uses_the_canonical_alias_id_for_rollback_and_retry(): void
+    {
+        $container = new Container();
+        $container->alias('alias', 'service');
+        $container->extend('alias', static fn (object $service): object => $service);
+
+        try {
+            $container->set('alias', $container->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        self::assertFalse($container->bound('service'));
+        $container->extend('service', static fn (object $service): ArrayObject => new ArrayObject(['fresh']));
+        $container->set('alias', new ClassWithoutDependencies());
+
+        self::assertEquals(new ArrayObject(['fresh']), $container->get('alias'));
+    }
+
+    public function test_failed_wrapping_does_not_evict_an_existing_class_singleton(): void
+    {
+        $container = new Container();
+        $container->extend(ClassWithoutDependencies::class, static fn (object $service): object => $service);
+        $container->singleton(ClassWithoutDependencies::class);
+        $singleton = $container->get(ClassWithoutDependencies::class);
+
+        try {
+            $container->set(ClassWithoutDependencies::class, $container->protect(static fn (): string => 'protected'));
+            self::fail('protected values cannot be extended');
+        } catch (ContainerException) {
+        }
+
+        self::assertSame($singleton, $container->get(ClassWithoutDependencies::class));
+    }
+
+    public function test_nested_pending_application_preserves_outer_state_and_the_original_exception(): void
+    {
+        $manager = new FactoryManager();
+        $manager->scheduleExtension('outer', static fn (): null => null);
+        $manager->scheduleExtension('inner', static fn (): null => null);
+        $failure = new RuntimeException('wrapping failed');
+        $manager->applyPendingExtensions('outer', static function (Closure $extension) use ($manager, $failure): void {
+            try {
+                $manager->applyPendingExtensions('inner', static function (Closure $extension) use ($manager, $failure): never {
+                    self::assertTrue($manager->isCurrentlyExtending('outer'));
+                    self::assertTrue($manager->isCurrentlyExtending('inner'));
+
+                    throw $failure;
+                });
+                self::fail('the original failure should escape the inner application');
+            } catch (RuntimeException $exception) {
+                self::assertSame($failure, $exception);
+            }
+
+            self::assertTrue($manager->isCurrentlyExtending('outer'));
+            self::assertFalse($manager->isCurrentlyExtending('inner'));
+        });
+
+        self::assertFalse($manager->isCurrentlyExtending('outer'));
+        self::assertFalse($manager->hasPendingExtensions('outer'));
+        self::assertFalse($manager->hasPendingExtensions('inner'));
+    }
+
 }
