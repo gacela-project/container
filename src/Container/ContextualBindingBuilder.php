@@ -69,10 +69,9 @@ final class ContextualBindingBuilder
      * absence of a binding is already how "nothing is bound" is expressed, so
      * binding a type to null could only ever be a mistake.
      *
-     * @param mixed $implementation a class-string to resolve, a callable to
-     *   invoke with the container, or any value to inject as-is — arrays,
-     *   scalars and null included. Deliberately wider than `Binding`, which
-     *   describes what `bind()` accepts, not this
+     * @param mixed $implementation for a type need, a class-string to resolve,
+     *   callable to invoke, or object to inject; for a named need, a closure to
+     *   invoke with the container or any other value to inject unchanged
      */
     public function give(mixed $implementation): void
     {

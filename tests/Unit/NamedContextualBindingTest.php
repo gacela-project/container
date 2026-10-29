@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use DateTimeImmutable;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -68,6 +69,39 @@ final class NamedContextualBindingTest extends TestCase
         $service = $container->get(ServiceWithMixedDependency::class);
 
         self::assertSame(['a' => 1, 'b' => 2], $service->value);
+    }
+
+    public function test_named_binding_preserves_a_string_that_names_a_function(): void
+    {
+        $container = new Container();
+        $container->when(ServiceWithScalarDependency::class)->needs('$apiKey')->give('date');
+
+        self::assertSame('date', $container->get(ServiceWithScalarDependency::class)->apiKey);
+        self::assertSame('date', $container->get(ServiceWithScalarDependency::class)->apiKey);
+    }
+
+    public function test_named_binding_preserves_a_callable_array(): void
+    {
+        $value = [DateTimeImmutable::class, 'createFromFormat'];
+        self::assertIsCallable($value);
+        $container = new Container();
+        $container->when(ServiceWithMixedDependency::class)->needs('$value')->give($value);
+
+        self::assertSame($value, $container->get(ServiceWithMixedDependency::class)->value);
+    }
+
+    public function test_named_binding_preserves_an_invokable_object(): void
+    {
+        $value = new class() {
+            public function __invoke(): string
+            {
+                return 'invoked';
+            }
+        };
+        $container = new Container();
+        $container->when(ServiceWithMixedDependency::class)->needs('$value')->give($value);
+
+        self::assertSame($value, $container->get(ServiceWithMixedDependency::class)->value);
     }
 
     public function test_named_binding_is_scoped_to_the_declaring_class(): void
