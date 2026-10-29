@@ -37,6 +37,8 @@ $container->extend('logger', function ($logger, $container) {
 after the service has been read throws a `ContainerException` because the
 service is frozen.
 
+An extension wraps only the chosen id. Other ids that use the same factory closure keep creating a fresh instance on each read.
+
 An id registered with `bind()` or `singleton()` throws a `ContainerException`
 when passed to `extend()`, including through an alias. Those registrations do
 not consume scheduled extensions. Use `set()` with a closure instead, and wrap
