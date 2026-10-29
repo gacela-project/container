@@ -97,6 +97,11 @@ closure is built again on the next `get()`, and a `factory()` is untouched. An
 object stored as it is has nothing to be rebuilt from, so it is removed. The
 exception propagates either way. `forget($id)` does the same on demand.
 
+`make()` with constructor overrides builds a separate object. If its hook
+throws, that object is discarded and the exception propagates. Any stored
+object or shared closure registration under the same id stays unchanged.
+`make()` without overrides follows `get()` and keeps the normal failure cleanup.
+
 `forget()` and `remove()` also evict instances cached for class-string and callable `singleton()` registrations and `#[Singleton]` classes. They follow aliases and class-string bindings while keeping singleton registrations, so the next `get()` builds a fresh shared instance. Eviction on a scope clears only its own cache.
 
 ## Introspection
