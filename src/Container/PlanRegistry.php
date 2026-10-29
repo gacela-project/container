@@ -26,7 +26,7 @@ namespace Gacela\Container;
  * back at it — including this registry, which the resolver constructs. Owned by
  * the type that holds the data, the vocabulary flows one way.
  *
- * @psalm-type ParamPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
+ * @psalm-type ParamPlan = array{name: string, hasType: bool, isVariadic?: bool, type: string|null, isScalar: bool, inject: class-string|null, hasDefault: bool, default: mixed, declaringClass: string|null}
  * @psalm-type PropPlan = array{name: string, hasType: bool, type: string|null, isScalar: bool, inject: class-string|null, isReadonly: bool, declaringClass: class-string}
  * @psalm-type MethodPlan = array{name: string, params: list<ParamPlan>, isStatic: bool, isPublic: bool, declaringClass: class-string}
  * @psalm-type ClassPlan = array{instantiable: bool, params: list<ParamPlan>, props: list<PropPlan>, methods: list<MethodPlan>, lazy?: bool, singleton?: bool, factory?: bool}
