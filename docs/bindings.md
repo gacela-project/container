@@ -288,6 +288,8 @@ An alias resolves to whatever its target resolves to. `$db1` and `$db2` are the
 same object only when the target is shared (a `singleton()`, a stored instance
 or a `#[Singleton]` class); a plain binding builds a new one each time.
 
+Aliases can target other aliases: `alias('connection', 'db')` follows the existing `db` mapping all the way to `PDO::class`. Each link uses the nearest scope's alias, so a local alias can override an intermediate parent link. Parent alias changes remain visible to existing scopes. A cycle, including an alias pointing to itself, throws `ContainerException` when resolved.
+
 An alias whose *name* is a class or interface is followed for a constructor
 parameter typed as it too, so `alias(Clock::class, 'clock.frozen')` redirects
 every injection of `Clock` — see
