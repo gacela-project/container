@@ -143,6 +143,12 @@ $container['db'] = new PDO(/* ... */);           // set()
 unset($container['temp']);                        // remove()
 ```
 
+String offsets are service ids, including `'0'` and the empty string.
+Integer offsets use their string value consistently for assignment, lookup,
+`isset()` and `unset()`: `$container[1]` addresses the same id as
+`$container->get('1')`. Other offset types throw `TypeError`. Append syntax
+(`$container[] = $service`) is rejected because a service needs an explicit id.
+
 ## A registration answers a constructor parameter too
 
 Whatever the container hands back for an id, it hands to a constructor parameter

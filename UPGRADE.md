@@ -16,6 +16,23 @@ $container->bind(HandlerInterface::class, Closure::fromCallable($factory));
 
 The same wrapper works with `singleton()` and type-based `give()`. See [bindings](docs/bindings.md#fluent-registration) for the supported instance and factory forms.
 
+### Explicit array offsets
+
+Array access accepts string and integer service ids. Append syntax now throws
+`TypeError`; give the entry an explicit id instead:
+
+```php
+// Before: append silently registered the service under an empty id.
+$container[] = $service;
+
+// After: choose the service id.
+$container['service'] = $service;
+```
+
+Boolean, floating-point, array and object offsets are also rejected with
+`TypeError`. Pass the intended string id explicitly. An explicit empty-string
+id (`$container['']`) continues to work. See [array access](docs/resolution.md#array-access).
+
 ### Cache ownership and permissions
 
 Compiled PHP caches now require trusted ownership and permissions before they
