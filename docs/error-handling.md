@@ -66,6 +66,12 @@ Consider using setter injection or the factory pattern to break the cycle.
 
 The chain is the resolution path in order, so you can see which edge to break.
 
+This exception also covers a binding or singleton factory that calls `get()`
+and re-enters constructor dependencies already being resolved. Failed attempts
+clear their resolution state, so correcting the binding lets the same container
+try again. A reentrant `make()` can finish when constructor overrides supply the
+dependency that would otherwise repeat the cycle.
+
 **Fix:** break the cycle — extract the shared piece into a third class, or make
 one side [`#[Lazy]`](attributes.md) so it is not constructed while the other is
 still being built.

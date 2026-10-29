@@ -30,6 +30,7 @@ use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
+use function implode;
 use function in_array;
 use function interface_exists;
 use function is_a;
@@ -38,6 +39,7 @@ use function is_callable;
 use function is_object;
 use function is_string;
 use function method_exists;
+use function sort;
 use function sprintf;
 
 /**
@@ -75,6 +77,9 @@ final class DependencyResolver
 
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
+
+    /** @var array<class-string, array<string, true>> */
+    private array $resolvingRoots = [];
 
     /** @var array<class-string, true> guards the recursion in composeBuilder() */
     private array $buildingBuilders = [];
@@ -260,7 +265,20 @@ final class DependencyResolver
      */
     public function resolveDependencies(string $toResolve, array $overrides = []): array
     {
-        // Track which class is being resolved for contextual bindings.
+        $overrideKey = '';
+
+        if ($overrides !== []) {
+            $overrideNames = array_keys($overrides);
+            sort($overrideNames, SORT_STRING);
+            $overrideKey = implode("\0", $overrideNames);
+        }
+
+        // Overrides can finish reentrant construction by supplying the cyclic argument.
+        if (isset($this->resolvingRoots[$toResolve][$overrideKey])) {
+            throw CircularDependencyException::create([...$this->getResolutionChain(), $toResolve]);
+        }
+
+        $this->resolvingRoots[$toResolve][$overrideKey] = true;
         $this->buildStack[] = $toResolve;
 
         try {
@@ -294,6 +312,11 @@ final class DependencyResolver
             return $dependencies;
         } finally {
             array_pop($this->buildStack);
+            unset($this->resolvingRoots[$toResolve][$overrideKey]);
+
+            if ($this->resolvingRoots[$toResolve] === []) {
+                unset($this->resolvingRoots[$toResolve]);
+            }
         }
     }
 
