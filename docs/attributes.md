@@ -266,6 +266,10 @@ treats a lazy object with nothing to defer as initialized at once and would skip
 the constructor. The container builds such a class straight away instead, and a
 `lazy()` factory for it is called straight away.
 
+A class with instance properties does not need a constructor to be lazy. Its
+property defaults are preserved, and `#[Inject]` properties and methods are
+initialized on first touch.
+
 Dependencies are resolved *inside* the initializer, so a lazy service that is
 never touched costs nothing to build, and neither does its subtree.
 
