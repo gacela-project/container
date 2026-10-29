@@ -13,6 +13,7 @@ use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\FactoryAttributeService;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\LazyService;
+use GacelaTest\Fake\OuterHoldingDefaultedClassService;
 use GacelaTest\Fake\OuterHoldingInjectedService;
 use GacelaTest\Fake\OuterHoldingLazyService;
 use GacelaTest\Fake\OuterHoldingMethodInjectedService;
@@ -21,6 +22,7 @@ use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\PersonWithoutParamType;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\SelfReferential;
+use GacelaTest\Fake\ServiceWithDefaultedClassDependency;
 use GacelaTest\Fake\ServiceWithPromotedInject;
 use GacelaTest\Fake\ServiceWithRepository;
 use GacelaTest\Fake\SingletonAttributeService;
@@ -229,6 +231,24 @@ final class ArgBuilderTest extends TestCase
         $container->get(Person::class);
 
         self::assertSame('', $container->get(Person::class)->name);
+    }
+
+    public function test_a_class_parameter_keeps_its_declared_default_on_repeated_resolutions(): void
+    {
+        $container = new Container();
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertNull($container->get(ServiceWithDefaultedClassDependency::class)->dependency);
+        }
+    }
+
+    public function test_a_nested_class_parameter_keeps_its_declared_default_on_repeated_resolutions(): void
+    {
+        $container = new Container();
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertNull($container->get(OuterHoldingDefaultedClassService::class)->inner->dependency);
+        }
     }
 
     public function test_an_unresolvable_scalar_still_throws_on_the_second_call(): void

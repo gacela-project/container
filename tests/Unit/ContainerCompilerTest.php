@@ -19,8 +19,10 @@ use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\FactoryAttributeService;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\LazyService;
+use GacelaTest\Fake\OuterHoldingDefaultedClassService;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithDefaultedClassDependency;
 use GacelaTest\Fake\ServiceWithInjectedMethod;
 use GacelaTest\Fake\ServiceWithInjectedProperty;
 use GacelaTest\Fake\ServiceWithPromotedInject;
@@ -52,6 +54,7 @@ final class ContainerCompilerTest extends TestCase
         ServiceWithInjectedProperty::class,
         ServiceWithInjectedMethod::class,
         ServiceWithPromotedInject::class,
+        ServiceWithDefaultedClassDependency::class,
         DatabaseRepository::class,
     ];
 
@@ -81,6 +84,48 @@ final class ContainerCompilerTest extends TestCase
         $compiler = self::compilerFor([Person::class]);
 
         self::assertNotContains(Person::class, $compiler->compilable());
+    }
+
+    public function test_it_refuses_a_class_with_a_defaulted_class_parameter(): void
+    {
+        $compiler = self::compilerFor([
+            OuterHoldingDefaultedClassService::class,
+            ServiceWithDefaultedClassDependency::class,
+            ClassWithoutDependencies::class,
+        ]);
+
+        self::assertNotContains(ServiceWithDefaultedClassDependency::class, $compiler->compilable());
+        self::assertNotContains(OuterHoldingDefaultedClassService::class, $compiler->compilable());
+        self::assertSame(
+            CompilationSkipReason::DefaultParameter,
+            $compiler->report()->reasonFor(ServiceWithDefaultedClassDependency::class),
+        );
+        self::assertSame(
+            CompilationSkipReason::Dependency,
+            $compiler->report()->reasonFor(OuterHoldingDefaultedClassService::class),
+        );
+        self::assertStringContainsString(
+            '$dependency has a declared default',
+            (string) $compiler->report()->explain(ServiceWithDefaultedClassDependency::class),
+        );
+    }
+
+    public function test_a_class_parameter_keeps_its_default_with_generated_factories_installed(): void
+    {
+        $container = self::containerWithDefaultedClassFactories();
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertNull($container->get(ServiceWithDefaultedClassDependency::class)->dependency);
+        }
+    }
+
+    public function test_a_nested_class_parameter_keeps_its_default_with_generated_factories_installed(): void
+    {
+        $container = self::containerWithDefaultedClassFactories();
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertNull($container->get(OuterHoldingDefaultedClassService::class)->inner->dependency);
+        }
     }
 
     public function test_a_class_with_an_unresolvable_scalar_never_reaches_the_generator(): void
@@ -331,6 +376,7 @@ final class ContainerCompilerTest extends TestCase
         yield 'injected property' => [ServiceWithInjectedProperty::class, CompilationSkipReason::InjectedProperty];
         yield 'injected parameter' => [ServiceWithPromotedInject::class, CompilationSkipReason::InjectedParameter];
         yield 'scalar parameter' => [Person::class, CompilationSkipReason::ScalarParameter];
+        yield 'defaulted class parameter' => [ServiceWithDefaultedClassDependency::class, CompilationSkipReason::DefaultParameter];
         yield 'blocked dependency' => [DatabaseRepository::class, CompilationSkipReason::Dependency];
     }
 
@@ -407,6 +453,24 @@ final class ContainerCompilerTest extends TestCase
             CompilationSkipReason::cases(),
             array_values(array_unique($produced, SORT_REGULAR)),
         );
+    }
+
+    private static function containerWithDefaultedClassFactories(): Container
+    {
+        $compiler = self::compilerFor([
+            OuterHoldingDefaultedClassService::class,
+            ServiceWithDefaultedClassDependency::class,
+            ClassWithoutDependencies::class,
+        ]);
+        $file = tempnam(sys_get_temp_dir(), 'compiled') . '.php';
+        file_put_contents($file, $compiler->render());
+        $factories = Container::loadCompiledFactories($file);
+        @unlink($file);
+
+        $container = new Container();
+        $container->useCompiledFactories($factories);
+
+        return $container;
     }
 
     /**

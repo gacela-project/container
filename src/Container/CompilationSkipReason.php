@@ -56,6 +56,11 @@ enum CompilationSkipReason: string
     case ScalarParameter = 'scalar-parameter';
 
     /**
+     * A class-typed parameter has a default selected at runtime.
+     */
+    case DefaultParameter = 'default-parameter';
+
+    /**
      * The class takes part in a dependency cycle.
      */
     case DependencyCycle = 'dependency-cycle';
