@@ -80,7 +80,7 @@ See [introspection](services.md#introspection).
 | `getOrFail(string $id): mixed` | Like `get()`, but throws when the id resolves to `null` |
 | `make(string $className, array $parameters = []): object` | Resolve a class to a typed, non-null instance; `$parameters` override constructor args by name |
 | `has(string $id): bool` | PSR-11: whether `get()` will resolve the id — includes autowirable classes |
-| `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`). A class/interface id matches every resolved instance of it; any other id matches exactly |
+| `afterResolving(string $id, Closure $callback): void` | Run a callback after the id is resolved (`$instance`, `$container`). A class/interface id also matches nested dependencies before the receiving constructor runs; any other id matches exactly |
 | `bound(string $id): bool` | Whether the id was explicitly registered — a binding or a stored instance (alias-aware) |
 | `provides(string $id): bool` | Whether this container or an ancestor already owns the id — a binding, a stored instance, or a resolved singleton |
 | `bindIf(string $abstract, string\|callable\|object $concrete): void` | Bind only if not already bound |
@@ -91,8 +91,8 @@ See [introspection](services.md#introspection).
 | `load(array $definitions, ?callable $onRegistered = null): array` | Register services from a definitions array; returns the ids it registered — see [definitions](definitions.md) |
 | `loadFile(string $file, ?callable $onRegistered = null): array` | Load definitions from a `.php` file returning an array, a `.json` file, or a `.yaml`/`.yml` one when a YAML parser is installed; returns the ids it registered |
 | `set(string $id, mixed $instance): void` | Register a service |
-| `remove(string $id): void` | Remove a service |
-| `forget(string $id): void` | Drop what was built for a service and keep how to build it: a closure-registered service is built again on the next `get()`, a `factory()` is left as it is. On `Container` only, not on `ContainerInterface`, which does not grow within 2.x; a wrapper forwards it by hand |
+| `remove(string $id): void` | Remove a stored service or evict a locally cached singleton |
+| `forget(string $id): void` | Drop what was built for a service, including cached singleton values, and keep how to build it: a closure-registered service is built again on the next `get()`, a `factory()` is left as it is. On `Container` only, not on `ContainerInterface`, which does not grow within 2.x; a wrapper forwards it by hand |
 | `resolve(callable $callable, array $parameters = []): mixed` | Execute a callable with dependency injection; `$parameters` override args by name |
 | `factory(Closure $instance): Closure` | Mark a service as a factory (new instance each time) |
 | `extend(string $id, Closure $instance): Closure` | Wrap/modify a service |

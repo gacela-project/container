@@ -93,6 +93,9 @@ final class DependencyCacheManager
 
     private ?DependencyResolver $dependencyResolver = null;
 
+    /** @var (Closure(string, mixed): void)|null */
+    private ?Closure $afterResolving = null;
+
     /**
      * The container a scope falls through to, held only to hand to the resolver
      * built later. Typed as the interface for the reason
@@ -269,6 +272,11 @@ final class DependencyCacheManager
         return isset($this->singletonInstances[$class]) || isset($this->forcedSingletons[$class]);
     }
 
+    public function forget(string $id): void
+    {
+        unset($this->singletonInstances[$id]);
+    }
+
     /**
      * @param class-string $class
      */
@@ -427,6 +435,15 @@ final class DependencyCacheManager
     public function dropArgBuilders(): void
     {
         $this->dependencyResolver?->dropArgBuilders();
+    }
+
+    /**
+     * @param Closure(string, mixed): void $callback
+     */
+    public function afterResolving(Closure $callback): void
+    {
+        $this->afterResolving = $callback;
+        $this->dropArgBuilders();
     }
 
     /**
@@ -594,6 +611,7 @@ final class DependencyCacheManager
                 $this->lazyFactories,
                 $this->ownedIds,
                 $this->ownerRef,
+                $this->afterResolving,
             );
 
             if ($this->parent !== null) {
