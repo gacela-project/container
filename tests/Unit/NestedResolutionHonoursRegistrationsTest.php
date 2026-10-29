@@ -6,19 +6,30 @@ namespace GacelaTest\Unit;
 
 use Closure;
 use Gacela\Container\Container;
+use Gacela\Container\DependencyResolver;
 use Gacela\Container\Exception\CircularDependencyException;
+use GacelaTest\Fake\AlternativeCompilableDependency;
+use GacelaTest\Fake\ChildInheritingAnInjectedMethod;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\CompilableConsumer;
+use GacelaTest\Fake\CompilableDependency;
+use GacelaTest\Fake\ConsumerOfParentMethodService;
 use GacelaTest\Fake\ConsumerOfRegisteredOnlyService;
 use GacelaTest\Fake\ForwardingContainer;
 use GacelaTest\Fake\InMemoryRepository;
+use GacelaTest\Fake\ParentDeclaringAnInjectedMethod;
 use GacelaTest\Fake\RegisteredOnlyService;
+use GacelaTest\Fake\RepositoryDecorator;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\SelfReferential;
 use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionProperty;
 use TypeError;
 
 use function iterator_to_array;
@@ -567,5 +578,194 @@ final class NestedResolutionHonoursRegistrationsTest extends TestCase
             $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
             $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies,
         );
+    }
+
+    #[DataProvider('concreteBindingLocations')]
+    public function test_a_concrete_class_binding_applies_to_constructor_parameters(string $location): void
+    {
+        $root = new Container();
+        $container = $location === 'root' ? $root : $root->createScope();
+        $registration = $location === 'inherited' ? $root : $container;
+        $registration->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+
+        self::assertInstanceOf(AlternativeCompilableDependency::class, $container->get(CompilableDependency::class));
+        $first = $container->get(CompilableConsumer::class)->dependency;
+        $second = $container->get(CompilableConsumer::class)->dependency;
+
+        self::assertInstanceOf(AlternativeCompilableDependency::class, $first);
+        self::assertInstanceOf(AlternativeCompilableDependency::class, $second);
+        self::assertNotSame($first, $second);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function concreteBindingLocations(): iterable
+    {
+        yield 'root' => ['root'];
+        yield 'scope-local registration' => ['local'];
+        yield 'inherited registration' => ['inherited'];
+    }
+
+    #[DataProvider('concreteBindingLocations')]
+    public function test_a_lazy_subclass_binding_applies_to_constructor_parameters(string $location): void
+    {
+        $calls = 0;
+        $root = new Container([
+            ClassWithoutDependencies::class => static function () use (&$calls): ClassWithoutDependencies {
+                ++$calls;
+
+                return new ClassWithoutDependencies();
+            },
+        ]);
+        $container = $location === 'root' ? $root : $root->createScope();
+        $registration = $location === 'inherited' ? $root : $container;
+        $registration->lazy(ParentDeclaringAnInjectedMethod::class, ChildInheritingAnInjectedMethod::class);
+        $consumer = $container->get(ConsumerOfParentMethodService::class);
+
+        self::assertInstanceOf(ChildInheritingAnInjectedMethod::class, $consumer->service);
+        if (method_exists(ReflectionClass::class, 'newLazyGhost')) {
+            self::assertSame(0, $calls);
+        }
+        self::assertInstanceOf(ClassWithoutDependencies::class, $consumer->service->fromParent);
+        self::assertSame(1, $calls);
+    }
+
+    #[DataProvider('concreteSingletonRegistrations')]
+    public function test_a_concrete_binding_keeps_the_targets_shared_lifetime(bool $singletonMapping): void
+    {
+        $container = new Container();
+        if ($singletonMapping) {
+            $container->singleton(CompilableDependency::class, AlternativeCompilableDependency::class);
+        } else {
+            $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+            $container->singleton(AlternativeCompilableDependency::class);
+        }
+        $direct = $container->get(CompilableDependency::class);
+
+        self::assertSame($direct, $container->get(CompilableConsumer::class)->dependency);
+        self::assertSame($direct, $container->get(AlternativeCompilableDependency::class));
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function concreteSingletonRegistrations(): iterable
+    {
+        yield 'singleton mapping' => [true];
+        yield 'singleton target' => [false];
+    }
+
+    public function test_a_contextual_concrete_selection_still_wins_over_the_global_binding(): void
+    {
+        $container = new Container();
+        $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $container->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)
+            ->give(CompilableDependency::class);
+
+        self::assertSame(CompilableDependency::class, $container->get(CompilableConsumer::class)->dependency::class);
+        self::assertInstanceOf(AlternativeCompilableDependency::class, $container->get(CompilableDependency::class));
+    }
+
+    public function test_a_declared_class_default_still_wins_over_a_concrete_binding(): void
+    {
+        $container = new Container();
+        $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+
+        $resolved = $container->resolve(static fn (CompilableDependency $dependency = new CompilableDependency()): CompilableDependency => $dependency);
+
+        self::assertSame(CompilableDependency::class, $resolved::class);
+    }
+
+    public function test_a_late_concrete_binding_replaces_a_warm_constructor_builder(): void
+    {
+        $container = new Container();
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertSame(CompilableDependency::class, $container->get(CompilableConsumer::class)->dependency::class);
+        }
+        $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+
+        self::assertInstanceOf(AlternativeCompilableDependency::class, $container->get(CompilableConsumer::class)->dependency);
+    }
+
+    public function test_a_concrete_binding_survives_generated_factory_fallback(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'gacela-concrete-binding-');
+        self::assertIsString($file);
+        try {
+            (new Container())->writeCompiledFactories([CompilableConsumer::class], $file);
+            $container = new Container();
+            $container->useCompiledFactories(Container::loadCompiledFactories($file));
+            $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+
+            self::assertInstanceOf(AlternativeCompilableDependency::class, $container->get(CompilableConsumer::class)->dependency);
+        } finally {
+            unlink($file);
+        }
+    }
+
+    public function test_a_lazy_subclass_binding_keeps_the_eager_fallback(): void
+    {
+        (new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable'))->setValue(null, false);
+        try {
+            $container = new Container();
+            $container->lazy(ParentDeclaringAnInjectedMethod::class, ChildInheritingAnInjectedMethod::class);
+            $consumer = $container->get(ConsumerOfParentMethodService::class);
+
+            self::assertInstanceOf(ChildInheritingAnInjectedMethod::class, $consumer->service);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $consumer->service->fromParent);
+        } finally {
+            Container::resetStaticCaches();
+        }
+    }
+
+    #[DataProvider('interfaceBindingCycleModes')]
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_an_interface_binding_cycle_throws_instead_of_exhausting_memory(bool $withOwner): void
+    {
+        $previous = ini_set('memory_limit', '64M');
+        self::assertNotFalse($previous);
+        set_time_limit(5);
+        try {
+            $this->expectException(CircularDependencyException::class);
+            if ($withOwner) {
+                $container = new Container();
+                $container->bind(RepositoryInterface::class, RepositoryDecorator::class);
+                $container->get(RepositoryInterface::class);
+            } else {
+                $bindings = [RepositoryInterface::class => RepositoryDecorator::class];
+                (new DependencyResolver($bindings))->resolveDependencies(ServiceWithRepository::class);
+            }
+        } finally {
+            ini_set('memory_limit', $previous);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function interfaceBindingCycleModes(): iterable
+    {
+        yield 'container owner' => [true];
+        yield 'standalone resolver' => [false];
+    }
+
+    public function test_contextual_repository_decoration_resolves_direct_and_nested_consumers(): void
+    {
+        $container = new Container();
+        $container->bind(RepositoryInterface::class, RepositoryDecorator::class);
+        $container->when(RepositoryDecorator::class)
+            ->needs(RepositoryInterface::class)
+            ->give(InMemoryRepository::class);
+
+        $direct = $container->get(RepositoryInterface::class);
+        $nested = $container->get(ServiceWithRepository::class)->repository;
+
+        self::assertInstanceOf(RepositoryDecorator::class, $direct);
+        self::assertInstanceOf(InMemoryRepository::class, $direct->inner);
+        self::assertInstanceOf(RepositoryDecorator::class, $nested);
+        self::assertInstanceOf(InMemoryRepository::class, $nested->inner);
     }
 }

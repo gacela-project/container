@@ -12,6 +12,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Cycles through an interface's class-string binding raise `CircularDependencyException` instead of exhausting memory. Contextual bindings can still select a separate inner implementation for a decorator
+- Class-string bindings from a concrete class to a subclass now apply to nested constructor parameters, including scope-local and `lazy()` replacements. Nested resolution uses the same target lifetime as `get()`, including after constructor builders or generated factories have been installed. See [registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too)
 - `extend()` passes literal callable arrays to extensions as array values instead of invoking them. Callable string values are rejected as non-extendable when the extension is registered. Closures and invokable objects still supply their results to extensions. See [extending services](docs/services.md#extending-services)
 - `extend()` preserves factory behavior for other ids registered with the same closure. Reusing that closure later, or in a descendant scope, still creates a fresh instance on every read. See [extending services](docs/services.md#extending-services)
 - Stored `null` values count as registered services, freeze when read, and suppress autowiring or inherited scope values. This includes aliases, `load()` value definitions, and shared definitions that return `null`. See [value definitions](docs/definitions.md#entry-forms)

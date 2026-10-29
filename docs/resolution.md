@@ -168,11 +168,17 @@ That holds for every way of registering: a binding, `singleton()`, `lazy()`,
 `factory()` is re-invoked per injection, a `singleton()` is not — and reading a
 stored service freezes it whether the read was a `get()` or an injection.
 
-Two things deliberately do not follow it:
+Required constructor parameters also honor concrete-class replacements such as
+`bind(Mailer::class, FakeMailer::class)`. A
+`lazy(Mailer::class, FakeMailer::class)` registration defers the selected subclass.
+
+These cases deliberately do not follow the global registration:
 
 - A **contextual binding** wins over the registration for the consumer it names.
   That is narrower than "what this id holds", which is the point of
   [`when()`](bindings.md#contextual-bindings).
+- A **declared parameter default** keeps that value instead of using a global
+  binding.
 - A **`protect()`ed closure** is handed over rather than called, so a parameter
   typed as a class rejects it. Protected closures are for non-class ids.
 
