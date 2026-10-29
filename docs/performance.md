@@ -252,6 +252,8 @@ cannot decide statically:
 - classes registered with `lazy()` — same reason, without the attribute to see
 - abstract classes and interfaces, and anything in a dependency cycle
 
+A container with `afterResolving()` hooks uses the runtime resolver instead of generated factories or composed argument builders, so hooks can configure nested dependencies. Registering hooks after either optimization has been used takes effect on the next resolution.
+
 Everything omitted resolves normally, so the file is only ever an optimisation.
 `writeCompiledFactories()` returns the list of classes it actually compiled, so
 you can assert on it in your build.

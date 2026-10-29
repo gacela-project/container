@@ -853,6 +853,13 @@ final class Container implements FullContainerInterface, ArrayAccess
     {
         $id = $this->aliasRegistry->resolve($id);
 
+        if ($this->afterResolvingCallbacks === []) {
+            $owner = WeakReference::create($this);
+            $this->cacheManager->afterResolving(static function (string $resolvedId, mixed $instance) use ($owner): void {
+                $owner->get()?->fireAfterResolving($resolvedId, $instance);
+            });
+        }
+
         $this->afterResolvingCallbacks[] = [
             'id' => $id,
             'byType' => class_exists($id) || interface_exists($id),
@@ -1596,7 +1603,7 @@ final class Container implements FullContainerInterface, ArrayAccess
 
     private function createInstance(string $class): ?object
     {
-        if ($this->compiledFactories !== [] && !$this->runtimeOwns($class)) {
+        if ($this->compiledFactories !== [] && $this->afterResolvingCallbacks === [] && !$this->runtimeOwns($class)) {
             $factory = $this->compiledFactories[$class] ?? null;
 
             if ($factory !== null && !$this->ownsCompiledDependency($class, $factory)) {

@@ -73,8 +73,9 @@ $container->afterResolving(LoggerAwareInterface::class, function (object $s, Con
 Any other id matches exactly, so `afterResolving('db.primary', …)` fires for that
 id and nothing else. Both kinds fire in registration order, interleaved.
 
-Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with
-overridden arguments.
+Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with overridden arguments. Type-matched hooks also configure dependencies built inside constructors, before the receiving constructor runs. This includes global and contextual binding results.
+
+Hooks belong to the container that registered them. A scope's hooks apply to its nested resolutions, including services obtained from a parent. Parent hooks run when the parent supplies a service, followed by the scope's hooks; they do not apply to services the scope autowires itself.
 
 A callback that throws **drops the built instance**: a service whose
 post-construction wiring failed should not be handed to the next caller as
