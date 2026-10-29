@@ -668,14 +668,14 @@ final class NestedResolutionHonoursRegistrationsTest extends TestCase
         self::assertInstanceOf(AlternativeCompilableDependency::class, $container->get(CompilableDependency::class));
     }
 
-    public function test_a_declared_class_default_still_wins_over_a_concrete_binding(): void
+    public function test_a_concrete_binding_overrides_a_declared_class_default(): void
     {
         $container = new Container();
         $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
 
         $resolved = $container->resolve(static fn (CompilableDependency $dependency = new CompilableDependency()): CompilableDependency => $dependency);
 
-        self::assertSame(CompilableDependency::class, $resolved::class);
+        self::assertSame(AlternativeCompilableDependency::class, $resolved::class);
     }
 
     public function test_a_late_concrete_binding_replaces_a_warm_constructor_builder(): void

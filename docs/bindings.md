@@ -209,6 +209,8 @@ instead:
 public function __construct(private ?LoggerInterface $logger = null) { ... }
 ```
 
+The logger receives an applicable registration; otherwise it keeps `null`. See [constructor registration precedence](resolution.md#a-registration-answers-a-constructor-parameter-too).
+
 ## Service tagging
 
 Group services under a tag and resolve them together — ideal for collecting

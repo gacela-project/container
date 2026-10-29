@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Optional class dependencies
+
+Class-typed parameters with defaults now receive applicable registrations before falling back to their declared values. If a consumer must keep `null` even when its type is registered globally, bind that parameter by name:
+
+```php
+$container->when(Report::class)
+    ->needs('$logger')
+    ->give(null);
+```
+
+See [constructor registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too).
+
 ### Named tag lookups
 
 `taggedByKey()` no longer accepts integer positions. If a tag used integer-like
