@@ -16,7 +16,6 @@ use WeakReference;
 use function class_exists;
 use function count;
 use function interface_exists;
-use function is_callable;
 use function is_int;
 use function is_object;
 use function is_string;
@@ -554,7 +553,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             return;
         }
 
-        if (is_callable($concrete)) {
+        if (!is_string($concrete)) {
             $memo = new SingletonMemo();
             $this->bind($abstract, $this->memoizeCallable($concrete, $memo));
             $this->singletonMemos[$abstract] = $memo;
@@ -674,8 +673,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         // proxy can be an instance of.
         $target = $this->assertLazyTarget($abstract, $abstract);
 
-        $this->bind($target, $concrete);
-        $this->cacheManager->markAsLazyFactory($target, Closure::fromCallable($concrete));
+        $factory = Closure::fromCallable($concrete);
+        $this->bind($target, $factory);
+        $this->cacheManager->markAsLazyFactory($target, $factory);
         $this->pushLazyRegistrations();
     }
 

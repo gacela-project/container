@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Invokable objects passed to `bind()`, `singleton()`, or type-based contextual `give()` are injected unchanged as shared instances. Closures and callable arrays remain factories, while string bindings remain class names. See the [upgrade example](UPGRADE.md#invokable-object-bindings) if the object was intended as a factory
 - Aliases resolve complete chains across scopes and respect local overrides at every link. Parent alias changes remain visible after earlier resolutions, and cycles throw `ContainerException` instead of returning a missing service. See [service aliasing](docs/bindings.md#service-aliasing)
 - Lazy classes with instance properties and no constructor initialize on first use without calling a missing `__construct()`. Both `#[Lazy]` and `lazy()` preserve property defaults and property/setter injection. See [lazy objects](docs/attributes.md#lazy)
 - A hook that throws during `make()` with constructor overrides leaves stored services and shared closure registrations unchanged. Only the separate object being built is discarded; failed shared resolutions still clean up and retry. See [resolution hooks](docs/services.md#resolution-hooks)

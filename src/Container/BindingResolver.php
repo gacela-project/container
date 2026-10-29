@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Closure;
 use WeakReference;
 
 use function class_exists;
+use function is_array;
 use function is_callable;
 use function is_object;
 use function is_string;
@@ -64,15 +66,8 @@ final class BindingResolver
             /** @var mixed $binding */
             $binding = $this->bindings[$class];
 
-            // A binding is a class-string far more often than anything else, so
-            // strings skip the function-table lookup is_callable() costs on
-            // every bound parameter of every resolution. It is also the lookup
-            // that answers *true* for a class whose name collides with a
-            // defined function — invoking the binding instead of instantiating
-            // it, silently.
-            if (!is_string($binding) && is_callable($binding)) {
-                // Invoking the closure here is what makes every closure binding
-                // eager; a lazy() registration exists precisely to defer it.
+            if ($binding instanceof Closure || (is_array($binding) && is_callable($binding))) {
+                // Calling a factory here is eager; lazy() defers it.
                 /** @var class-string $class */
                 $lazyProxy = $cacheManager->lazyProxyFor($class);
                 if ($lazyProxy !== null) {
