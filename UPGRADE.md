@@ -7,17 +7,19 @@
 Compiled PHP caches now require trusted ownership and permissions before they
 are loaded. If a deploy account writes the cache and a different account runs
 PHP, generate the cache as the runtime account or transfer ownership during
-deployment. For a runtime account named `www-data`, for example:
+deployment. For a runtime account named `www-data` and a cache directory whose
+canonical ancestors already belong to root or that runtime account:
 
 ```sh
-chown www-data var/cache/container.php var/cache/factories.php
+chown www-data var/cache var/cache/container.php var/cache/factories.php
 chmod 0600 var/cache/container.php var/cache/factories.php
 chmod 0700 var/cache
 ```
 
-Apply this to the actual cache paths in your deployment. The directory chain
-must also satisfy the [cache file permissions](docs/performance.md#cache-file-permissions)
-rules. New and rewritten caches are private to their writer; a deployment that
+If the deployment tree belongs to another account, keep caches outside it in a
+runtime-owned directory such as `/var/cache/gacela`, and update the configured
+load and write paths. Every canonical ancestor must belong to root or the runtime
+account. See [cache file permissions](docs/performance.md#cache-file-permissions). New and rewritten caches are private to their writer; a deployment that
 shares caches across accounts must arrange ownership before loading them.
 
 ### Extending bindings
