@@ -8,6 +8,8 @@ use Exception;
 use Gacela\Container\FuzzyMatcher;
 use Psr\Container\ContainerExceptionInterface;
 
+use function implode;
+
 /**
  * @api
  */
@@ -111,6 +113,14 @@ Bind it to a concrete implementation:
   \$container->bind({$class}::class, YourConcreteClass::class);
 TXT;
         return new self($message);
+    }
+
+    /**
+     * @param list<string> $aliasChain
+     */
+    public static function aliasCycle(array $aliasChain): self
+    {
+        return new self('Alias cycle detected: ' . implode(' -> ', $aliasChain));
     }
 
     public static function contextualNullForType(string $abstract): self

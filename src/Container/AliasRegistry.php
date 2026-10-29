@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Gacela\Container\Exception\ContainerException;
+
+use function array_keys;
+
 /**
  * Manages service name aliases with resolution caching.
  * Allows accessing the same service with multiple identifiers.
@@ -46,23 +50,46 @@ final class AliasRegistry
      */
     public function resolve(string $id): string
     {
-        // Most containers register no aliases at all. Without this, every
-        // distinct id resolved would write an identity entry into
-        // resolvedCache, growing it unboundedly to map ids onto themselves.
-        if ($this->aliases === []) {
-            return $this->parent?->resolve($id) ?? $id;
+        if ($this->aliases === [] && $this->parent === null) {
+            return $id;
         }
 
-        if (isset($this->resolvedCache[$id])) {
+        if ($this->parent === null && isset($this->resolvedCache[$id])) {
             return $this->resolvedCache[$id];
         }
 
-        if (isset($this->aliases[$id])) {
-            return $this->resolvedCache[$id] = $this->aliases[$id];
+        $requested = $id;
+        $visited = [];
+
+        while (($target = $this->findAlias($id)) !== null) {
+            if (isset($visited[$id])) {
+                throw ContainerException::aliasCycle([...array_keys($visited), $id]);
+            }
+
+            $visited[$id] = true;
+            $id = $target;
         }
 
-        // Only ids this registry maps are cached. An ancestor's answer is
-        // cached by the ancestor, which is also where add() invalidates it.
-        return $this->parent?->resolve($id) ?? $id;
+        // A parent can add or change any remaining link after a scope resolves it.
+        if ($this->parent === null && $visited !== []) {
+            $this->resolvedCache[$requested] = $id;
+        }
+
+        return $id;
+    }
+
+    private function findAlias(string $id): ?string
+    {
+        $registry = $this;
+
+        while ($registry !== null) {
+            if (isset($registry->aliases[$id])) {
+                return $registry->aliases[$id];
+            }
+
+            $registry = $registry->parent;
+        }
+
+        return null;
     }
 }
