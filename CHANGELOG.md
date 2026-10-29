@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Aliases resolve complete chains across scopes and respect local overrides at every link. Parent alias changes remain visible after earlier resolutions, and cycles throw `ContainerException` instead of returning a missing service. See [service aliasing](docs/bindings.md#service-aliasing)
 - Lazy classes with instance properties and no constructor initialize on first use without calling a missing `__construct()`. Both `#[Lazy]` and `lazy()` preserve property defaults and property/setter injection. See [lazy objects](docs/attributes.md#lazy)
 - A hook that throws during `make()` with constructor overrides leaves stored services and shared closure registrations unchanged. Only the separate object being built is discarded; failed shared resolutions still clean up and retry. See [resolution hooks](docs/services.md#resolution-hooks)
 - `forget()` and `remove()` evict cached class, callable, and `#[Singleton]` instances, including aliases and class-string mappings, while keeping singleton registrations. A failed resolution hook now discards a half-configured singleton so the next call builds a fresh instance. See [resolution hooks](docs/services.md#resolution-hooks)
@@ -21,7 +22,6 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 - `extend()` throws a `ContainerException` for an id registered with `bind()` or `singleton()`, instead of silently ignoring the extension. Register the service through `set()` to extend it. See the [upgrade example](UPGRADE.md#extending-bindings)
 - Class-typed constructor parameters keep their declared defaults on repeated resolution and with generated factories installed. Both optimizations now leave these classes and their consumers to the runtime resolver. Compilation reports explain the refusal as `DefaultParameter`. See [generated constructor code](docs/performance.md#what-it-will-not-compile)
 - Closure bindings fall back to their owning container when a facade passed to `withSelfReference()` has been released. Live and replacement facades still receive the call.
-
 - Callable `singleton()` registrations no longer keep their container or request scope alive when cycle collection is disabled. Factories receive the current live facade from `withSelfReference()`, falling back to the owning container when it is dropped, and still run only once. See [scope disposal](docs/scopes.md#disposal-is-dropping-the-reference)
 - Untyped constructor parameters preserve their positions in nested dependencies and use named bindings or declared defaults. A required untyped parameter with no supplied value now throws `DependencyInvalidArgumentException` at any depth. See [named bindings](docs/bindings.md#named-scalar-contextual-bindings)
 - Type contextual bindings follow the class receiving each dependency, including nested constructors and `#[Inject]` properties. A root class's binding no longer leaks into its children. Inherited properties and setters use the class being built. See [contextual bindings](docs/bindings.md#contextual-bindings)
