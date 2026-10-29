@@ -683,16 +683,17 @@ final class Container implements FullContainerInterface, ArrayAccess
     }
 
     /**
-     * Whether a binding or instance is registered for the given id (alias-aware).
+     * Whether a binding, instance or alias is registered for the given id.
      */
     #[Override]
     public function bound(string $id): bool
     {
-        $id = $this->aliasRegistry->resolve($id);
+        $resolvedId = $this->aliasRegistry->resolve($id);
 
-        return isset($this->bindings[$id])
-            || $this->instanceRegistry->has($id)
-            || ($this->parent?->bound($id) ?? false);
+        return $resolvedId !== $id
+            || isset($this->bindings[$resolvedId])
+            || $this->instanceRegistry->has($resolvedId)
+            || ($this->parent?->bound($resolvedId) ?? false);
     }
 
     /**
