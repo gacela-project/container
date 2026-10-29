@@ -777,9 +777,6 @@ final class DependencyResolver
     }
 
     /**
-     * Entry-point parameters (top-level class or callable) must all be
-     * resolvable; an untyped parameter is a hard error here.
-     *
      * @param list<ParamPlan> $params
      * @param array<string, mixed> $overrides runtime values keyed by parameter name
      *
@@ -816,6 +813,10 @@ final class DependencyResolver
         }
 
         if (!$param['hasType']) {
+            if ($param['hasDefault']) {
+                return $param['default'];
+            }
+
             throw DependencyInvalidArgumentException::noParameterTypeFor($param['name'], $this->getResolutionChain());
         }
 
@@ -1190,11 +1191,6 @@ final class DependencyResolver
             $args = [];
 
             foreach ($plan['params'] as $param) {
-                // Nested constructors skip untyped parameters, relying on their defaults.
-                if (!$param['hasType']) {
-                    continue;
-                }
-
                 /** @psalm-suppress MixedAssignment */
                 $args[] = $this->resolveParameter($param);
             }
