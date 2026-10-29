@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Stored `null` values count as registered services, freeze when read, and suppress autowiring or inherited scope values. This includes aliases, `load()` value definitions, and shared definitions that return `null`. See [value definitions](docs/definitions.md#entry-forms)
 - `set()` and array assignment through an alias write to its canonical target, honoring frozen services and scheduled extensions without creating unreachable registrations. Alias chains and scope-local shadowing follow the same rules as reads. See [service aliasing](docs/bindings.md#service-aliasing)
 - Scopes recognize `factory()` and `protect()` marks from their ancestors for closures stored locally, including marks added after scope creation. Factories still receive the storing scope, extensions keep inherited factory behavior, and child marks stay isolated from ancestors and siblings. See [closure marks](docs/scopes.md#closure-marks)
 - Invokable objects passed to `bind()`, `singleton()`, or type-based contextual `give()` are injected unchanged as shared instances. Closures and callable arrays remain factories, while string bindings remain class names. See the [upgrade example](UPGRADE.md#invokable-object-bindings) if the object was intended as a factory

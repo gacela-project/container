@@ -34,10 +34,12 @@ it stands for, so laziness, freezing, contextual bindings and
 |---|---|---|
 | `Concrete::class` | `bind($id, Concrete::class)` | the string must name a loadable class |
 | `['singleton' => …]` | `singleton($id, …)` | a class-string, a callable (memoized), or an object |
-| `['value' => …]` | `set($id, …)` | any value: scalar, array, object |
+| `['value' => …]` | `set($id, …)` | any value: scalar, array, object, or `null` |
 | `['factory' => …]` | `bind($id, $callable)` | a callable, invoked on **every** resolution |
 | `['alias' => 'other.id']` | `alias($id, 'other.id')` | |
 | `['tags' => ['a', 'b']]` | `tag($id, 'a')`, `tag($id, 'b')` | |
+
+A stored `null` is a registered value: `has()`, `bound()`, and `provides()` recognize it, and `get()` returns `null` and freezes it. It suppresses autowiring and can shadow a parent's value in a scope. The same rules apply to `set($id, null)`; `getOrFail()` still requires a non-null result.
 
 `tags` may be combined with one other key. The four binding keys are mutually
 exclusive — naming two of them would leave the winner up to iteration order, so
