@@ -12,6 +12,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Cycles through an interface's class-string binding raise `CircularDependencyException` instead of exhausting memory. Contextual bindings can still select a separate inner implementation for a decorator
+- Class-string bindings from a concrete class to a subclass now apply to nested constructor parameters, including scope-local and `lazy()` replacements. Nested resolution uses the same target lifetime as `get()`, including after constructor builders or generated factories have been installed. See [registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too)
 - `set()` restores the previous registration when a scheduled extension cannot be applied. Failed attempts clear pending extensions and preserve the original exception, so later registrations can be extended normally. See [extending services](docs/services.md#extending-services)
 - `bound()` recognizes alias registrations, including inherited aliases and chains, so conditional bindings cannot create unreachable entries behind an alias. Unregistered autowirable classes remain unbound. See [conditional registration](docs/bindings.md#conditional-registration)
 - `taggedByKey()` accepts only the named string keys listed by `taggedKeys()`. Numeric position lookups throw `ContainerException` before building a service; integer-like map keys remain unkeyed entries. String names such as `'01'`, `'+1'` and `'1.0'` keep working. See [keyed tags](docs/bindings.md#keyed-tags) and the [upgrade example](UPGRADE.md#named-tag-lookups)

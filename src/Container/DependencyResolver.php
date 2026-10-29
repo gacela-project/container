@@ -979,6 +979,17 @@ final class DependencyResolver
             return $bindClass;
         }
 
+        if ($contextualBinding === null && is_string($bindClass) && $bindClass !== $paramTypeName && class_exists($bindClass)) {
+            // Keep the requested type in compilation reports before delegating.
+            $this->describeClass($paramTypeName);
+            $owner = $this->container();
+            if ($owner !== null) {
+                return $this->delegateTo($owner, $paramTypeName);
+            }
+
+            $paramTypeName = $bindClass;
+        }
+
         $this->checkCircularDependency($paramTypeName);
 
         $plan = $this->describeClass($paramTypeName);
