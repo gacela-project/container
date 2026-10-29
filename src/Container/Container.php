@@ -10,6 +10,7 @@ use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
 use Throwable;
+use WeakMap;
 use WeakReference;
 
 use function array_key_exists;
@@ -90,6 +91,9 @@ final class Container implements FullContainerInterface, ArrayAccess
 
     /** @var array<string, mixed> */
     private array $singletonValues = [];
+
+    /** @var WeakMap<object, array<int, true>>|null */
+    private ?WeakMap $appliedHooks = null;
 
     /**
      * What service closures are handed. This container unless a decorator said
@@ -837,11 +841,10 @@ final class Container implements FullContainerInterface, ArrayAccess
      * Register a callback to run after the given id is resolved, receiving the
      * resolved instance and the container. Callbacks run in registration order.
      *
-     * When $id names a **class or interface**, the callback fires for every
-     * resolved instance of it — so the registration people actually reach for,
-     * "after anything implementing LoggerAwareInterface is built, hand it the
-     * logger", is one call rather than one per implementation. Any other id
-     * matches exactly.
+     * A class or interface matches every resolved instance of that type.
+     * Each registration runs once per object, so reading a shared instance
+     * again does not repeat its configuration. Other ids match exactly.
+     * Non-object results invoke matching hooks on each resolution.
      *
      * A callback that throws **drops the built instance** (see forget()), so a
      * service whose post-construction wiring failed is not handed to the next
@@ -1549,22 +1552,38 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->dependencyTreeAnalyzer ??= new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
-    /**
-     * A container with no hooks pays one comparison — this runs on every
-     * resolution, and almost no container registers any.
-     */
     private function fireAfterResolving(string $id, mixed $instance): void
     {
         $container = $this->forClosures();
 
-        foreach ($this->afterResolvingCallbacks as $hook) {
+        foreach ($this->afterResolvingCallbacks as $index => $hook) {
             if (!$this->hookMatches($hook, $id, $instance)) {
                 continue;
+            }
+
+            if (is_object($instance)) {
+                if ($this->appliedHooks === null) {
+                    /** @var WeakMap<object, array<int, true>> $appliedHooks */
+                    $appliedHooks = new WeakMap();
+                    $this->appliedHooks = $appliedHooks;
+                }
+                $applied = $this->appliedHooks[$instance] ?? [];
+                if (isset($applied[$index])) {
+                    continue;
+                }
+
+                // Mark before invoking so a hook can resolve its own service.
+                $applied[$index] = true;
+                $this->appliedHooks[$instance] = $applied;
             }
 
             try {
                 $hook['callback']($instance, $container);
             } catch (Throwable $exception) {
+                if (is_object($instance)) {
+                    $this->resetAppliedHook($instance, $index);
+                }
+
                 // Wiring that failed halfway leaves an object the application
                 // believes is configured. Drop it rather than serve it again.
                 $this->forget($id);
@@ -1572,6 +1591,22 @@ final class Container implements FullContainerInterface, ArrayAccess
                 throw $exception;
             }
         }
+    }
+
+    private function resetAppliedHook(object $instance, int $index): void
+    {
+        $appliedHooks = $this->appliedHooks;
+        if ($appliedHooks === null) {
+            return;
+        }
+
+        $applied = $appliedHooks[$instance] ?? null;
+        if ($applied === null) {
+            return;
+        }
+
+        unset($applied[$index]);
+        $appliedHooks[$instance] = $applied;
     }
 
     /**
