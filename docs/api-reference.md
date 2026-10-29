@@ -120,7 +120,7 @@ See [introspection](services.md#introspection).
 | `getStats(): array` | Same numbers as an array (return shape is **not** covered by BC). Superseded by `stats()` |
 | `getDependencyTree(string $className): array` | Every class a given class depends on, flat and deduplicated — despite the name, a list rather than a tree. Use `dependencyGraph()` for structure |
 | `when(string\|array $concrete): ContextualBindingBuilder` | Define contextual bindings for specific classes (`needs()` accepts a type or a `$paramName`) |
-| `offsetGet` / `offsetSet` / `offsetExists` / `offsetUnset` | `ArrayAccess`: `$c[Id::class]`, assignment, `isset()`, `unset()` |
+| `offsetGet` / `offsetSet` / `offsetExists` / `offsetUnset` | `ArrayAccess` with string or integer offsets: lookup, assignment, `isset()`, `unset()`. See [array access](resolution.md#array-access) |
 
 ## Static methods
 
