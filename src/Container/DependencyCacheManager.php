@@ -93,6 +93,9 @@ final class DependencyCacheManager
 
     private ?DependencyResolver $dependencyResolver = null;
 
+    /** @var (Closure(string, mixed): void)|null */
+    private ?Closure $afterResolving = null;
+
     /**
      * The container a scope falls through to, held only to hand to the resolver
      * built later. Typed as the interface for the reason
@@ -435,6 +438,15 @@ final class DependencyCacheManager
     }
 
     /**
+     * @param Closure(string, mixed): void $callback
+     */
+    public function afterResolving(Closure $callback): void
+    {
+        $this->afterResolving = $callback;
+        $this->dropArgBuilders();
+    }
+
+    /**
      * Plan $classNames and everything their constructors reach, constructing
      * nothing. See DependencyResolver::planDeep() for why compiling must not
      * resolve.
@@ -599,6 +611,7 @@ final class DependencyCacheManager
                 $this->lazyFactories,
                 $this->ownedIds,
                 $this->ownerRef,
+                $this->afterResolving,
             );
 
             if ($this->parent !== null) {

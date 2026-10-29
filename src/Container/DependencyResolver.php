@@ -62,9 +62,9 @@ final class DependencyResolver
      * reads it once per construction, and going through a method to learn an
      * answer already recorded here costs more than the lookup does.
      *
-     * A Closure in here is always safe to call: everything that could change
-     * what a class resolves to — a binding, an alias, a stored instance, a
-     * contextual binding, lazy(), becoming a scope — drops the whole map first.
+     * A Closure in here is always safe to call: registrations that can change
+     * what a class resolves to (bindings, aliases, stored instances, contextual
+     * bindings, lazy(), afterResolving(), or becoming a scope) drop the map first.
      *
      * @var array<class-string, (Closure(): object)|bool>
      */
@@ -185,6 +185,7 @@ final class DependencyResolver
      *   bindings; see DependencyCacheManager::$ownedIds
      * @param WeakReference<ContainerInterface>|null $ownerRef the container this
      *   resolver belongs to, which a facade never replaces; see container()
+     * @param (Closure(string, mixed): void)|null $afterResolving
      */
     public function __construct(
         private array &$bindings = [],
@@ -195,6 +196,7 @@ final class DependencyResolver
         private array &$lazyFactories = [],
         private array &$ownedIds = [],
         private ?WeakReference $ownerRef = null,
+        private ?Closure &$afterResolving = null,
     ) {
         $this->supportsLazyObjects = self::$lazyObjectsAvailable
             ??= method_exists(ReflectionClass::class, 'newLazyGhost');
@@ -619,9 +621,8 @@ final class DependencyResolver
     /**
      * Whether *this container* can use builders at all.
      *
-     * Every one of these is an array the resolver holds by reference, so a
-     * `bind()`, a `when()` or a `lazy()` anywhere disables the mechanism on the
-     * next call without anything having to be invalidated. A scope is excluded
+     * Registration is held by reference, so bind(), when(), lazy() and
+     * afterResolving() disable the mechanism on the next call. A scope is excluded
      * outright: its ancestors can start providing a type at any time.
      *
      * Negating any single condition is caught by a test; negating all of them
@@ -635,7 +636,8 @@ final class DependencyResolver
         return !$this->hasParent
             && $this->contextualBindings === []
             && $this->lazyClasses === []
-            && $this->lazyFactories === [];
+            && $this->lazyFactories === []
+            && $this->afterResolving === null;
     }
 
     /**
@@ -910,10 +912,16 @@ final class DependencyResolver
             // is_callable() does on a string — nor risks that lookup answering
             // true for a class whose name collides with a function's.
             if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
-                return $contextualBinding($this->container());
+                /** @psalm-suppress MixedAssignment */
+                $instance = $contextualBinding($this->container());
+                $this->afterResolving?->__invoke($paramTypeName, $instance);
+
+                return $instance;
             }
 
             if (is_object($contextualBinding)) {
+                $this->afterResolving?->__invoke($paramTypeName, $contextualBinding);
+
                 return $contextualBinding;
             }
 
@@ -944,7 +952,11 @@ final class DependencyResolver
         // An ancestor that already owns this type hands over its own instance,
         // so a scope shares it instead of building a second one.
         if ($this->hasParent && $bindClass === null && $this->parent?->provides($paramTypeName) === true) {
-            return $this->parent->get($paramTypeName);
+            /** @psalm-suppress MixedAssignment */
+            $instance = $this->parent->get($paramTypeName);
+            $this->afterResolving?->__invoke($paramTypeName, $instance);
+
+            return $instance;
         }
 
         // The hottest of the three sites with this ordering: it runs once per
@@ -954,13 +966,22 @@ final class DependencyResolver
         // class whose name a function shares.
         if (!is_string($bindClass) && is_callable($bindClass)) {
             if ($this->supportsLazyObjects && isset($this->lazyFactories[$paramTypeName])) {
-                return $this->newLazyInstance($paramTypeName);
+                $instance = $this->newLazyInstance($paramTypeName);
+                $this->afterResolving?->__invoke($paramTypeName, $instance);
+
+                return $instance;
             }
 
-            return $bindClass($this->container());
+            /** @psalm-suppress MixedAssignment */
+            $instance = $bindClass($this->container());
+            $this->afterResolving?->__invoke($paramTypeName, $instance);
+
+            return $instance;
         }
 
         if (is_object($bindClass)) {
+            $this->afterResolving?->__invoke($paramTypeName, $bindClass);
+
             return $bindClass;
         }
 
@@ -979,7 +1000,10 @@ final class DependencyResolver
         // The field guards the call rather than isLazy() alone: on PHP 8.3
         // nothing is ever lazy, and this runs for every node of every graph.
         if ($this->supportsLazyObjects && $this->isLazy($paramTypeName)) {
-            return $this->newLazyInstance($paramTypeName);
+            $instance = $this->newLazyInstance($paramTypeName);
+            $this->afterResolving?->__invoke($paramTypeName, $instance);
+
+            return $instance;
         }
 
         // get() keeps the shared instance; building one here would hand the
@@ -1217,6 +1241,8 @@ final class DependencyResolver
             if ($plan['methods'] !== []) {
                 $this->callInjectedMethods($instance, $className, $plan['methods']);
             }
+
+            $this->afterResolving?->__invoke($className, $instance);
 
             return $instance;
         } finally {
