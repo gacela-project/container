@@ -246,6 +246,7 @@ cannot decide statically:
 
 - classes behind a **binding** — the binding could change after compilation
 - **scalar** or untyped parameters — the value may come from a contextual binding
+- class-typed parameters with a declared default, such as `?Logger $logger = null`, so the runtime keeps selecting that default
 - `#[Inject]`, `#[Singleton]`, `#[Factory]`, `#[Lazy]` — lifetime and
   construction belong to the runtime
 - classes registered with `lazy()` — same reason, without the attribute to see
@@ -313,6 +314,7 @@ per branch that can refuse a class:
 | `InjectedMethod` | a `new` expression cannot make the `#[Inject]` method calls |
 | `InjectedParameter` | an `#[Inject]` parameter is resolved at runtime |
 | `ScalarParameter` | a scalar or untyped constructor parameter |
+| `DefaultParameter` | a class-typed constructor parameter with a declared default |
 | `DependencyCycle` | the class takes part in a cycle |
 | `NoPlan` | the planner never described it |
 | `Dependency` | one of its constructor dependencies could not be compiled |
@@ -644,7 +646,7 @@ ask: a composed builder and a refusal are both read inline.
 A builder is only installed when nothing about the graph can be influenced by
 configuration. It is refused for a class that is bound, `lazy()`-registered or
 `#[Lazy]`, abstract, has `#[Inject]` parameters, properties or methods, or takes
-a scalar or untyped parameter — and refusal propagates, so one unbuildable class
+a scalar, untyped, or defaulted class parameter. Refusal propagates, so one unbuildable class
 disqualifies everything above it. A scope never uses one, and any contextual
 binding disables the mechanism outright.
 

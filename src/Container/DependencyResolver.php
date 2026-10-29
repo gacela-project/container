@@ -716,7 +716,7 @@ final class DependencyResolver
             // be answered by configuration, which is exactly what this may not
             // decide ahead of time. A default is no better: reading it here
             // would pin the value the plan happened to capture.
-            if (!$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $type === null) {
+            if (!$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $param['hasDefault'] || $type === null) {
                 return null;
             }
 

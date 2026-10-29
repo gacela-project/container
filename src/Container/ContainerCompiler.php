@@ -264,6 +264,13 @@ final class ContainerCompiler
             ));
         }
 
+        if ($param['hasDefault']) {
+            return $this->skip($class, CompilationSkipReason::DefaultParameter, sprintf(
+                'parameter $%s has a declared default, which is selected at runtime',
+                $param['name'],
+            ));
+        }
+
         /** @var class-string $type */
         $type = $param['type'];
 
