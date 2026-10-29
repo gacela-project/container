@@ -1,4 +1,11 @@
 /.claude                export-ignore
+/.agents                export-ignore
+/.agnostic-ai           export-ignore
+/.codex                 export-ignore
+AGENTS.md               export-ignore
+/CLAUDE.md              export-ignore
+/agnostic-ai.yaml       export-ignore
+/.worktreeinclude       export-ignore
 /.editorconfig          export-ignore
 /.gitattributes         export-ignore
 /.github                export-ignore

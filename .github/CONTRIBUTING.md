@@ -1,5 +1,20 @@
 # Contributing to Gacela
 
+## Claude and Codex setup
+
+The project uses a global [agnostic-ai](https://github.com/Chemaclass/agnostic-ai) installation on your PATH. The expected version is **0.90.0**, pinned by `requires` in `agnostic-ai.yaml`. Install it once on your machine, for example with Homebrew:
+
+```bash
+brew install --cask Chemaclass/tap/agnostic-ai
+agnostic-ai --version
+```
+
+Confirm the installed version is 0.90.0, then run `agnostic-ai sync` from the repository root. Repeat the sync after cloning, creating a worktree, or changing AI configuration. The repository contains project configuration only; the executable and installer are not committed or installed by CI.
+
+Shared instructions, scoped PHP rules, and project skills live under `.agnostic-ai/`. Edit those sources and run `agnostic-ai sync`; generated `CLAUDE.md`, `AGENTS.md`, skills, and settings are ignored. Personal credentials and machine-specific settings stay in ignored local files.
+
+Validate configuration changes locally with `agnostic-ai validate`, `agnostic-ai lint --strict`, `agnostic-ai sync --check`, and `agnostic-ai doctor --scope project --check-references --check-globs`. Choose PHP checks according to the affected behaviour; documentation and AI configuration changes do not need the PHP test, mutation, or benchmark suites.
+
 ## Welcome!
 
 We look forward to your contributions!
