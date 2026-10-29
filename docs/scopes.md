@@ -197,6 +197,25 @@ treatment: registering on the parent later always reached existing scopes.
 scope they are therefore no-ops when any ancestor already bound the id. Use
 `bind()` when a scope must override regardless.
 
+## Closure marks
+
+A scope recognizes `factory()` and `protect()` marks from its ancestors when
+it stores the marked closure locally:
+
+```php
+$scope->set('fresh', $app->factory(static fn () => new TempFile()));
+$scope->set('callback', $app->protect(static fn () => 'value'));
+```
+
+The factory creates a fresh value on each read and receives the scope that
+stored it. The protected closure is returned without being called. Marks added
+after a scope was created are visible too; mark a closure before its first read.
+Marks on a scope reach its descendants, while its ancestors and siblings keep
+their own behavior. Marks hold closures weakly and do not extend their lifetime.
+
+Extending a locally stored factory keeps it a factory, including when an
+ancestor marked the original closure. The ancestor's mark remains intact.
+
 ## Introspection reports the whole chain
 
 Because a scope can resolve what its ancestors registered, it reports it too:

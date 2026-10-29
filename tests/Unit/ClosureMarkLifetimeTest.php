@@ -189,4 +189,36 @@ final class ClosureMarkLifetimeTest extends TestCase
 
         self::assertNotSame($container->get('svc'), $container->get('svc'));
     }
+
+    public function test_removing_a_scope_factory_releases_its_ancestor_marked_closure_and_capture(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $payload = new ClassWithoutDependencies();
+        $closure = $parent->factory(static fn (): object => $payload);
+        $scope->set('service', $closure);
+        $closureReference = WeakReference::create($closure);
+        $payloadReference = WeakReference::create($payload);
+        unset($closure, $payload);
+        $scope->remove('service');
+
+        self::assertNull($closureReference->get());
+        self::assertNull($payloadReference->get());
+    }
+
+    public function test_removing_a_scope_protected_value_releases_its_ancestor_marked_closure_and_capture(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $payload = new ClassWithoutDependencies();
+        $closure = $parent->protect(static fn (): object => $payload);
+        $scope->set('service', $closure);
+        $closureReference = WeakReference::create($closure);
+        $payloadReference = WeakReference::create($payload);
+        unset($closure, $payload);
+        $scope->remove('service');
+
+        self::assertNull($closureReference->get());
+        self::assertNull($payloadReference->get());
+    }
 }

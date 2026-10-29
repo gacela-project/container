@@ -282,6 +282,7 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         $scope->aliasRegistry->inheritFrom($this->aliasRegistry);
         $scope->bindingResolver->inheritFrom($this->bindingResolver);
+        $scope->factoryManager->inheritFrom($this->factoryManager);
         $scope->cacheManager->inheritFrom($this->cacheManager, $this);
 
         $this->rememberScope($scope);

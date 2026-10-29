@@ -17,6 +17,7 @@ use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
 use GacelaTest\Fake\SingletonAttributeService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use WeakReference;
@@ -562,7 +563,7 @@ final class ScopeTest extends TestCase
      *
      * @param callable(Container): void $registerOnParent
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('inheritedOwnershipProvider')]
+    #[DataProvider('inheritedOwnershipProvider')]
     public function test_extending_something_an_ancestor_owns_throws(callable $registerOnParent): void
     {
         $container = new Container();
@@ -696,5 +697,134 @@ final class ScopeTest extends TestCase
         } catch (DependencyNotFoundException $e) {
             self::assertStringContainsString('GacelaTest\\Fake\\RepositoryInterfce', $e->getMessage());
         }
+    }
+
+    #[DataProvider('inheritedClosureMarks')]
+    public function test_a_factory_mark_from_an_ancestor_applies_to_a_locally_stored_closure(int $depth, bool $lateMark): void
+    {
+        $parent = new Container();
+        $seen = [];
+        $closure = static function (ContainerInterface $container) use (&$seen): stdClass {
+            $seen[] = $container;
+
+            return new stdClass();
+        };
+        if (!$lateMark) {
+            $parent->factory($closure);
+        }
+        $scope = $parent;
+        for ($i = 0; $i < $depth; ++$i) {
+            $scope = $scope->createScope();
+        }
+        $scope->set('fresh', $closure);
+        if ($lateMark) {
+            $parent->factory($closure);
+        }
+
+        self::assertTrue($scope->isFactory('fresh'));
+        self::assertNotSame($scope->get('fresh'), $scope->get('fresh'));
+        self::assertSame([$scope, $scope], $seen);
+    }
+
+    #[DataProvider('inheritedClosureMarks')]
+    public function test_a_protected_mark_from_an_ancestor_applies_to_a_locally_stored_closure(int $depth, bool $lateMark): void
+    {
+        $parent = new Container();
+        $calls = 0;
+        $closure = static function () use (&$calls): string {
+            ++$calls;
+
+            return 'called';
+        };
+        if (!$lateMark) {
+            $parent->protect($closure);
+        }
+        $scope = $parent;
+        for ($i = 0; $i < $depth; ++$i) {
+            $scope = $scope->createScope();
+        }
+        $scope->set('protected', $closure);
+        if ($lateMark) {
+            $parent->protect($closure);
+        }
+
+        self::assertSame($closure, $scope->get('protected'));
+        self::assertSame($closure, $scope->get('protected'));
+        self::assertSame(0, $calls);
+    }
+
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function inheritedClosureMarks(): iterable
+    {
+        yield 'parent marked before scope creation' => [1, false];
+        yield 'parent marked after scope registration' => [1, true];
+        yield 'grandparent marked before scope creation' => [2, false];
+        yield 'grandparent marked after scope registration' => [2, true];
+    }
+
+    public function test_marks_on_a_scope_reach_descendants_without_affecting_ancestors_or_siblings(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $sibling = $parent->createScope();
+        $descendant = $scope->createScope();
+        $factory = $scope->factory(static fn (): stdClass => new stdClass());
+        $protected = $scope->protect(static fn (): string => 'called');
+        foreach ([$parent, $scope, $sibling, $descendant] as $container) {
+            $container->set('fresh', $factory);
+            $container->set('protected', $protected);
+        }
+
+        self::assertFalse($parent->isFactory('fresh'));
+        self::assertFalse($sibling->isFactory('fresh'));
+        self::assertTrue($scope->isFactory('fresh'));
+        self::assertTrue($descendant->isFactory('fresh'));
+        self::assertSame($parent->get('fresh'), $parent->get('fresh'));
+        self::assertSame($sibling->get('fresh'), $sibling->get('fresh'));
+        self::assertNotSame($descendant->get('fresh'), $descendant->get('fresh'));
+        self::assertSame('called', $parent->get('protected'));
+        self::assertSame('called', $sibling->get('protected'));
+        self::assertSame($protected, $scope->get('protected'));
+        self::assertSame($protected, $descendant->get('protected'));
+    }
+
+    public function test_extending_an_inherited_factory_mark_keeps_the_child_and_parent_factories_fresh(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $factoryContainers = [];
+        $extensionContainers = [];
+        $factory = $parent->factory(static function (ContainerInterface $container) use (&$factoryContainers): stdClass {
+            $factoryContainers[] = $container;
+
+            return new stdClass();
+        });
+        $parent->set('fresh', $factory);
+        $scope->set('fresh', $factory);
+        $scope->extend('fresh', static function (object $instance, ContainerInterface $container) use (&$extensionContainers): object {
+            $extensionContainers[] = $container;
+
+            return $instance;
+        });
+
+        self::assertTrue($scope->isFactory('fresh'));
+        self::assertNotSame($scope->get('fresh'), $scope->get('fresh'));
+        self::assertTrue($parent->isFactory('fresh'));
+        self::assertNotSame($parent->get('fresh'), $parent->get('fresh'));
+        self::assertSame([$scope, $scope, $parent, $parent], $factoryContainers);
+        self::assertSame([$scope, $scope], $extensionContainers);
+    }
+
+    public function test_a_locally_stored_closure_with_an_ancestor_protected_mark_cannot_be_extended(): void
+    {
+        $parent = new Container();
+        $scope = $parent->createScope();
+        $protected = $parent->protect(static fn (): string => 'called');
+        $scope->set('protected', $protected);
+
+        $this->expectException(ContainerException::class);
+        $scope->extend('protected', static fn (mixed $instance): mixed => $instance);
     }
 }
