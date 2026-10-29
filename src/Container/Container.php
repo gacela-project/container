@@ -794,6 +794,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     {
         $this->cacheManager->dropArgBuilders();
 
+        $id = $this->aliasRegistry->resolve($id);
         $this->instanceRegistry->set($id, $instance);
 
         // Nested resolution has no way to reach the instance registry, and a
