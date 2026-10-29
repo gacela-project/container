@@ -25,6 +25,9 @@ final class BindingResolver
 {
     private ?self $parent = null;
 
+    /** @var WeakReference<ContainerInterface>|null */
+    private readonly ?WeakReference $ownerRef;
+
     /**
      * @param BindingsMap $bindings
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
@@ -33,6 +36,7 @@ final class BindingResolver
         private array &$bindings = [],
         private ?WeakReference $containerRef = null,
     ) {
+        $this->ownerRef = $containerRef;
     }
 
     /**
@@ -76,7 +80,7 @@ final class BindingResolver
                 }
 
                 /** @var mixed $binding */
-                $binding = $binding($this->containerRef?->get());
+                $binding = $binding($this->containerRef?->get() ?? $this->ownerRef?->get());
             }
 
             if (is_object($binding)) {
