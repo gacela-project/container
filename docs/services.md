@@ -84,17 +84,11 @@ $container->afterResolving(LoggerAwareInterface::class, function (object $s, Con
 Any other id matches exactly, so `afterResolving('db.primary', …)` fires for that
 id and nothing else. Both kinds fire in registration order, interleaved.
 
-Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with
-overridden arguments. Each hook registration runs once per object. Reading a
-shared service again, including through an alias or another id, does not repeat
-its configuration. Fresh objects and replacement instances each receive the
-hook. A hook registered later runs the next time a matching object is resolved.
-Non-object values run matching hooks on each resolution.
+Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with overridden arguments. Type-matched hooks also configure dependencies built inside constructors, before the receiving constructor runs. This includes global and contextual binding results.
 
-Each container tracks its own registrations. A parent hook runs once for a
-shared object even when several scopes resolve it. A scope's own hook also runs
-once when that scope resolves the object. Tracking holds objects weakly, so it
-does not extend their lifetime.
+Each hook registration runs once per object. Reading a shared service again, including through an alias or another id, does not repeat its configuration. Fresh objects and replacement instances each receive the hook. A hook registered later runs the next time a matching object is resolved. Non-object values run matching hooks on each resolution.
+
+Each container tracks its own registrations. A scope's hooks apply to its nested resolutions, including services obtained from a parent. Parent hooks run first when the parent supplies a service, followed by the scope's hooks; they do not apply to services the scope autowires itself. Tracking holds objects weakly, so it does not extend their lifetime.
 
 A callback that throws **drops the built instance**: a service whose
 post-construction wiring failed should not be handed to the next caller as
