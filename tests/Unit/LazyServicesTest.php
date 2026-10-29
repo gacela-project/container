@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
+use Gacela\Container\DependencyResolver;
 use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\AbstractService;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -13,13 +14,17 @@ use GacelaTest\Fake\EagerService;
 use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\LazyFactoryService;
 use GacelaTest\Fake\LazyService;
+use GacelaTest\Fake\LazyServiceWithoutConstructor;
 use GacelaTest\Fake\LazyServiceWithoutProperties;
 use GacelaTest\Fake\LazySingletonService;
 use GacelaTest\Fake\OuterHoldingLazyService;
 use GacelaTest\Fake\OuterHoldingReportGenerator;
 use GacelaTest\Fake\ReportGeneratorInterface;
+use GacelaTest\Fake\ServiceWithInjectedMethod;
+use GacelaTest\Fake\ServiceWithInjectedProperty;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionProperty;
 
 final class LazyServicesTest extends TestCase
 {
@@ -462,6 +467,84 @@ final class LazyServicesTest extends TestCase
             ReportGeneratorInterface::class,
             static fn (): ExpensiveReportGenerator => new ExpensiveReportGenerator(new ClassWithoutDependencies()),
         );
+    }
+
+    public function test_a_lazy_attribute_without_a_constructor_preserves_defaults_and_injects_on_first_touch(): void
+    {
+        $builds = 0;
+        $container = new Container([
+            ClassWithoutDependencies::class => static function () use (&$builds): ClassWithoutDependencies {
+                ++$builds;
+
+                return new ClassWithoutDependencies();
+            },
+        ]);
+        $service = $container->get(LazyServiceWithoutConstructor::class);
+        self::assertInstanceOf(LazyServiceWithoutConstructor::class, $service);
+        if (self::supportsLazyObjects()) {
+            self::assertSame(0, $builds);
+        }
+
+        self::assertSame(3, $service->retries);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->propertyDependency);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->setterDependency);
+        self::assertSame(1, $service->setterCalls);
+        self::assertSame(2, $builds);
+    }
+
+    public function test_a_lazy_registered_class_without_a_constructor_injects_properties(): void
+    {
+        $container = new Container();
+        $container->lazy(ServiceWithInjectedProperty::class);
+
+        $service = $container->get(ServiceWithInjectedProperty::class);
+
+        self::assertInstanceOf(ServiceWithInjectedProperty::class, $service);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency());
+    }
+
+    public function test_a_lazy_registered_class_without_a_constructor_injects_methods(): void
+    {
+        $container = new Container();
+        $container->lazy(ServiceWithInjectedMethod::class);
+
+        $service = $container->get(ServiceWithInjectedMethod::class);
+
+        self::assertInstanceOf(ServiceWithInjectedMethod::class, $service);
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency);
+        self::assertSame(1, $service->calls);
+    }
+
+    public function test_classes_without_constructors_keep_injection_in_the_eager_fallback(): void
+    {
+        $available = new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable');
+        $available->setValue(null, false);
+        try {
+            $builds = 0;
+            $container = new Container([
+                ClassWithoutDependencies::class => static function () use (&$builds): ClassWithoutDependencies {
+                    ++$builds;
+
+                    return new ClassWithoutDependencies();
+                },
+            ]);
+            $container->lazy(ServiceWithInjectedMethod::class);
+            $attribute = $container->get(LazyServiceWithoutConstructor::class);
+            self::assertSame(2, $builds);
+            $registered = $container->get(ServiceWithInjectedMethod::class);
+            self::assertSame(3, $builds);
+
+            self::assertInstanceOf(LazyServiceWithoutConstructor::class, $attribute);
+            self::assertSame(3, $attribute->retries);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $attribute->propertyDependency);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $attribute->setterDependency);
+            self::assertSame(1, $attribute->setterCalls);
+            self::assertInstanceOf(ServiceWithInjectedMethod::class, $registered);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $registered->dependency);
+            self::assertSame(1, $registered->calls);
+        } finally {
+            Container::resetStaticCaches();
+        }
     }
 
     private static function supportsLazyObjects(): bool

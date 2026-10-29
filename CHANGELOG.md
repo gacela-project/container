@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Lazy classes with instance properties and no constructor initialize on first use without calling a missing `__construct()`. Both `#[Lazy]` and `lazy()` preserve property defaults and property/setter injection. See [lazy objects](docs/attributes.md#lazy)
 - A hook that throws during `make()` with constructor overrides leaves stored services and shared closure registrations unchanged. Only the separate object being built is discarded; failed shared resolutions still clean up and retry. See [resolution hooks](docs/services.md#resolution-hooks)
 - `forget()` and `remove()` evict cached class, callable, and `#[Singleton]` instances, including aliases and class-string mappings, while keeping singleton registrations. A failed resolution hook now discards a half-configured singleton so the next call builds a fresh instance. See [resolution hooks](docs/services.md#resolution-hooks)
 - Type-matched `afterResolving()` hooks configure nested constructor dependencies and binding results, including scope-local hooks for parent-provided services. Containers with hooks use runtime resolution so composed builders and generated factories cannot skip those callbacks. See [resolution hooks](docs/services.md#resolution-hooks)
