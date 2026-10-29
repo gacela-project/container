@@ -33,6 +33,7 @@ use function class_exists;
 use function in_array;
 use function interface_exists;
 use function is_a;
+use function is_array;
 use function is_callable;
 use function is_object;
 use function is_string;
@@ -909,11 +910,7 @@ final class DependencyResolver
         /** @psalm-suppress MixedAssignment */
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
-            // Same ordering as BindingResolver::resolve(): a class-string is
-            // the common case, so it never pays the function-table lookup
-            // is_callable() does on a string — nor risks that lookup answering
-            // true for a class whose name collides with a function's.
-            if (!is_string($contextualBinding) && is_callable($contextualBinding)) {
+            if ($contextualBinding instanceof Closure || (is_array($contextualBinding) && is_callable($contextualBinding))) {
                 /** @psalm-suppress MixedAssignment */
                 $instance = $contextualBinding($this->container());
                 $this->afterResolving?->__invoke($paramTypeName, $instance);
@@ -961,12 +958,7 @@ final class DependencyResolver
             return $instance;
         }
 
-        // The hottest of the three sites with this ordering: it runs once per
-        // constructor parameter of every node of every graph. A class-string
-        // binding is settled below, by the plan, so it never pays the
-        // function-table lookup — nor risks that lookup answering true for a
-        // class whose name a function shares.
-        if (!is_string($bindClass) && is_callable($bindClass)) {
+        if ($bindClass instanceof Closure || is_array($bindClass)) {
             if ($this->supportsLazyObjects && isset($this->lazyFactories[$paramTypeName])) {
                 $instance = $this->newLazyInstance($paramTypeName);
                 $this->afterResolving?->__invoke($paramTypeName, $instance);

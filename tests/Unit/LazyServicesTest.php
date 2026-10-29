@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
+use Gacela\Container\ContainerInterface;
 use Gacela\Container\DependencyResolver;
 use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\AbstractService;
@@ -22,6 +23,7 @@ use GacelaTest\Fake\OuterHoldingReportGenerator;
 use GacelaTest\Fake\ReportGeneratorInterface;
 use GacelaTest\Fake\ServiceWithInjectedMethod;
 use GacelaTest\Fake\ServiceWithInjectedProperty;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -544,6 +546,71 @@ final class LazyServicesTest extends TestCase
             self::assertSame(1, $registered->calls);
         } finally {
             Container::resetStaticCaches();
+        }
+    }
+
+    #[DataProvider('callableLazyFactoryProvider')]
+    public function test_callable_lazy_factories_preserve_direct_and_nested_resolution(bool $arrayFactory, bool $nested, bool $forceEager): void
+    {
+        if (!$forceEager && !self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
+        $available = new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable');
+        $previous = $available->getValue();
+        if ($forceEager) {
+            $available->setValue(null, false);
+        }
+
+        try {
+            $factory = new class() {
+                public int $calls = 0;
+
+                public function __invoke(ContainerInterface $container): ExpensiveReportGenerator
+                {
+                    ++$this->calls;
+
+                    return new ExpensiveReportGenerator($container->get(ClassWithoutDependencies::class));
+                }
+
+                public function build(ContainerInterface $container): ExpensiveReportGenerator
+                {
+                    return $this($container);
+                }
+            };
+            $container = new Container();
+            $container->lazy(ExpensiveReportGenerator::class, $arrayFactory ? [$factory, 'build'] : $factory);
+            $generator = $nested
+                ? $container->get(OuterHoldingReportGenerator::class)->reportGenerator
+                : $container->get(ExpensiveReportGenerator::class);
+
+            self::assertInstanceOf(ExpensiveReportGenerator::class, $generator);
+            self::assertSame($forceEager ? 1 : 0, $factory->calls);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $generator->dependency);
+            self::assertSame(1, $factory->calls);
+            self::assertSame(1, ConstructionCounter::countFor(ExpensiveReportGenerator::class));
+        } finally {
+            if ($forceEager) {
+                $available->setValue(null, $previous);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{bool, bool, bool}>
+     */
+    public static function callableLazyFactoryProvider(): iterable
+    {
+        foreach ([false, true] as $arrayFactory) {
+            foreach ([false, true] as $nested) {
+                foreach ([false, true] as $forceEager) {
+                    $name = ($arrayFactory ? 'array' : 'invokable')
+                        . ($nested ? ' nested' : ' direct')
+                        . ($forceEager ? ' eager fallback' : ' native');
+
+                    yield $name => [$arrayFactory, $nested, $forceEager];
+                }
+            }
         }
     }
 

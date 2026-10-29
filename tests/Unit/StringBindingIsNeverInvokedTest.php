@@ -15,15 +15,6 @@ use function class_exists;
 use function function_exists;
 use function is_callable;
 
-/**
- * A string binding names a class, and is never asked about the function table.
- *
- * Both binding paths used to test is_callable() first. On a string that is a
- * function-table lookup answering false — paid per bound parameter of every
- * resolution — and on a class-string that collides with a defined function it
- * answers *true*, so the binding was invoked instead of instantiated. Testing
- * is_string() first removes the cost and the hazard together.
- */
 final class StringBindingIsNeverInvokedTest extends TestCase
 {
     public function test_the_fixture_really_does_collide(): void
@@ -78,17 +69,30 @@ final class StringBindingIsNeverInvokedTest extends TestCase
         self::assertInstanceOf(NameSharedWithAFunction::class, $container->get(RepositoryInterface::class));
     }
 
-    public function test_an_invokable_object_binding_is_still_invoked(): void
+    public function test_an_invokable_object_binding_is_returned_as_an_instance(): void
     {
         $container = new Container();
-        $container->bind(RepositoryInterface::class, new class() {
+        $instance = new class() {
             public function __invoke(): NameSharedWithAFunction
             {
                 return new NameSharedWithAFunction();
             }
-        });
+        };
+        $container->bind(RepositoryInterface::class, $instance);
 
-        self::assertInstanceOf(NameSharedWithAFunction::class, $container->get(RepositoryInterface::class));
+        self::assertSame($instance, $container->get(RepositoryInterface::class));
+    }
+
+    public function test_a_singleton_class_string_is_not_invoked_when_it_names_a_function(): void
+    {
+        self::assertTrue(class_exists(NameSharedWithAFunction::class));
+        self::assertIsCallable(NameSharedWithAFunction::class);
+        $container = new Container();
+        $container->singleton(NameSharedWithAFunction::class);
+        $first = $container->get(NameSharedWithAFunction::class);
+
+        self::assertInstanceOf(NameSharedWithAFunction::class, $first);
+        self::assertSame($first, $container->get(NameSharedWithAFunction::class));
     }
 
     public function test_an_instance_binding_is_still_returned_as_is(): void
