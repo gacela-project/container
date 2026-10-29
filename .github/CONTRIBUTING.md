@@ -133,8 +133,15 @@ composer bench-baseline
 composer infection
 ```
 
-CI fails below **80% MSI**. If a change drops the score, add a test — do not
-lower the threshold. If a surviving mutant is genuinely equivalent (common in
+Mutation testing runs manually, outside pull-request and push CI. In GitHub
+Actions, select **Mutation Testing** and choose **Run workflow**, or run:
+
+```bash
+gh workflow run mutation.yml --ref main
+```
+
+The configured minimum MSI and covered MSI are both **87%**. If a change drops
+the score, add a test; do not lower the threshold. If a surviving mutant is genuinely equivalent (common in
 short-circuit optimizations, where removing the early return falls through to
 the same result), say so in the PR rather than contorting a test to kill it.
 
