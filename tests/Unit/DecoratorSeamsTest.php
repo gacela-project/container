@@ -63,6 +63,65 @@ final class DecoratorSeamsTest extends TestCase
         self::assertSame($facade, $seen);
     }
 
+    public function test_a_bound_closure_receives_the_live_facade(): void
+    {
+        $container = new Container();
+        $facade = new ForwardingContainer($container);
+        $container->withSelfReference($facade);
+        $seen = null;
+        $container->bind(ClassWithoutDependencies::class, static function (ContainerInterface $given) use (&$seen): object {
+            $seen = WeakReference::create($given);
+
+            return new ClassWithoutDependencies();
+        });
+
+        $container->get(ClassWithoutDependencies::class);
+
+        self::assertSame($facade, $seen?->get());
+    }
+
+    public function test_a_bound_closure_uses_the_owner_after_the_facade_is_dropped(): void
+    {
+        $container = new Container();
+        $facade = new ForwardingContainer($container);
+        $container->withSelfReference($facade);
+        $facadeRef = WeakReference::create($facade);
+        $seen = null;
+        $container->bind(ClassWithoutDependencies::class, static function (ContainerInterface $given) use (&$seen): object {
+            $seen = WeakReference::create($given);
+
+            return new ClassWithoutDependencies();
+        });
+        unset($facade);
+
+        self::assertNull($facadeRef->get());
+        $container->get(ClassWithoutDependencies::class);
+
+        self::assertSame($container, $seen?->get());
+    }
+
+    public function test_a_bound_closure_tracks_a_replacement_facade_then_falls_back_to_its_owner(): void
+    {
+        $container = new Container();
+        $first = new ForwardingContainer($container);
+        $container->withSelfReference($first);
+        $seen = null;
+        $container->bind(ClassWithoutDependencies::class, static function (ContainerInterface $given) use (&$seen): object {
+            $seen = WeakReference::create($given);
+
+            return new ClassWithoutDependencies();
+        });
+        $replacement = new ForwardingContainer($container);
+        $container->withSelfReference($replacement);
+        $container->get(ClassWithoutDependencies::class);
+
+        self::assertSame($replacement, $seen?->get());
+        unset($replacement);
+        $container->get(ClassWithoutDependencies::class);
+
+        self::assertSame($container, $seen?->get());
+    }
+
     public function test_a_contextual_closure_receives_the_facade(): void
     {
         $container = new Container();
