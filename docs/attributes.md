@@ -329,8 +329,12 @@ See [bindings](bindings.md#deferred-registration).
 
 ### Combining with other attributes
 
-- `#[Singleton] #[Lazy]` — one shared instance, constructed on first touch
+- `#[Singleton] #[Lazy]`: one shared instance for direct reads and constructor injection, constructed on first touch
 - `#[Factory] #[Lazy]` — a fresh lazy instance per resolution
+
+A contextual class target keeps its singleton lifetime even when a global binding
+replaces that class for other consumers. Selecting `Heavy::class` explicitly
+shares the cached `Heavy` instance, and `forget(Heavy::class)` clears that cache.
 
 ### PHP version
 

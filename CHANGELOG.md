@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Classes marked `#[Singleton] #[Lazy]` share one deferred instance across direct reads and constructor injection. Initialization still happens once on first use, and PHP 8.3 keeps the eager shared fallback. Explicit contextual targets keep their selected class and singleton cache when another global binding replaces that class. See [combined attributes](docs/attributes.md#combining-with-other-attributes)
 - `bound()` recognizes alias registrations, including inherited aliases and chains, so conditional bindings cannot create unreachable entries behind an alias. Unregistered autowirable classes remain unbound. See [conditional registration](docs/bindings.md#conditional-registration)
 - `taggedByKey()` accepts only the named string keys listed by `taggedKeys()`. Numeric position lookups throw `ContainerException` before building a service; integer-like map keys remain unkeyed entries. String names such as `'01'`, `'+1'` and `'1.0'` keep working. See [keyed tags](docs/bindings.md#keyed-tags) and the [upgrade example](UPGRADE.md#named-tag-lookups)
 - `extend()` passes literal callable arrays to extensions as array values instead of invoking them. Callable string values are rejected as non-extendable when the extension is registered. Closures and invokable objects still supply their results to extensions. See [extending services](docs/services.md#extending-services)

@@ -9,8 +9,10 @@ use Gacela\Container\Attribute\Singleton;
 
 #[Singleton]
 #[Lazy]
-final class LazySingletonService
+class LazySingletonService
 {
+    public int $value = 0;
+
     public function __construct()
     {
         ConstructionCounter::record(self::class);

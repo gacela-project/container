@@ -189,6 +189,7 @@ final class DependencyResolver
      * @param WeakReference<ContainerInterface>|null $ownerRef the container this
      *   resolver belongs to, which a facade never replaces; see container()
      * @param (Closure(string, mixed): void)|null $afterResolving
+     * @param WeakReference<DependencyCacheManager>|null $cacheManagerRef
      */
     public function __construct(
         private array &$bindings = [],
@@ -200,6 +201,7 @@ final class DependencyResolver
         private array &$ownedIds = [],
         private ?WeakReference $ownerRef = null,
         private ?Closure &$afterResolving = null,
+        private ?WeakReference $cacheManagerRef = null,
     ) {
         $this->supportsLazyObjects = self::$lazyObjectsAvailable
             ??= method_exists(ReflectionClass::class, 'newLazyGhost');
@@ -926,6 +928,15 @@ final class DependencyResolver
 
             /** @var class-string $contextualBinding */
             $paramTypeName = $contextualBinding;
+
+            // A contextual class selects that class, not its global replacement.
+            $binding = $this->bindings[$paramTypeName] ?? $this->parent?->getBindings()[$paramTypeName] ?? null;
+            $cacheManager = $this->cacheManagerRef?->get();
+            if ($binding !== null && $binding !== $paramTypeName && $cacheManager !== null
+                && ($cacheManager->ownsSingleton($paramTypeName)
+                    || $this->isSingletonClass($paramTypeName, $this->describeClass($paramTypeName)))) {
+                return $this->instantiateSingleton($cacheManager, $paramTypeName);
+            }
         }
 
         // An id the container answers for itself — a stored instance, a factory
@@ -990,6 +1001,14 @@ final class DependencyResolver
             }
         }
 
+        if ($this->isSingletonClass($paramTypeName, $plan)) {
+            $owner = $this->container();
+
+            if ($owner !== null) {
+                return $this->delegateTo($owner, $paramTypeName);
+            }
+        }
+
         // Deferred here rather than in instantiateFromPlan(): a lazy target must
         // not have its constructor arguments resolved yet, and that is what the
         // plan-driven path exists to do.
@@ -1003,17 +1022,25 @@ final class DependencyResolver
             return $instance;
         }
 
-        // get() keeps the shared instance; building one here would hand the
-        // parameter a second copy.
-        if ($this->isSingletonClass($paramTypeName, $plan)) {
-            $owner = $this->container();
-
-            if ($owner !== null) {
-                return $this->delegateTo($owner, $paramTypeName);
-            }
-        }
-
         return $this->instantiateFromPlan($paramTypeName, $plan);
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function instantiateSingleton(DependencyCacheManager $cacheManager, string $class): object
+    {
+        $this->checkCircularDependency($class);
+        $this->resolvingStack[$class] = true;
+
+        try {
+            $instance = $cacheManager->instantiate($class);
+            $this->afterResolving?->__invoke($class, $instance);
+
+            return $instance;
+        } finally {
+            unset($this->resolvingStack[$class]);
+        }
     }
 
     /**

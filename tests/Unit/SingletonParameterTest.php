@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
+use GacelaTest\Fake\AlternativeCompilableDependency;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\CompilableConsumer;
+use GacelaTest\Fake\CompilableDependency;
 use GacelaTest\Fake\ConsumerOfSingletonAttributeService;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\RepositoryInterface;
@@ -90,6 +93,24 @@ final class SingletonParameterTest extends TestCase
         for ($i = 0; $i < 3; ++$i) {
             self::assertSame($shared, $container->get(ConsumerOfSingletonAttributeService::class)->service);
         }
+    }
+
+    public function test_a_contextual_target_keeps_its_registered_singleton_lifetime(): void
+    {
+        $container = new Container();
+        $container->singleton(CompilableDependency::class);
+        $container->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $container->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+
+        $first = $container->get(CompilableConsumer::class)->dependency;
+        self::assertSame(CompilableDependency::class, $first::class);
+        self::assertSame($first, $container->get(CompilableConsumer::class)->dependency);
+
+        $container->forget(CompilableDependency::class);
+        $rebuilt = $container->get(CompilableConsumer::class)->dependency;
+        self::assertNotSame($first, $rebuilt);
+        self::assertSame($rebuilt, $container->get(CompilableConsumer::class)->dependency);
     }
 
     public function test_a_scope_shares_a_singleton_parameter_it_resolved_itself(): void

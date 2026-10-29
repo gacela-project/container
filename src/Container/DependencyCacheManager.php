@@ -621,6 +621,7 @@ final class DependencyCacheManager
                 $this->ownedIds,
                 $this->ownerRef,
                 $this->afterResolving,
+                WeakReference::create($this),
             );
 
             if ($this->parent !== null) {
