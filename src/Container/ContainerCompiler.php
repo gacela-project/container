@@ -94,7 +94,7 @@ final class ContainerCompiler
             $dependencies = array_keys($this->dependencies[$class] ?? []);
 
             if ($dependencies !== []) {
-                $factory = '\\' . CompiledFactory::class . '::track(' . $factory . ', ' . var_export($dependencies, true) . ')';
+                $factory = '#[\\' . CompiledFactory::class . '(' . var_export($dependencies, true) . ')] ' . $factory;
             }
 
             $entries[] = '        ' . var_export($class, true) . ' => ' . $factory . ',';

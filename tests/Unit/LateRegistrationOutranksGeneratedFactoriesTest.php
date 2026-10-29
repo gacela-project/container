@@ -138,9 +138,36 @@ final class LateRegistrationOutranksGeneratedFactoriesTest extends TestCase
             }
         };
         $container = new Container();
+        $container->set('unrelated', true);
         $container->useCompiledFactories([ClassWithoutDependencies::class => $factory]);
 
         self::assertInstanceOf(ClassWithoutDependencies::class, $container->get(ClassWithoutDependencies::class));
+    }
+
+    public function test_registered_dependencies_still_win_after_resetting_static_caches(): void
+    {
+        $container = new Container();
+        $container->useCompiledFactories(self::factoriesFor(ClassWithDependencyWithoutDependencies::class));
+        $shared = new ClassWithoutDependencies();
+        $container->set(ClassWithoutDependencies::class, $shared);
+
+        Container::resetStaticCaches();
+
+        self::assertSame($shared, $container->get(ClassWithDependencyWithoutDependencies::class)->classWithoutDependencies);
+    }
+
+    public function test_replacing_factories_replaces_their_dependency_metadata(): void
+    {
+        $container = new Container();
+        $container->set(ClassWithoutDependencies::class, new ClassWithoutDependencies());
+        $container->useCompiledFactories(self::factoriesFor(ClassWithDependencyWithoutDependencies::class));
+        $container->get(ClassWithDependencyWithoutDependencies::class);
+        $replacement = new ClassWithDependencyWithoutDependencies(new ClassWithoutDependencies());
+        $container->useCompiledFactories([
+            ClassWithDependencyWithoutDependencies::class => static fn (): ClassWithDependencyWithoutDependencies => $replacement,
+        ]);
+
+        self::assertSame($replacement, $container->get(ClassWithDependencyWithoutDependencies::class));
     }
 
     #[TestWith([true])]

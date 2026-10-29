@@ -4,33 +4,21 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Attribute;
 use Closure;
-use WeakMap;
+use ReflectionFunction;
 
 /**
  * @internal
  */
-final class CompiledFactory
+#[Attribute(Attribute::TARGET_FUNCTION)]
+final readonly class CompiledFactory
 {
-    /** @var WeakMap<Closure, list<class-string>>|null */
-    private static ?WeakMap $dependencies = null;
-
     /**
-     * @param Closure(): object $factory
      * @param list<class-string> $dependencies
-     *
-     * @return Closure(): object
      */
-    public static function track(Closure $factory, array $dependencies): Closure
+    public function __construct(public array $dependencies)
     {
-        if (self::$dependencies === null) {
-            /** @var WeakMap<Closure, list<class-string>> $dependenciesByFactory */
-            $dependenciesByFactory = new WeakMap();
-            self::$dependencies = $dependenciesByFactory;
-        }
-        self::$dependencies[$factory] = $dependencies;
-
-        return $factory;
     }
 
     /**
@@ -38,12 +26,12 @@ final class CompiledFactory
      */
     public static function dependenciesOf(mixed $factory): array
     {
-        if (!$factory instanceof Closure || self::$dependencies === null) {
+        if (!$factory instanceof Closure) {
             return [];
         }
 
-        $dependencies = self::$dependencies[$factory] ?? null;
+        $attributes = (new ReflectionFunction($factory))->getAttributes(self::class);
 
-        return $dependencies === null ? [] : $dependencies;
+        return $attributes === [] ? [] : $attributes[0]->newInstance()->dependencies;
     }
 }

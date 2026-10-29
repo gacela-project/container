@@ -98,6 +98,9 @@ final class Container implements FullContainerInterface, ArrayAccess
     /** @var FactoriesMap */
     private array $compiledFactories = [];
 
+    /** @var array<string, list<class-string>> */
+    private array $compiledDependencies = [];
+
     /**
      * The contextual bindings when() wrote on this container itself, as opposed
      * to the ones it inherited when it was created as a scope.
@@ -502,6 +505,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $this->compiledFactories = $factories;
+        $this->compiledDependencies = [];
 
         $this->pushCompiledFactories($factories);
     }
@@ -1595,7 +1599,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         if ($this->compiledFactories !== [] && !$this->runtimeOwns($class)) {
             $factory = $this->compiledFactories[$class] ?? null;
 
-            if ($factory !== null && !$this->ownsCompiledDependency($factory)) {
+            if ($factory !== null && !$this->ownsCompiledDependency($class, $factory)) {
                 return $factory();
             }
         }
@@ -1616,13 +1620,15 @@ final class Container implements FullContainerInterface, ArrayAccess
     /**
      * @param callable(): object $factory
      */
-    private function ownsCompiledDependency(callable $factory): bool
+    private function ownsCompiledDependency(string $class, callable $factory): bool
     {
         if ($this->bindings === [] && !$this->cacheManager->hasOwnedIds() && $this->parent === null) {
             return false;
         }
 
-        foreach (CompiledFactory::dependenciesOf($factory) as $dependency) {
+        $dependencies = $this->compiledDependencies[$class] ??= CompiledFactory::dependenciesOf($factory);
+
+        foreach ($dependencies as $dependency) {
             if ($this->hasCompilationOverride($dependency)) {
                 return true;
             }
