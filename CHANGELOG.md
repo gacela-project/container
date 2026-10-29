@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `afterResolving()` runs each hook registration once per object, so reading a shared service repeatedly no longer repeats configuration such as adding log handlers. Fresh and replacement objects still receive hooks, including through scopes. See [resolution hooks](docs/services.md#resolution-hooks)
 - Class-typed constructor parameters keep their declared defaults on repeated resolution and with generated factories installed. Both optimizations now leave these classes and their consumers to the runtime resolver. Compilation reports explain the refusal as `DefaultParameter`. See [generated constructor code](docs/performance.md#what-it-will-not-compile)
 - Untyped constructor parameters preserve their positions in nested dependencies and use named bindings or declared defaults. A required untyped parameter with no supplied value now throws `DependencyInvalidArgumentException` at any depth. See [named bindings](docs/bindings.md#named-scalar-contextual-bindings)
 - Type contextual bindings follow the class receiving each dependency, including nested constructors and `#[Inject]` properties. A root class's binding no longer leaks into its children. Inherited properties and setters use the class being built. See [contextual bindings](docs/bindings.md#contextual-bindings)
