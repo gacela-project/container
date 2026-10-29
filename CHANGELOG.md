@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `extend()` preserves factory behavior for other ids registered with the same closure. Reusing that closure later, or in a descendant scope, still creates a fresh instance on every read. See [extending services](docs/services.md#extending-services)
 - Stored `null` values count as registered services, freeze when read, and suppress autowiring or inherited scope values. This includes aliases, `load()` value definitions, and shared definitions that return `null`. See [value definitions](docs/definitions.md#entry-forms)
 - `set()` and array assignment through an alias write to its canonical target, honoring frozen services and scheduled extensions without creating unreachable registrations. Alias chains and scope-local shadowing follow the same rules as reads. See [service aliasing](docs/bindings.md#service-aliasing)
 - Scopes recognize `factory()` and `protect()` marks from their ancestors for closures stored locally, including marks added after scope creation. Factories still receive the storing scope, extensions keep inherited factory behavior, and child marks stay isolated from ancestors and siblings. See [closure marks](docs/scopes.md#closure-marks)

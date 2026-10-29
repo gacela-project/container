@@ -54,10 +54,7 @@ For `$scope->get($id)`:
    resolves it** and hands over its own instance
 4. otherwise the scope autowires it locally
 
-Steps 2–4 apply to nested constructor dependencies too, not only to top-level
-`get()` calls. Step 1 does not: stored instances are a `get()` concern, and a
-constructor dependency is resolved from bindings, never from `set()` — that is
-already true of a plain container and is unchanged here.
+The same ownership order applies to nested constructor dependencies: local stored instances or bindings take precedence, ancestor-owned services are resolved by that ancestor, and other dependencies autowire locally. Stored `null` values can satisfy nullable parameters and shadow a parent's value. See [constructor registrations](resolution.md#a-registration-answers-a-constructor-parameter-too).
 
 ## Shadowing
 
