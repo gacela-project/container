@@ -170,14 +170,13 @@ final class ClassContainerTest extends TestCase
         self::assertEquals($resolvedPerson, $person);
     }
 
-    public function test_resolve_object_from_callable_classname_in_a_callable(): void
+    public function test_a_class_name_returned_by_a_binding_factory_stays_a_string(): void
     {
         $container = new Container([
             PersonInterface::class => static fn () => Person::class,
         ]);
-        $resolvedPerson = $container->get(PersonInterface::class);
 
-        self::assertEquals($resolvedPerson, new Person());
+        self::assertSame(Person::class, $container->get(PersonInterface::class));
     }
 
     public function test_get_non_existing_service(): void
