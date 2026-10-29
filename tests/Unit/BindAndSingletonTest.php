@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use ArrayObject;
 use Gacela\Container\Container;
+use Gacela\Container\ContainerInterface;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\Person;
 use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class BindAndSingletonTest extends TestCase
@@ -86,11 +89,6 @@ final class BindAndSingletonTest extends TestCase
         self::assertSame(1, $calls);
     }
 
-    /**
-     * The resolver used to take the bindings map by value, snapshotting it on
-     * the first resolution — so binding after that point was invisible to
-     * nested resolution, while the same calls in the other order worked.
-     */
     public function test_a_binding_registered_after_the_first_resolution_is_still_used(): void
     {
         $container = new Container();
@@ -103,4 +101,91 @@ final class BindAndSingletonTest extends TestCase
             $container->make(ServiceWithRepository::class)->repository,
         );
     }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function bindingResults(): iterable
+    {
+        yield 'integer' => [3];
+        yield 'zero' => [0];
+        yield 'false' => [false];
+        yield 'true' => [true];
+        yield 'float' => [1.25];
+        yield 'string' => ['pgsql'];
+        yield 'empty string' => [''];
+        yield 'class-name string' => [ArrayObject::class];
+        yield 'array' => [['driver' => 'pgsql']];
+        yield 'null' => [null];
+    }
+
+    #[DataProvider('bindingResults')]
+    public function test_a_binding_returns_the_factory_result_unchanged(mixed $value): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $container->bind('value', static function () use ($value, &$calls): mixed {
+            ++$calls;
+            return $value;
+        });
+
+        self::assertTrue($container->has('value'));
+        self::assertSame(0, $calls);
+        self::assertSame($value, $container->get('value'));
+        self::assertSame($value, $container->get('value'));
+        self::assertSame(2, $calls);
+    }
+
+    #[DataProvider('bindingResults')]
+    public function test_a_singleton_returns_and_memoizes_the_factory_result_unchanged(mixed $value): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $container->singleton('value', static function () use ($value, &$calls): mixed {
+            ++$calls;
+            return $value;
+        });
+
+        self::assertTrue($container->has('value'));
+        self::assertSame($value, $container->get('value'));
+        self::assertSame($value, $container->get('value'));
+        self::assertSame(1, $calls);
+    }
+
+    public function test_a_null_factory_result_does_not_autowire_the_requested_class(): void
+    {
+        $container = new Container();
+        $container->bind(ArrayObject::class, static fn (): mixed => null);
+
+        self::assertTrue($container->has(ArrayObject::class));
+        self::assertNull($container->get(ArrayObject::class));
+    }
+
+    public function test_a_binding_factory_result_survives_aliases_and_scope_delegation(): void
+    {
+        $container = new Container();
+        $container->bind('value', static fn (): string => ArrayObject::class);
+        $container->alias('alias', 'value');
+        $scope = $container->createScope();
+
+        self::assertSame(ArrayObject::class, $scope->get('alias'));
+        $scope->bind('value', static fn (): mixed => null);
+        self::assertNull($scope->get('alias'));
+        self::assertSame(ArrayObject::class, $container->get('value'));
+    }
+
+    public function test_a_callable_array_factory_returns_its_class_name_value_unchanged(): void
+    {
+        $container = new Container();
+        $container->set('literal', ArrayObject::class);
+        $container->bind('value', [self::class, 'literalFromContainer']);
+
+        self::assertSame(ArrayObject::class, $container->getOrFail('value'));
+    }
+
+    public static function literalFromContainer(ContainerInterface $container): mixed
+    {
+        return $container->get('literal');
+    }
+
 }

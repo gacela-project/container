@@ -66,6 +66,18 @@ $container->bind(Greeter::class, fn() => new Greeter('hi'));
 This applies to constructor bindings, `singleton()` closures, and both type- and
 name-based contextual `give()` closures.
 
+### Factory results
+
+`get()` returns a binding factory's result unchanged, including scalars, arrays, and `null`. A class-name string returned by a factory stays a string. `bind()` calls the factory on each resolution; `singleton()` memoizes its result, including `null`.
+
+```php
+$container->bind('driver', static fn () => 'pgsql');
+$container->bind('class-name', static fn () => Logger::class);
+
+$container->get('driver'); // 'pgsql'
+$container->get('class-name'); // Logger::class as a string
+```
+
 ### Conditional registration
 
 Register defaults only when nothing is bound yet — useful for packages that
