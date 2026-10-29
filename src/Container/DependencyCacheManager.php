@@ -104,9 +104,6 @@ final class DependencyCacheManager
      */
     private ?ContainerInterface $parent = null;
 
-    /** @var WeakReference<self>|null */
-    private ?WeakReference $parentManagerRef = null;
-
     private PlanRegistry $planRegistry;
 
     /** @var array<class-string, true> Classes made lazy through Container::lazy() */
@@ -162,6 +159,7 @@ final class DependencyCacheManager
      * @param CompiledPlans $compiledPlans
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param PlanCache|null $planCache a cache shared with unrelated containers
+     * @param (Closure(class-string): mixed)|null $contextualResolver
      */
     public function __construct(
         private array &$bindings = [],
@@ -169,6 +167,7 @@ final class DependencyCacheManager
         array $compiledPlans = [],
         private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
+        private ?Closure $contextualResolver = null,
     ) {
         // Read before useSelfReference() can replace it, which is the only way
         // to know which of the two references is the owner.
@@ -216,7 +215,6 @@ final class DependencyCacheManager
     public function inheritFrom(self $parentManager, ContainerInterface $parent): void
     {
         $this->parent = $parent;
-        $this->parentManagerRef = WeakReference::create($parentManager);
         $this->planRegistry = $parentManager->planRegistry;
 
         // Copied rather than chained, like Container does with contextual
@@ -505,13 +503,14 @@ final class DependencyCacheManager
     /**
      * @param class-string $class
      */
-    public function instantiateContextual(string $class): object
+    public function instantiateContextual(string $class): mixed
     {
-        $owner = $this->contextualSingletonOwner($class) ?? $this;
-        $instance = $owner->instantiate($class);
-        if ($owner !== $this) {
-            $owner->afterResolving?->__invoke($class, $instance);
+        if ($this->contextualResolver !== null) {
+            return ($this->contextualResolver)($class);
         }
+
+        $instance = $this->instantiate($class);
+        $this->afterResolving?->__invoke($class, $instance);
 
         return $instance;
     }
@@ -546,19 +545,6 @@ final class DependencyCacheManager
         }
 
         return self::$instantiable[$class] = true;
-    }
-
-    private function contextualSingletonOwner(string $class): ?self
-    {
-        if ($this->ownsSingleton($class)) {
-            return $this;
-        }
-
-        if (isset($this->bindings[$class])) {
-            return null;
-        }
-
-        return $this->parentManagerRef?->get()?->contextualSingletonOwner($class);
     }
 
     /**

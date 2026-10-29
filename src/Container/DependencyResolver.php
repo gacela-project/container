@@ -1038,16 +1038,13 @@ final class DependencyResolver
     /**
      * @param class-string $class
      */
-    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): object
+    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): mixed
     {
         $this->checkCircularDependency($class);
         $this->resolvingStack[$class] = true;
 
         try {
-            $instance = $cacheManager->instantiateContextual($class);
-            $this->afterResolving?->__invoke($class, $instance);
-
-            return $instance;
+            return $cacheManager->instantiateContextual($class);
         } finally {
             unset($this->resolvingStack[$class]);
         }

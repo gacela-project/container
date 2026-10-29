@@ -165,6 +165,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             $compiledPlans,
             $containerRef,
             $planCache,
+            static fn (string $class): mixed => $containerRef->get()?->resolveContextualClass($class),
         );
     }
 
@@ -1549,6 +1550,38 @@ final class Container implements FullContainerInterface, ArrayAccess
         return isset($this->bindings[$id])
             || $this->instanceRegistry->has($id)
             || $this->cacheManager->ownsSingleton($id);
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function resolveContextualClass(string $class): mixed
+    {
+        if ($this->aliasRegistry->resolve($class) !== $class || $this->instanceRegistry->has($class)) {
+            return $this->get($class);
+        }
+
+        if ($this->parent !== null && !$this->ownsLocally($class) && $this->parent->providesContextualClass($class)) {
+            /** @var mixed $instance */
+            $instance = $this->parent->resolveContextualClass($class);
+        } else {
+            $instance = $this->cacheManager->instantiate($class);
+        }
+
+        if ($this->afterResolvingCallbacks !== []) {
+            $this->fireAfterResolving($class, $instance);
+        }
+
+        return $instance;
+    }
+
+    private function providesContextualClass(string $class): bool
+    {
+        if ($this->instanceRegistry->has($class) || $this->cacheManager->ownsSingleton($class)) {
+            return true;
+        }
+
+        return !isset($this->bindings[$class]) && ($this->parent?->providesContextualClass($class) ?? false);
     }
 
     /**
