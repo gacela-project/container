@@ -4,12 +4,22 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use Error;
 use ErrorException;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
+use Gacela\Container\Exception\DependencyNotFoundException;
 use GacelaTest\Fake\AbstractService;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\PrivateConstructorService;
+use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceThrowingOnConstruction;
+use GacelaTest\Fake\ServiceWithRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
+use RuntimeException;
+use Throwable;
 
 /**
  * What happens when things go wrong.
@@ -117,5 +127,97 @@ final class FailureModesTest extends TestCase
         // The counterpart to the two above: has() already answered correctly,
         // it was get() that disagreed by fatalling.
         self::assertFalse((new Container())->has(AbstractService::class));
+    }
+
+    /**
+     * @param class-string $class
+     */
+    #[DataProvider('nonInstantiableClasses')]
+    public function test_make_with_parameters_rejects_non_instantiable_classes(string $class): void
+    {
+        $this->expectException(ContainerException::class);
+
+        (new Container())->make($class, ['value' => 'provided']);
+    }
+
+    /**
+     * @return iterable<string, array{class-string}>
+     */
+    public static function nonInstantiableClasses(): iterable
+    {
+        yield 'abstract class' => [AbstractService::class];
+        yield 'private constructor' => [PrivateConstructorService::class];
+    }
+
+    public function test_make_with_parameters_reports_a_missing_class_as_not_found(): void
+    {
+        $this->expectException(DependencyNotFoundException::class);
+
+        (new Container())->make('GacelaTest\\Fake\\MissingConstructionTarget', ['value' => 'provided']);
+    }
+
+    public function test_a_missing_nested_binding_target_is_reported_as_not_found(): void
+    {
+        $container = new Container();
+        $container->bind(RepositoryInterface::class, 'GacelaTest\\Fake\\MissingRepository');
+
+        $this->expectException(DependencyNotFoundException::class);
+        $container->get(ServiceWithRepository::class);
+    }
+
+    public function test_a_missing_contextual_target_is_reported_as_not_found(): void
+    {
+        $container = new Container();
+        $container->when(ServiceWithRepository::class)
+            ->needs(RepositoryInterface::class)
+            ->give('GacelaTest\\Fake\\MissingRepository');
+
+        $this->expectException(DependencyNotFoundException::class);
+        $container->get(ServiceWithRepository::class);
+    }
+
+    /**
+     * @param class-string $class
+     */
+    #[DataProvider('nonInstantiableClasses')]
+    public function test_a_non_instantiable_nested_binding_target_throws_a_container_exception(string $class): void
+    {
+        $container = new Container();
+        $container->bind(RepositoryInterface::class, $class);
+
+        $this->expectException(ContainerException::class);
+        $container->get(ServiceWithRepository::class);
+    }
+
+    #[DataProvider('constructorFailures')]
+    public function test_constructor_failures_propagate_unchanged(Throwable $failure, bool $withOverrides): void
+    {
+        $container = new Container();
+        $container->set(Throwable::class, $failure);
+
+        try {
+            if ($withOverrides) {
+                $container->make(ServiceThrowingOnConstruction::class, ['failure' => $failure]);
+            } else {
+                $container->get(ServiceThrowingOnConstruction::class);
+            }
+        } catch (Throwable $caught) {
+            self::assertSame($failure, $caught);
+
+            return;
+        }
+
+        self::fail('The constructor failure should have propagated');
+    }
+
+    /**
+     * @return iterable<string, array{Throwable, bool}>
+     */
+    public static function constructorFailures(): iterable
+    {
+        foreach ([new RuntimeException('constructor failure'), new ReflectionException('constructor failure'), new Error('constructor failure')] as $failure) {
+            yield $failure::class . ' get' => [$failure, false];
+            yield $failure::class . ' make with parameters' => [$failure, true];
+        }
     }
 }

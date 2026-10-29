@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- `make()` with constructor overrides reports missing classes with `DependencyNotFoundException` and unusable classes with `ContainerException`. Invalid nested class-string targets also raise container exceptions instead of PHP construction or reflection errors. Exceptions thrown by user constructors still propagate unchanged. See [error handling](docs/error-handling.md)
 - Aliases resolve complete chains across scopes and respect local overrides at every link. Parent alias changes remain visible after earlier resolutions, and cycles throw `ContainerException` instead of returning a missing service. See [service aliasing](docs/bindings.md#service-aliasing)
 - Lazy classes with instance properties and no constructor initialize on first use without calling a missing `__construct()`. Both `#[Lazy]` and `lazy()` preserve property defaults and property/setter injection. See [lazy objects](docs/attributes.md#lazy)
 - A hook that throws during `make()` with constructor overrides leaves stored services and shared closure registrations unchanged. Only the separate object being built is discarded; failed shared resolutions still clean up and retry. See [resolution hooks](docs/services.md#resolution-hooks)
