@@ -844,7 +844,8 @@ final class Container implements FullContainerInterface, ArrayAccess
      * A callback that throws **drops the built instance** (see forget()), so a
      * service whose post-construction wiring failed is not handed to the next
      * caller as though it had succeeded; one registered with a closure is built
-     * again on the next get(). The exception propagates either way.
+     * again on the next get(). A failure on make() with constructor overrides
+     * leaves stored services unchanged. The exception propagates either way.
      *
      * Callbacks fire for the resolutions their own container performs. A scope
      * resolving an id its parent registered is a resolution the parent
@@ -912,10 +913,8 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         $instance = $this->cacheManager->instantiateWith($concrete, $parameters);
 
-        // get() fires for every other path; without this, overriding an
-        // argument silently skipped the hooks.
         if ($this->afterResolvingCallbacks !== []) {
-            $this->fireAfterResolving($id, $instance);
+            $this->fireAfterResolving($id, $instance, forgetOnFailure: false);
         }
 
         return $instance;
@@ -1544,7 +1543,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->dependencyTreeAnalyzer ??= new DependencyTreeAnalyzer($this->bindingResolver);
     }
 
-    private function fireAfterResolving(string $id, mixed $instance): void
+    private function fireAfterResolving(string $id, mixed $instance, bool $forgetOnFailure = true): void
     {
         $container = $this->forClosures();
 
@@ -1576,9 +1575,9 @@ final class Container implements FullContainerInterface, ArrayAccess
                     $this->resetAppliedHook($instance, $index);
                 }
 
-                // Wiring that failed halfway leaves an object the application
-                // believes is configured. Drop it rather than serve it again.
-                $this->forget($id);
+                if ($forgetOnFailure) {
+                    $this->forget($id);
+                }
 
                 throw $exception;
             }

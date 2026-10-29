@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- A hook that throws during `make()` with constructor overrides leaves stored services and shared closure registrations unchanged. Only the separate object being built is discarded; failed shared resolutions still clean up and retry. See [resolution hooks](docs/services.md#resolution-hooks)
 - `afterResolving()` runs each hook registration once per object, so reading a shared service repeatedly no longer repeats configuration such as adding log handlers. Fresh and replacement objects still receive hooks, including through scopes. See [resolution hooks](docs/services.md#resolution-hooks)
 - `extend()` throws a `ContainerException` for an id registered with `bind()` or `singleton()`, instead of silently ignoring the extension. Register the service through `set()` to extend it. See the [upgrade example](UPGRADE.md#extending-bindings)
 - Class-typed constructor parameters keep their declared defaults on repeated resolution and with generated factories installed. Both optimizations now leave these classes and their consumers to the runtime resolver. Compilation reports explain the refusal as `DefaultParameter`. See [generated constructor code](docs/performance.md#what-it-will-not-compile)

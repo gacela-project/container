@@ -9,8 +9,11 @@ use Gacela\Container\ContainerInterface;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\InMemoryRepository;
+use GacelaTest\Fake\Person;
+use GacelaTest\Fake\PersonInterface;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\RepositoryInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -290,5 +293,119 @@ final class AfterResolvingMatchingTest extends TestCase
         $container->get(DatabaseRepository::class);
 
         self::assertTrue($fired);
+    }
+
+    /**
+     * @param class-string $requested
+     */
+    #[DataProvider('sharedServicesForTransientFailure')]
+    public function test_a_failed_make_with_parameters_preserves_the_shared_service(string $registration, string $requested): void
+    {
+        $container = new Container();
+        $shared = new Person('shared');
+        $builds = 0;
+        if ($registration === 'object') {
+            $container->set(Person::class, $shared);
+        } else {
+            $container->set(Person::class, static function () use (&$builds): Person {
+                ++$builds;
+
+                return new Person('shared');
+            });
+            if ($registration === 'built closure') {
+                $shared = $container->get(Person::class);
+            }
+        }
+        $container->alias(PersonInterface::class, Person::class);
+        $container->afterResolving(Person::class, static function (Person $person): void {
+            if ($person->name === 'bad') {
+                throw new RuntimeException('wiring failed');
+            }
+        });
+
+        try {
+            $container->make($requested, ['name' => 'bad']);
+            self::fail('the hook should have thrown');
+        } catch (RuntimeException) {
+        }
+
+        self::assertSame($registration === 'built closure', $container->isFrozen(Person::class));
+        $actual = $container->get(Person::class);
+        self::assertInstanceOf(Person::class, $actual);
+        self::assertSame('shared', $actual->name);
+        if ($registration !== 'unbuilt closure') {
+            self::assertSame($shared, $actual);
+        }
+        self::assertSame($registration === 'object' ? 0 : 1, $builds);
+        self::assertSame($actual, $container->get($requested));
+    }
+
+    /**
+     * @return iterable<string, array{string, class-string}>
+     */
+    public static function sharedServicesForTransientFailure(): iterable
+    {
+        foreach (['object', 'unbuilt closure', 'built closure'] as $registration) {
+            yield $registration . ' direct' => [$registration, Person::class];
+            yield $registration . ' alias' => [$registration, PersonInterface::class];
+        }
+    }
+
+    public function test_a_failed_make_of_a_bound_class_preserves_its_stored_instance(): void
+    {
+        $container = new Container();
+        $container->bind(PersonInterface::class, Person::class);
+        $shared = new Person('shared');
+        $container->set(PersonInterface::class, $shared);
+        $container->afterResolving(PersonInterface::class, static function (Person $person): void {
+            if ($person->name === 'bad') {
+                throw new RuntimeException('wiring failed');
+            }
+        });
+
+        try {
+            $container->make(PersonInterface::class, ['name' => 'bad']);
+            self::fail('the hook should have thrown');
+        } catch (RuntimeException) {
+        }
+
+        self::assertSame($shared, $container->get(PersonInterface::class));
+    }
+
+    #[DataProvider('sharedResolutionMethods')]
+    public function test_a_failed_shared_resolution_still_rebuilds_and_retries(string $method): void
+    {
+        $container = new Container();
+        $builds = 0;
+        $container->set(Person::class, static function () use (&$builds): Person {
+            return new Person(++$builds === 1 ? 'bad' : 'good');
+        });
+        $container->afterResolving(Person::class, static function (Person $person): void {
+            if ($person->name === 'bad') {
+                throw new RuntimeException('wiring failed');
+            }
+        });
+
+        $resolve = $method === 'get' ? $container->get(...) : $container->make(...);
+        try {
+            $resolve(Person::class);
+            self::fail('the hook should have thrown');
+        } catch (RuntimeException) {
+        }
+        $rebuilt = $resolve(Person::class);
+
+        self::assertInstanceOf(Person::class, $rebuilt);
+        self::assertSame('good', $rebuilt->name);
+        self::assertSame($rebuilt, $container->get(Person::class));
+        self::assertSame(2, $builds);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function sharedResolutionMethods(): iterable
+    {
+        yield 'get' => ['get'];
+        yield 'make without parameters' => ['make'];
     }
 }
