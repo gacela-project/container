@@ -179,6 +179,8 @@ These cases deliberately do not follow the global registration:
 - A **contextual binding** wins over the registration for the consumer it names.
   That is narrower than "what this id holds", which is the point of
   [`when()`](bindings.md#contextual-bindings).
+- A **declared parameter default** keeps that value instead of using a global
+  binding.
 - A **`protect()`ed closure** is handed over rather than called, so a parameter
   typed as a class rejects it. Protected closures are for non-class ids.
 
