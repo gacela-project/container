@@ -2,8 +2,9 @@
 
 [← Back to index](../README.md#documentation)
 
-Every exception implements a PSR-11 interface, so you can catch across the whole
-family:
+The container's exception classes implement a PSR-11 interface, so you can catch
+across the whole family. Exceptions and errors from your constructors, factories
+and hooks propagate unchanged:
 
 | Exception | PSR-11 interface | Extends |
 |---|---|---|
@@ -43,8 +44,16 @@ See https://github.com/gacela-project/container/blob/main/docs/bindings.md
 
 Note the asymmetry: resolving an unbound interface *directly* with `get()`
 returns `null`, while resolving it as somebody's constructor dependency throws.
-Use `getOrFail()` for the strict behaviour at the top level; for an interface or
-abstract class it throws this same message.
+Use `getOrFail()` for the strict behaviour at the top level; for an unbound
+interface it throws this same message. An abstract class requested directly
+raises `ContainerException`.
+
+### Missing class
+
+`make()` with constructor overrides throws `DependencyNotFoundException` when
+the target class does not exist. The same exception reports a missing target
+in a class-string binding reached through a nested dependency or a contextual
+binding. Check the class name and its autoloading configuration.
 
 ## `CircularDependencyException`
 
@@ -116,7 +125,10 @@ raises the same exception, with the property named rather than a parameter.
 
 ## `ContainerException`
 
-Five situations, all about the lifecycle of an already-registered service.
+`make()` with constructor overrides rejects abstract classes and classes with
+non-public constructors before resolving their arguments. An unusable concrete
+target in a nested class-string binding raises the same exception. A missing
+class instead raises `DependencyNotFoundException`.
 
 ### Frozen: cannot be overridden
 
