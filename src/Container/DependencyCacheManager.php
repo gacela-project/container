@@ -294,6 +294,11 @@ final class DependencyCacheManager
         $this->ownedIds[$id] = true;
     }
 
+    public function hasOwnedIds(): bool
+    {
+        return $this->ownedIds !== [];
+    }
+
     /**
      * @param class-string $class
      */

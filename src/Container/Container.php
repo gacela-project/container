@@ -98,6 +98,9 @@ final class Container implements FullContainerInterface, ArrayAccess
     /** @var FactoriesMap */
     private array $compiledFactories = [];
 
+    /** @var array<string, list<class-string>> */
+    private array $compiledDependencies = [];
+
     /**
      * The contextual bindings when() wrote on this container itself, as opposed
      * to the ones it inherited when it was created as a scope.
@@ -502,6 +505,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         $this->cacheManager->dropArgBuilders();
 
         $this->compiledFactories = $factories;
+        $this->compiledDependencies = [];
 
         $this->pushCompiledFactories($factories);
     }
@@ -1506,6 +1510,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             $this->compile($classNames),
             $this->getBindings(),
             $this->cacheManager->lazyClasses(),
+            $this->hasCompilationOverride(...),
         );
     }
 
@@ -1594,7 +1599,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         if ($this->compiledFactories !== [] && !$this->runtimeOwns($class)) {
             $factory = $this->compiledFactories[$class] ?? null;
 
-            if ($factory !== null) {
+            if ($factory !== null && !$this->ownsCompiledDependency($class, $factory)) {
                 return $factory();
             }
         }
@@ -1602,23 +1607,34 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $this->bindingResolver->resolve($class, $this->cacheManager);
     }
 
-    /**
-     * Whether a registration on this container decides how $class is built, in
-     * which case a generated `new` expression must not.
-     *
-     * The generator refuses to emit anything for a bound class or one carrying a
-     * lifetime attribute, so the file it writes agrees with the container it was
-     * written from. It cannot speak for the container it is installed *into*:
-     * `bind()` there resolved to the generated class rather than the bound one,
-     * and `singleton()` built a fresh instance per get() while the application
-     * believed the service was shared. Neither said anything.
-     *
-     * Only asked once a factory map is installed, so a container without one
-     * pays nothing.
-     */
     private function runtimeOwns(string $class): bool
     {
         return isset($this->bindings[$class]) || $this->cacheManager->ownsSingleton($class);
+    }
+
+    private function hasCompilationOverride(string $class): bool
+    {
+        return $this->aliasRegistry->resolve($class) !== $class || $this->provides($class);
+    }
+
+    /**
+     * @param callable(): object $factory
+     */
+    private function ownsCompiledDependency(string $class, callable $factory): bool
+    {
+        if ($this->bindings === [] && !$this->cacheManager->hasOwnedIds() && $this->parent === null) {
+            return false;
+        }
+
+        $dependencies = $this->compiledDependencies[$class] ??= CompiledFactory::dependenciesOf($factory);
+
+        foreach ($dependencies as $dependency) {
+            if ($this->hasCompilationOverride($dependency)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function extendService(string $id): void
