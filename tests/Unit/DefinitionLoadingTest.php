@@ -566,6 +566,41 @@ final class DefinitionLoadingTest extends TestCase
         (new Container())->load([InMemoryRepository::class => ['tags' => [42]]]);
     }
 
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_it_rejects_null_tags_before_registering_the_definition(bool $withBinding): void
+    {
+        $container = new Container();
+        $definition = ['tags' => null];
+        if ($withBinding) {
+            $definition['singleton'] = InMemoryRepository::class;
+        }
+
+        $this->expectException(ContainerException::class);
+        try {
+            $container->load([InMemoryRepository::class => $definition]);
+        } finally {
+            self::assertFalse($container->bound(InMemoryRepository::class));
+        }
+    }
+
+    #[TestWith(['json', '{"service":{"tags":null}}'])]
+    #[TestWith(['yaml', "service:\n  tags:\n"])]
+    #[TestWith(['yml', "service:\n  tags: null\n"])]
+    public function test_definition_files_reject_null_tags(string $extension, string $contents): void
+    {
+        $temporary = tempnam(sys_get_temp_dir(), 'definition-tags-');
+        $file = $temporary . '.' . $extension;
+        rename($temporary, $file);
+        try {
+            file_put_contents($file, $contents);
+            $this->expectException(ContainerException::class);
+            (new Container())->loadFile($file);
+        } finally {
+            unlink($file);
+        }
+    }
+
     public function test_it_rejects_an_empty_tag_list(): void
     {
         $this->expectException(ContainerException::class);

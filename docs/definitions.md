@@ -45,6 +45,8 @@ A stored `null` is a registered value: `has()`, `bound()`, and `provides()` reco
 exclusive — naming two of them would leave the winner up to iteration order, so
 it is an error rather than a coin flip.
 
+When present, `tags` requires a non-empty list of non-empty strings. `tags: null`, a YAML `tags:` with no value, and an empty list raise `ContainerException` before that entry is registered.
+
 A bare string is always read as a class-string. Use `['value' => …]` for a
 string you mean literally:
 
