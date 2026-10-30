@@ -960,7 +960,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         $id = $this->aliasRegistry->resolve($className);
 
         /** @var class-string<T> $concrete */
-        $concrete = $this->bindingResolver->resolveType($id);
+        $concrete = $this->bindings === [] && $this->parent === null
+            ? $id
+            : $this->bindingResolver->resolveType($id);
 
         $instance = $this->cacheManager->instantiateWith($concrete, $parameters);
 
