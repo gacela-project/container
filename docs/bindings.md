@@ -181,8 +181,7 @@ $container->when(ReportService::class)
     ->give(30);
 ```
 
-The binding is scoped to the class named in `when()`; the same parameter name on
-another class is unaffected.
+For constructors and `#[Inject]` setters, named bindings match the class being built first, then the class declaring the parameter. A child can override a parent binding for an inherited constructor or setter without changing its siblings. An explicit child `null` takes precedence over the parent's value. Callable parameter resolution keeps bindings for the method's declaring class.
 
 Named bindings also supply untyped parameters, including parameters between typed ones. Without a named binding, an untyped parameter keeps its declared default. A required untyped parameter with no supplied value or default throws `DependencyInvalidArgumentException` at any depth.
 
