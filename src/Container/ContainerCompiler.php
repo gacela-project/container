@@ -18,6 +18,7 @@ use function in_array;
 use function interface_exists;
 use function is_string;
 use function sprintf;
+use function strlen;
 use function var_export;
 
 /**
@@ -42,6 +43,14 @@ use function var_export;
  */
 final class ContainerCompiler
 {
+    private const int MAX_INLINE_BYTES = 1024;
+
+    /** @var array<class-string, string> */
+    private array $resolvedExpressions = [];
+
+    /** @var array<class-string, true> */
+    private array $helpers = [];
+
     /**
      * Keyed by whatever name was refused, which is not always a class-string:
      * an unbound interface dependency reaches here too.
@@ -109,7 +118,13 @@ final class ContainerCompiler
             $stamps[$class] = $stamp;
         }
 
-        return CompiledCacheWriter::envelope($buildStamp, $stamps, 'factories', $entries);
+        $helpers = [];
+        foreach (array_keys($this->helpers) as $class) {
+            $helpers[] = '    ' . var_export($class, true) . ' => static fn (array $constructors): object => ' . $this->resolvedExpressions[$class] . ',';
+        }
+        $setup = $helpers === [] ? '' : '$constructors = [' . "\n" . implode("\n", $helpers) . "\n];\n\n";
+
+        return CompiledCacheWriter::envelope($buildStamp, $stamps, 'factories', $entries, $setup);
     }
 
     /**
@@ -194,7 +209,11 @@ final class ContainerCompiler
             ));
         }
 
-        if (!$this->isEligible($class)) {
+        if (isset($this->resolvedExpressions[$class])) {
+            return $this->resolvedExpressions[$class];
+        }
+
+        if (isset($this->reasons[$class]) || !$this->isEligible($class)) {
             return null;
         }
 
@@ -245,7 +264,7 @@ final class ContainerCompiler
             $arguments[] = $argument;
         }
 
-        return 'new \\' . $class . '(' . implode(', ', $arguments) . ')';
+        return $this->resolvedExpressions[$class] = 'new \\' . $class . '(' . implode(', ', $arguments) . ')';
     }
 
     /**
@@ -339,6 +358,11 @@ final class ContainerCompiler
 
         $this->dependencies[$class][$type] = true;
         $this->dependencies[$class] += $this->dependencies[$type] ?? [];
+
+        if (strlen($expression) > self::MAX_INLINE_BYTES) {
+            $this->helpers[$type] = true;
+            return '$constructors[' . var_export($type, true) . ']($constructors)';
+        }
 
         return $expression;
     }

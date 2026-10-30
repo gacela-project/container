@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Generated factories:** memoize constructor expressions and reuse helpers for large subexpressions, preventing exponential source growth on shared dependency graphs. Objects remain transient, and receiving overrides and source checks still apply. See [generated code](docs/performance.md#generated-constructor-code).
+
 - **Cache permissions:** replacements preserve safe existing POSIX modes instead of resetting operator-selected read access. New files and replacements of group- or world-writable files remain private. See [cache permissions](docs/performance.md#cache-file-permissions).
 
 - **Shared plan persistence:** `writeTo()` requires a non-empty loaded-release stamp for user-class plans; readers without the matching stamp discard them. Unstamped writes retain native internal-class plans, and in-memory sharing is unchanged. Regenerate older cache formats. See [migration](UPGRADE.md#persisted-shared-plans-require-a-release-stamp).
