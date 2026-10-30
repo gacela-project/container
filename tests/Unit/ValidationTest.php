@@ -6,6 +6,7 @@ namespace GacelaTest\Unit;
 
 use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Container;
+use Gacela\Container\Exception\DependencyInvalidArgumentException;
 use Gacela\Container\ValidationIssue;
 use Gacela\Container\ValidationProblem;
 use Gacela\Container\ValidationReport;
@@ -287,6 +288,22 @@ final class ValidationTest extends TestCase
         self::assertTrue($container->validate([ServiceWithUnboundInjectedProperty::class])->isValid());
         self::assertSame(0, $calls);
         self::assertInstanceOf(InMemoryRepository::class, $container->get(ServiceWithUnboundInjectedProperty::class)->repository);
+    }
+
+    public function test_explicit_injection_targets_are_checked_instead_of_silently_skipped(): void
+    {
+        $root = new class(new InMemoryRepository()) {
+            public function __construct(#[Inject(ValidationBrokenRepository::class)] public RepositoryInterface $repository)
+            {
+            }
+        };
+        $container = new Container();
+        $report = $container->validate([$root::class]);
+        self::assertFalse($report->isValid());
+        self::assertSame(ValidationProblem::UnresolvableParameter, $report->issuesFor(ValidationBrokenRepository::class)[0]->problem);
+        self::assertContains($root::class, $report->issuesFor(ValidationBrokenRepository::class)[0]->chain);
+        $this->expectException(DependencyInvalidArgumentException::class);
+        $container->get($root::class);
     }
 
     public function test_a_resolvable_graph_is_valid(): void

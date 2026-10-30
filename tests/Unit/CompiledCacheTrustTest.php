@@ -15,8 +15,10 @@ use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
+use function defined;
 use function dirname;
 use function function_exists;
+use function is_int;
 use function is_string;
 
 final class CompiledCacheTrustTest extends TestCase
@@ -231,6 +233,31 @@ final class CompiledCacheTrustTest extends TestCase
             self::assertSame(['.', '..', 'cache.php'], scandir($this->directory));
         } finally {
             umask($previous);
+        }
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_failed_cache_payload_writes_remove_the_staging_file(): void
+    {
+        if (!function_exists('posix_getrlimit') || !function_exists('posix_setrlimit')
+            || !function_exists('pcntl_signal') || !function_exists('pcntl_signal_get_handler')
+            || !defined('POSIX_RLIMIT_FSIZE') || !defined('SIGXFSZ')) {
+            self::markTestSkipped('File-size limit failure injection requires POSIX resource limits and signal handling');
+        }
+        $limits = posix_getrlimit();
+        $soft = is_int($limits['soft filesize']) ? $limits['soft filesize'] : POSIX_RLIMIT_INFINITY;
+        $hard = is_int($limits['hard filesize']) ? $limits['hard filesize'] : POSIX_RLIMIT_INFINITY;
+        $handler = pcntl_signal_get_handler(SIGXFSZ);
+        pcntl_signal(SIGXFSZ, SIG_IGN);
+        try {
+            self::assertTrue(posix_setrlimit(POSIX_RLIMIT_FSIZE, 0, $hard));
+            $this->expectException(ContainerException::class);
+            CompiledCacheWriter::put($this->file, '<?php return [];');
+        } finally {
+            posix_setrlimit(POSIX_RLIMIT_FSIZE, $soft, $hard);
+            pcntl_signal(SIGXFSZ, $handler);
+            self::assertSame(['.', '..'], scandir($this->directory));
         }
     }
 
