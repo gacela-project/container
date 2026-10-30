@@ -90,9 +90,7 @@ stamp to both calls trusts the whole file on one comparison instead. The file is
 replaced with one rename, so a request reading it while another writes it never
 sees half of it.
 
-`fromFile()` never throws. A missing file, an unreadable one, or one written by
-another container version gives an empty cache: plans only save reflection, so
-the request plans the slow way and can write the file again.
+`fromFile()` returns an empty cache after any read failure, including missing or unreadable files, another container version, corrupt PHP and errors from older object-default exports. The request falls back to reflection and can write the file again.
 
 ## Process-global caches
 
@@ -157,10 +155,7 @@ $container = new Container($bindings, [], $plans);
 $service = $container->get(UserService::class);
 ```
 
-Classes whose constructor default values cannot be statically exported are
-skipped automatically and fall back to reflection at runtime, so correctness is
-never affected. Neither does a cache that has gone out of date — see
-[staleness](#staleness) below.
+Both `writeCompiledCache()` and `PlanCache::writeTo()` skip a class when its constructor or `#[Inject]` method defaults contain a non-enum object, including inside nested arrays. This includes objects with `__set_state()` and closures. The next container reflects that class normally. Enum cases, scalars and arrays containing only exportable values remain cached. Stale caches also fall back to reflection; see [staleness](#staleness).
 
 Use `compile()` when you want the plans array directly, without writing a file:
 
