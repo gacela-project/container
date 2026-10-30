@@ -469,9 +469,77 @@ final class DefinitionLoadingTest extends TestCase
     public function test_it_rejects_a_json_list(): void
     {
         $this->expectException(ContainerException::class);
-        $this->expectExceptionMessage('definition ids must be strings');
 
         (new Container())->loadFile(self::fixture('list.json'));
+    }
+
+    #[TestWith(['404'])]
+    #[TestWith(['-1'])]
+    #[TestWith(['01'])]
+    public function test_it_loads_numeric_service_ids_as_strings(string $id): void
+    {
+        $container = new Container();
+        $notified = [];
+
+        $registered = $container->load([$id => ['value' => 'stored']], static function (string $registeredId) use (&$notified): void {
+            $notified[] = $registeredId;
+        });
+
+        self::assertSame([$id], $registered);
+        self::assertSame([$id], $notified);
+        self::assertSame('stored', $container->get($id));
+    }
+
+    #[TestWith(['json'])]
+    #[TestWith(['yaml'])]
+    #[TestWith(['yml'])]
+    #[TestWith(['php'])]
+    public function test_definition_files_keep_numeric_map_ids_and_registration_order(string $extension): void
+    {
+        $definitions = ['404' => ['value' => 'missing'], '-1' => ['value' => 'negative'], '01' => ['value' => 'padded'], '0' => ['value' => 'zero']];
+        $contents = match ($extension) {
+            'json' => json_encode($definitions, JSON_THROW_ON_ERROR),
+            'php' => '<?php return ' . var_export($definitions, true) . ';',
+            default => Yaml::dump($definitions),
+        };
+        $temporary = tempnam(sys_get_temp_dir(), 'definition-ids-');
+        $file = $temporary . '.' . $extension;
+        rename($temporary, $file);
+        try {
+            file_put_contents($file, $contents);
+            $container = new Container();
+            $notified = [];
+            $registered = $container->loadFile($file, static function (string $id) use (&$notified): void {
+                $notified[] = $id;
+            });
+
+            self::assertSame(['404', '-1', '01', '0'], $registered);
+            self::assertSame($registered, $notified);
+            self::assertSame('missing', $container->get('404'));
+            self::assertSame('negative', $container->get('-1'));
+            self::assertSame('padded', $container->get('01'));
+            self::assertSame('zero', $container->get('0'));
+        } finally {
+            unlink($file);
+        }
+    }
+
+    public function test_it_keeps_rejecting_non_empty_definition_lists(): void
+    {
+        $this->expectException(ContainerException::class);
+
+        (new Container())->load([['value' => 'first'], ['value' => 'second']]);
+    }
+
+    public function test_loading_an_empty_array_registers_nothing(): void
+    {
+        $notified = [];
+        $registered = (new Container())->load([], static function (string $id) use (&$notified): void {
+            $notified[] = $id;
+        });
+
+        self::assertSame([], $registered);
+        self::assertSame([], $notified);
     }
 
     public function test_an_error_from_a_file_names_the_file(): void

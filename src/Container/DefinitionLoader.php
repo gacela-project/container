@@ -11,6 +11,7 @@ use Throwable;
 
 use function array_diff;
 use function array_intersect;
+use function array_is_list;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
@@ -66,17 +67,19 @@ final class DefinitionLoader
      */
     public function load(array $definitions, ?string $file = null, ?callable $onRegistered = null): array
     {
+        if ($definitions !== [] && array_is_list($definitions)) {
+            throw ContainerException::invalidDefinition(
+                '0',
+                'expected a map of id => definition; this looks like a list rather than a map',
+                $file,
+            );
+        }
+
         $registered = [];
 
         /** @var mixed $definition */
         foreach ($definitions as $id => $definition) {
-            if (!is_string($id)) {
-                throw ContainerException::invalidDefinition(
-                    (string) $id,
-                    'definition ids must be strings; this looks like a list rather than a map of id => definition',
-                    $file,
-                );
-            }
+            $id = (string) $id;
 
             $this->apply($id, $definition, $file);
             $registered[] = $id;
@@ -171,7 +174,7 @@ final class DefinitionLoader
      * than failing on an undefined class — the `load()` one-liner has always
      * worked and still does for anyone who would rather parse it themselves.
      *
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function readYamlFile(string $file): array
     {
@@ -190,7 +193,7 @@ final class DefinitionLoader
             throw ContainerException::definitionFileInvalid($file, 'it does not contain a YAML mapping');
         }
 
-        /** @var array<string, mixed> */
+        /** @var array<array-key, mixed> */
         return $definitions;
     }
 
