@@ -288,6 +288,8 @@ final class DefinitionLoader
 
     private function applySingleton(string $id, mixed $value, ?string $file): void
     {
+        $this->assertCallableSource($id, $value, $file);
+
         if (is_string($value)) {
             $this->container->singleton($id, $this->assertClassExists($id, 'singleton', $value, $file));
             return;
@@ -307,6 +309,8 @@ final class DefinitionLoader
 
     private function applyFactory(string $id, mixed $value, ?string $file): void
     {
+        $this->assertCallableSource($id, $value, $file);
+
         // A string is rejected outright: 'strlen' is callable, and a
         // class-string is not, which is exactly the confusion to avoid here.
         if (is_string($value) || !is_callable($value)) {
@@ -318,6 +322,15 @@ final class DefinitionLoader
         }
 
         $this->container->bind($id, $value);
+    }
+
+    private function assertCallableSource(string $id, mixed $value, ?string $file): void
+    {
+        if (!is_array($value) || $file === null || strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'php') {
+            return;
+        }
+
+        throw ContainerException::invalidDefinition($id, 'callable arrays are supported only in PHP definitions', $file);
     }
 
     private function applyAlias(string $id, mixed $value, ?string $file): void

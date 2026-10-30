@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Definition files:** JSON and YAML reject callable arrays in factory and singleton entries. PHP files and direct `load()` calls retain callable support. See [definition formats](docs/definitions.md#from-a-file).
+
 - **Validation:** check injected properties and setter parameters, their transitive dependencies and cycles, without constructing services. Report invalid injected members with `InvalidInjection`. See [validation](docs/performance.md#proving-it-resolves-before-it-runs).
 
 - **Plan caches:** writers omit non-enum objects in defaults, including nested arrays, and unverifiable user sources. Safe defaults and native internal entries remain cached. `PlanCache::fromFile()` falls back after any read failure. Plan stamps cover inherited declarations, traits and interface markers; factory stamps also cover inlined classes. Changed source metadata or missing stamps discard affected entries. Regenerate older cache formats. See [compiled plans](docs/performance.md#compiled-container-cache), [shared plan caches](docs/performance.md#one-plan-cache-for-several-containers), [staleness](docs/performance.md#staleness) and [cache regeneration](UPGRADE.md#cache-source-stamps).

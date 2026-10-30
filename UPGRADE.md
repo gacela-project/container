@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Factories in data files
+
+JSON and YAML files reject callable arrays in `factory` and `singleton` entries. Use a PHP definitions file for executable factories:
+
+```php
+return [
+    'service' => ['factory' => [ServiceFactory::class, 'create']],
+];
+```
+
+Class-string singleton definitions remain supported in JSON and YAML. See [definition formats](docs/definitions.md#from-a-file).
+
 ### Variadic dependencies
 
 An absent variadic parameter now receives zero arguments. A global registration or an autowirable class no longer adds one argument implicitly. If a variadic dependency needs one service, select it explicitly with a typed or named contextual binding:

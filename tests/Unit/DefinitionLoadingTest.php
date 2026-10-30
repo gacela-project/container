@@ -12,7 +12,10 @@ use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use stdClass;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Loading is not a second registration path: every entry must end up doing what
@@ -21,6 +24,67 @@ use PHPUnit\Framework\TestCase;
  */
 final class DefinitionLoadingTest extends TestCase
 {
+    private static int $factoryCalls = 0;
+
+    public static function definitionFactory(): stdClass
+    {
+        ++self::$factoryCalls;
+        return new stdClass();
+    }
+
+    #[TestWith(['json', 'factory'])]
+    #[TestWith(['json', 'singleton'])]
+    #[TestWith(['yaml', 'factory'])]
+    #[TestWith(['yaml', 'singleton'])]
+    #[TestWith(['yml', 'factory'])]
+    #[TestWith(['yml', 'singleton'])]
+    public function test_data_files_reject_callable_arrays(string $extension, string $kind): void
+    {
+        $definitions = ['service' => [$kind => [self::class, 'definitionFactory']]];
+        $temporary = tempnam(sys_get_temp_dir(), 'definition-callable-');
+        $file = $temporary . '.' . $extension;
+        rename($temporary, $file);
+        self::$factoryCalls = 0;
+        try {
+            file_put_contents($file, $extension === 'json' ? json_encode($definitions, JSON_THROW_ON_ERROR) : Yaml::dump($definitions));
+            $this->expectException(ContainerException::class);
+            (new Container())->loadFile($file);
+        } finally {
+            self::assertSame(0, self::$factoryCalls);
+            unlink($file);
+        }
+    }
+
+    #[TestWith(['factory'])]
+    #[TestWith(['singleton'])]
+    public function test_php_definitions_keep_callable_arrays(string $kind): void
+    {
+        $definitions = ['service' => [$kind => [self::class, 'definitionFactory']]];
+        $temporary = tempnam(sys_get_temp_dir(), 'definition-callable-');
+        $file = $temporary . '.php';
+        rename($temporary, $file);
+        try {
+            file_put_contents($file, '<?php return ' . var_export($definitions, true) . ';');
+            foreach ([false, true] as $fromFile) {
+                self::$factoryCalls = 0;
+                $container = new Container();
+                if ($fromFile) {
+                    $container->loadFile($file);
+                } else {
+                    $container->load($definitions);
+                }
+                self::assertSame(0, self::$factoryCalls);
+                $first = $container->get('service');
+                $second = $container->get('service');
+                self::assertInstanceOf(stdClass::class, $first);
+                self::assertSame($kind === 'singleton', $first === $second);
+                self::assertSame($kind === 'singleton' ? 1 : 2, self::$factoryCalls);
+            }
+        } finally {
+            unlink($file);
+        }
+    }
+
     public function test_a_bare_class_string_binds_the_abstract(): void
     {
         $container = new Container();
