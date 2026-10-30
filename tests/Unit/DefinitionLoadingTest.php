@@ -85,6 +85,44 @@ final class DefinitionLoadingTest extends TestCase
         }
     }
 
+    #[TestWith(['yaml', '!php/const PHP_VERSION'])]
+    #[TestWith(['yaml', '!php/object \'O:8:"stdClass":0:{}\''])]
+    #[TestWith(['yaml', '!php/enum MissingEnum::Case'])]
+    #[TestWith(['yml', '!php/const PHP_VERSION'])]
+    #[TestWith(['yml', '!php/object \'O:8:"stdClass":0:{}\''])]
+    #[TestWith(['yml', '!php/enum MissingEnum::Case'])]
+    public function test_yaml_rejects_unsupported_php_tags_instead_of_turning_values_into_null(string $extension, string $value): void
+    {
+        $temporary = tempnam(sys_get_temp_dir(), 'yaml-types-');
+        $file = $temporary . '.' . $extension;
+        rename($temporary, $file);
+        try {
+            file_put_contents($file, "service:\n  value: " . $value . "\n");
+            $this->expectException(ContainerException::class);
+            (new Container())->loadFile($file);
+        } finally {
+            unlink($file);
+        }
+    }
+
+    #[TestWith(['yaml'])]
+    #[TestWith(['yml'])]
+    public function test_yaml_keeps_explicit_null_values(string $extension): void
+    {
+        $temporary = tempnam(sys_get_temp_dir(), 'yaml-null-');
+        $file = $temporary . '.' . $extension;
+        rename($temporary, $file);
+        try {
+            file_put_contents($file, "service:\n  value: null\n");
+            $container = new Container();
+            $container->loadFile($file);
+            self::assertTrue($container->has('service'));
+            self::assertNull($container->get('service'));
+        } finally {
+            unlink($file);
+        }
+    }
+
     public function test_a_bare_class_string_binds_the_abstract(): void
     {
         $container = new Container();

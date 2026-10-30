@@ -82,6 +82,8 @@ return [
 
 ### YAML, if you already have a parser
 
+YAML accepts plain data, including explicit `null`. PHP-specific `!php/const`, `!php/object` and `!php/enum` tags are rejected with `ContainerException`; they do not silently become `null`. Use plain values or a PHP definitions file when PHP expressions are needed.
+
 `loadFile()` reads `.yaml` and `.yml` too, using `symfony/yaml`:
 
 ```php
