@@ -78,8 +78,7 @@ return [
 }
 ```
 
-`factory` needs a callable, so it is a PHP-file feature; a JSON file naming one
-is rejected with a message saying so.
+`factory` needs a callable, so it is a PHP-file feature. JSON and YAML reject callable arrays in both `factory` and `singleton` entries before registration. PHP files and direct `load()` calls still accept callable arrays; class-string singleton definitions remain supported in every format.
 
 ### YAML, if you already have a parser
 
