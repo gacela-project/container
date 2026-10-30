@@ -326,7 +326,12 @@ final class Cli
                 continue;
             }
 
-            $options[substr($argument, 0, $equals)] = substr($argument, $equals + 1);
+            $name = substr($argument, 0, $equals);
+            if ($name === 'strict') {
+                throw CliException::optionTakesNoValue('--strict');
+            }
+
+            $options[$name] = substr($argument, $equals + 1);
         }
 
         foreach (array_keys($options) as $name) {
@@ -385,6 +390,7 @@ final class Cli
                              directory to scan, or a path to a classmap file.
           --config=FILE      Defaults to ./gacela-container.php.
           --strict           report only: exit non-zero if anything was refused.
+                             Takes no value; omit the flag to disable it.
                              (validate always exits non-zero on a problem.)
 
         CONFIGURATION

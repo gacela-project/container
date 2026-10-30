@@ -34,6 +34,11 @@ final class CliException extends RuntimeException
         return new self("Unknown option '{$option}'. Try 'gacela-container help'.");
     }
 
+    public static function optionTakesNoValue(string $option): self
+    {
+        return new self("Option '{$option}' does not take a value. Use '{$option}' or omit it.");
+    }
+
     public static function configNotFound(string $file): self
     {
         $message = <<<TXT

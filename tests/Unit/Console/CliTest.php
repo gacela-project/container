@@ -6,6 +6,7 @@ namespace GacelaTest\Unit\Console;
 
 use Gacela\Container\Console\Cli;
 use Gacela\Container\Container;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 use function sys_get_temp_dir;
@@ -404,6 +405,27 @@ final class CliTest extends TestCase
         [$status] = $this->cli(['report', $this->configFlag()]);
 
         self::assertSame(Cli::EXIT_OK, $status);
+    }
+
+    #[TestWith(['true', false])]
+    #[TestWith(['false', false])]
+    #[TestWith(['1', false])]
+    #[TestWith(['0', false])]
+    #[TestWith(['', false])]
+    #[TestWith(['true', true])]
+    public function test_strict_rejects_values_even_when_followed_by_a_bare_flag(string $value, bool $bareAfter): void
+    {
+        $arguments = ['report', '--strict=' . $value];
+        if ($bareAfter) {
+            $arguments[] = '--strict';
+        }
+        $arguments[] = $this->configFlag();
+        [$status, $out, $err] = $this->cli($arguments);
+
+        self::assertSame(Cli::EXIT_FAILURE, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString('--strict', $err);
+        self::assertStringContainsString('does not take a value', $err);
     }
 
     public function test_strict_fails_when_a_class_was_refused(): void

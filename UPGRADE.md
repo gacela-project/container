@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### CLI strict flag
+
+Replace `report --strict=true` or `report --strict=1` with `report --strict`. The flag rejects all values, including `false` and empty values. Omit it to disable strict reporting.
+
 ### Factories in data files
 
 JSON and YAML files reject callable arrays in `factory` and `singleton` entries. Use a PHP definitions file for executable factories:
