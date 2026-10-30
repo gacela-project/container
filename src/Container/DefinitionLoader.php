@@ -211,7 +211,7 @@ final class DefinitionLoader
 
         $this->assertKeys($id, $definition, $file);
 
-        if (isset($definition['tags'])) {
+        if (array_key_exists('tags', $definition)) {
             $this->applyTags($id, $definition['tags'], $file);
         }
 
