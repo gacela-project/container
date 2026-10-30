@@ -7,11 +7,13 @@ namespace Gacela\Container;
 use Closure;
 use Gacela\Container\Exception\ContainerException;
 
+use function array_key_exists;
 use function array_keys;
 use function class_exists;
 use function implode;
 use function in_array;
 use function interface_exists;
+use function is_string;
 use function sprintf;
 
 /**
@@ -37,12 +39,14 @@ final class ContainerValidator
 
     /**
      * @param Closure(class-string): (StoredClassPlan|null) $planFor
-     * @param Closure(string): (string|null) $targetFor
+     * @param Closure(string, bool): (string|null) $targetFor
+     * @param Closure(string): bool $registered
      * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
         private readonly Closure $planFor,
         private readonly Closure $targetFor,
+        private readonly Closure $registered,
         private readonly array $contextualBindings = [],
     ) {
     }
@@ -62,12 +66,12 @@ final class ContainerValidator
     /**
      * @param list<string> $chain how this class was reached
      */
-    private function walk(string $class, array $chain, bool $useRegistration = true): void
+    private function walk(string $class, array $chain, bool $useRegistration = true, bool $contextual = false): void
     {
         $target = $class;
         if ($useRegistration) {
             try {
-                $target = ($this->targetFor)($class);
+                $target = ($this->targetFor)($class, $contextual);
             } catch (ContainerException $exception) {
                 $this->issues[] = new ValidationIssue($class, ValidationProblem::DependencyCycle, $exception->getMessage(), $chain);
                 return;
@@ -89,7 +93,7 @@ final class ContainerValidator
             return;
         }
 
-        $inspection = ($useRegistration ? 'registered:' : 'constructor:') . $class;
+        $inspection = ($contextual ? 'contextual:' : ($useRegistration ? 'registered:' : 'constructor:')) . $class;
         if (isset($this->inspected[$inspection])) {
             return;
         }
@@ -164,7 +168,7 @@ final class ContainerValidator
         }
 
         if ($prop['inject'] !== null) {
-            $this->walk($prop['inject'], $chain);
+            $this->checkType($class, $prop['inject'], $chain);
             return;
         }
 
@@ -173,7 +177,7 @@ final class ContainerValidator
             return;
         }
 
-        $this->walk($prop['type'], $chain);
+        $this->checkType($class, $prop['type'], $chain);
     }
 
     /**
@@ -190,22 +194,24 @@ final class ContainerValidator
      */
     private function checkParameter(string $class, array $param, array $chain): void
     {
-        if (($param['isVariadic'] ?? false) && $param['inject'] === null) {
+        if (($param['isVariadic'] ?? false) && $param['inject'] === null && !isset($this->contextualBindings[$class][$param['type'] ?? ''])) {
             return;
         }
 
-        if ($this->hasNamedBinding($param)) {
+        if ($this->hasNamedBinding($class, $param)) {
             return;
         }
 
         if ($param['inject'] !== null) {
-            $this->walk($param['inject'], $chain);
+            $this->checkType($class, $param['inject'], $chain);
 
             return;
         }
 
         if (!$param['hasType']) {
-            $this->unresolvable($class, $param['name'], 'it has no type to resolve from', $chain);
+            if (!$param['hasDefault']) {
+                $this->unresolvable($class, $param['name'], 'it has no type to resolve from', $chain);
+            }
 
             return;
         }
@@ -235,6 +241,33 @@ final class ContainerValidator
             return;
         }
 
+        $this->checkType($class, $type, $chain, $param['hasDefault']);
+    }
+
+    /**
+     * @param list<string> $chain
+     */
+    private function checkType(string $consumer, string $type, array $chain, bool $hasDefault = false): void
+    {
+        $binding = $this->contextualBindings[$consumer][$type] ?? null;
+        if ($binding !== null) {
+            if (is_string($binding)) {
+                $this->walk($binding, $chain, contextual: true);
+            }
+            return;
+        }
+
+        if ($hasDefault) {
+            try {
+                if (!(($this->registered)($type))) {
+                    return;
+                }
+            } catch (ContainerException) {
+                $this->walk($type, $chain);
+                return;
+            }
+        }
+
         $this->walk($type, $chain);
     }
 
@@ -254,11 +287,18 @@ final class ContainerValidator
     /**
      * @param ParamPlan $param
      */
-    private function hasNamedBinding(array $param): bool
+    private function hasNamedBinding(string $consumer, array $param): bool
     {
-        $declaringClass = $param['declaringClass'];
+        $contexts = [$consumer];
+        if ($param['declaringClass'] !== null && $param['declaringClass'] !== $consumer) {
+            $contexts[] = $param['declaringClass'];
+        }
+        foreach ($contexts as $context) {
+            if (array_key_exists('$' . $param['name'], $this->contextualBindings[$context] ?? [])) {
+                return true;
+            }
+        }
 
-        return $declaringClass !== null
-            && isset($this->contextualBindings[$declaringClass]['$' . $param['name']]);
+        return false;
     }
 }

@@ -427,6 +427,8 @@ vendor/bin/gacela-container validate
 
 **Nothing is constructed.** The container identifies aliases, stored values, factories and scope ownership without invoking them. Validation follows the class-string targets that runtime constructs, instead of rejecting an original abstract or walking a constructor replaced by a stored value or factory. This applies to entry points and nested dependencies, including inherited registrations and scope overrides.
 
+Parameter validation follows runtime selection: named values, including `null`, use the actual consumer with the declaring class as fallback. Type contextual bindings use the actual consumer only. Unregistered class types with defaults keep those defaults; explicit registrations and contextual targets are still checked. These rules cover constructors and injected setters, and type contexts also apply to injected properties. No binding factories run.
+
 Class-string targets still have their constructors and injected members checked. Registering a singleton does not hide an invalid constructor before that singleton has been created. Factory return values remain outside what validation can prove without running application code.
 
 Validation follows constructor parameters, injected properties and injected method parameters, including their transitive dependencies. It also rejects readonly injected properties and non-public or static injected methods. No constructors, setters or binding closures run.

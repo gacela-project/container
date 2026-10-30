@@ -488,6 +488,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         return (new ContainerValidator(
             $this->validationPlan(...),
             $this->validationTarget(...),
+            $this->hasValidationRegistration(...),
             $this->contextualBindings,
         ))->validate($roots);
     }
@@ -1676,8 +1677,15 @@ final class Container implements FullContainerInterface, ArrayAccess
         return $plans[$class] ?? null;
     }
 
-    private function validationTarget(string $id): ?string
+    private function validationTarget(string $id, bool $contextual = false): ?string
     {
+        if ($contextual) {
+            $binding = $this->getBindings()[$id] ?? null;
+            if ($binding !== null && $binding !== $id && $this->cacheManager->isInstantiable($id)) {
+                return $id;
+            }
+        }
+
         $id = $this->aliasRegistry->resolve($id);
         if ($this->instanceRegistry->has($id) || $this->cacheManager->hasInstance($id)) {
             return null;
@@ -1693,6 +1701,11 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         return $id;
+    }
+
+    private function hasValidationRegistration(string $id): bool
+    {
+        return $this->bound($id) || $this->provides($id) || isset($this->cacheManager->lazyClasses()[$id]);
     }
 
     /**
