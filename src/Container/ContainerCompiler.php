@@ -247,6 +247,13 @@ final class ContainerCompiler
      */
     private function argumentFor(string $class, array $param, array $stack): ?string
     {
+        if ($param['isVariadic'] ?? false) {
+            return $this->skip($class, CompilationSkipReason::VariadicParameter, sprintf(
+                'parameter $%s is variadic, so explicit arguments are selected at runtime',
+                $param['name'],
+            ));
+        }
+
         // #[Inject] resolution is a runtime concern; leave it alone.
         if ($param['inject'] !== null) {
             return $this->skip($class, CompilationSkipReason::InjectedParameter, sprintf(

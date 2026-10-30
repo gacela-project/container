@@ -28,6 +28,7 @@ use GacelaTest\Fake\ServiceWithInjectedProperty;
 use GacelaTest\Fake\ServiceWithPromotedInject;
 use GacelaTest\Fake\ServiceWithRepository;
 use GacelaTest\Fake\ServiceWithScalarDependency;
+use GacelaTest\Fake\ServiceWithScalarVariadicParameter;
 use GacelaTest\Fake\SingletonAttributeService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -56,6 +57,7 @@ final class ContainerCompilerTest extends TestCase
         ServiceWithPromotedInject::class,
         ServiceWithDefaultedClassDependency::class,
         DatabaseRepository::class,
+        ServiceWithScalarVariadicParameter::class,
     ];
 
     public function test_it_compiles_a_class_with_no_dependencies(): void
@@ -376,6 +378,7 @@ final class ContainerCompilerTest extends TestCase
         yield 'injected property' => [ServiceWithInjectedProperty::class, CompilationSkipReason::InjectedProperty];
         yield 'injected parameter' => [ServiceWithPromotedInject::class, CompilationSkipReason::InjectedParameter];
         yield 'scalar parameter' => [Person::class, CompilationSkipReason::ScalarParameter];
+        yield 'variadic parameter' => [ServiceWithScalarVariadicParameter::class, CompilationSkipReason::VariadicParameter];
         yield 'defaulted class parameter' => [ServiceWithDefaultedClassDependency::class, CompilationSkipReason::DefaultParameter];
         yield 'blocked dependency' => [DatabaseRepository::class, CompilationSkipReason::Dependency];
     }

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Variadic dependencies
+
+An absent variadic parameter now receives zero arguments. A global registration or an autowirable class no longer adds one argument implicitly. If a variadic dependency needs one service, select it explicitly with a typed or named contextual binding:
+
+```php
+$container->when(EventBus::class)->needs(Handler::class)->give($handler);
+// Or bind the parameter by name:
+$container->when(EventBus::class)->needs('$handlers')->give($handler);
+```
+
+A runtime override such as `make(EventBus::class, ['handlers' => $handler])` also supplies one value. Arrays are not spread automatically. See [variadic parameters](docs/resolution.md#variadic-parameters).
+
 ### Optional class dependencies
 
 Class-typed parameters with defaults now receive applicable registrations before falling back to their declared values. If a consumer must keep `null` even when its type is registered globally, bind that parameter by name:

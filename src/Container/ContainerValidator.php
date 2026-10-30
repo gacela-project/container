@@ -139,8 +139,10 @@ final class ContainerValidator
      */
     private function checkParameter(string $class, array $param, array $chain): void
     {
-        // A named contextual binding supplies the parameter whatever its type,
-        // so it settles the question before anything else is asked.
+        if (($param['isVariadic'] ?? false) && $param['inject'] === null) {
+            return;
+        }
+
         if ($this->hasNamedBinding($param)) {
             return;
         }
