@@ -53,7 +53,7 @@ raises `ContainerException`.
 `make()` with constructor overrides throws `DependencyNotFoundException` when
 the target class does not exist. The same exception reports a missing target
 in a class-string binding reached through a nested dependency or a contextual
-binding. Check the class name and its autoloading configuration.
+binding. Missing parameter and `#[Inject]` property types also use this exception, rather than scalar-argument errors. Check the class name and its autoloading configuration.
 
 ## `CircularDependencyException`
 

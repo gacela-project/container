@@ -84,9 +84,6 @@ final class DependencyResolver
     /** @var array<class-string, true> guards the recursion in composeBuilder() */
     private array $buildingBuilders = [];
 
-    /** @var array<string, bool> Memoized class_exists()/interface_exists() checks */
-    private array $typeExistsCache = [];
-
     /** @var list<class-string> */
     private array $buildStack = [];
 
@@ -1623,7 +1620,11 @@ final class DependencyResolver
         $isScalar = false;
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
-            $isScalar = $this->isScalar($typeName);
+            if ($typeName === 'self' || $typeName === 'parent') {
+                $typeName = self::resolveRelativeTypeName($typeName, $property->getDeclaringClass());
+            }
+
+            $isScalar = $type->isBuiltin();
         }
 
         /** @var class-string|null $implementation */
@@ -1768,7 +1769,11 @@ final class DependencyResolver
         $isScalar = false;
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
-            $isScalar = $this->isScalar($typeName);
+            if ($typeName === 'self' || $typeName === 'parent') {
+                $typeName = self::resolveRelativeTypeName($typeName, $parameter->getDeclaringClass());
+            }
+
+            $isScalar = $type->isBuiltin();
         }
 
         $hasDefault = $parameter->isDefaultValueAvailable();
@@ -1823,12 +1828,23 @@ final class DependencyResolver
         return $root === null || in_array($root, $chain, true) ? $chain : [$root, ...$chain];
     }
 
-    private function isScalar(string $paramTypeName): bool
+    /**
+     * @param 'self'|'parent' $typeName
+     * @param ReflectionClass<object>|null $declaringClass
+     */
+    private static function resolveRelativeTypeName(string $typeName, ?ReflectionClass $declaringClass): string
     {
-        $this->typeExistsCache[$paramTypeName] ??= class_exists($paramTypeName)
-            || interface_exists($paramTypeName);
+        if ($declaringClass === null) {
+            return $typeName;
+        }
 
-        return !$this->typeExistsCache[$paramTypeName];
+        if ($typeName === 'self') {
+            return $declaringClass->getName();
+        }
+
+        $parent = $declaringClass->getParentClass();
+
+        return $parent === false ? $typeName : $parent->getName();
     }
 
     /**
