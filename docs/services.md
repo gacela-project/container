@@ -98,6 +98,8 @@ Hooks fire for `get()`, `getOrFail()` and `make()`, including `make()` with over
 
 Each hook registration runs once per object. Reading a shared service again, including through an alias or another id, does not repeat its configuration. Fresh objects and replacement instances each receive the hook. A hook registered later runs the next time a matching object is resolved. Non-object values run matching hooks on each resolution.
 
+A hook can resolve another consumer of the same completed shared object, including a singleton first reached through a constructor parameter. The consumer receives that object without repeating the running hook. Dependencies still being constructed, or evicted during the hook, remain subject to circular dependency checks.
+
 Each container tracks its own registrations. A scope's hooks apply to its nested resolutions, including services obtained from a parent. Parent hooks run first when the parent supplies a service, followed by the scope's hooks; they do not apply to services the scope autowires itself. Tracking holds objects weakly, so it does not extend their lifetime.
 
 A callback that throws **drops the built instance**: a service whose
