@@ -266,6 +266,8 @@ treats a lazy object with nothing to defer as initialized at once and would skip
 the constructor. The container builds such a class straight away instead, and a
 `lazy()` factory for it is called straight away.
 
+Internal PHP classes and their descendants, except `stdClass`, also build eagerly. A `lazy()` factory for such a class runs immediately and returns its result unchanged. `stdClass` descendants remain eligible for native deferral. See [PHP's lazy-object restrictions](https://www.php.net/manual/en/reflectionclass.newlazyghost.php).
+
 A class with instance properties does not need a constructor to be lazy. Its
 property defaults are preserved, and `#[Inject]` properties and methods are
 initialized on first touch.

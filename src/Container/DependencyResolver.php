@@ -19,6 +19,7 @@ use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
+use stdClass;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -132,7 +133,7 @@ final class DependencyResolver
     private static array $lazyAttribute = [];
 
     /** @var array<class-string, bool> */
-    private static array $hasInstanceProperties = [];
+    private static array $lazyClassSupport = [];
 
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
@@ -226,7 +227,7 @@ final class DependencyResolver
         self::$propertyPlans = [];
         self::$methodPlans = [];
         self::$lazyAttribute = [];
-        self::$hasInstanceProperties = [];
+        self::$lazyClassSupport = [];
         self::$lazyObjectsAvailable = null;
     }
 
@@ -485,11 +486,7 @@ final class DependencyResolver
     {
         $factory = $this->lazyFactories[$className] ?? null;
 
-        // PHP marks a lazy object with no properties initialized the moment it
-        // is created, so its initializer never runs: a ghost would never be
-        // constructed, and a proxy would be an unconstructed $className rather
-        // than what the factory returns. Such a class is built now instead.
-        if (!self::hasInstanceProperties($className)) {
+        if (!self::supportsLazyClass($className)) {
             /** @var object */
             return $factory === null ? $this->constructNow($className) : $factory($this->container());
         }
@@ -1174,26 +1171,28 @@ final class DependencyResolver
     }
 
     /**
-     * Whether $className or an ancestor declares an instance property, which
-     * is what PHP needs to keep a lazy object uninitialized.
-     *
      * @param class-string $className
      */
-    private static function hasInstanceProperties(string $className): bool
+    private static function supportsLazyClass(string $className): bool
     {
-        if (isset(self::$hasInstanceProperties[$className])) {
-            return self::$hasInstanceProperties[$className];
+        if (isset(self::$lazyClassSupport[$className])) {
+            return self::$lazyClassSupport[$className];
         }
 
+        $hasProperties = false;
         for ($class = new ReflectionClass($className); $class instanceof ReflectionClass; $class = $class->getParentClass()) {
+            if ($class->isInternal() && $class->getName() !== stdClass::class) {
+                return self::$lazyClassSupport[$className] = false;
+            }
+
             foreach ($class->getProperties() as $property) {
                 if (!$property->isStatic()) {
-                    return self::$hasInstanceProperties[$className] = true;
+                    $hasProperties = true;
                 }
             }
         }
 
-        return self::$hasInstanceProperties[$className] = false;
+        return self::$lazyClassSupport[$className] = $hasProperties;
     }
 
     /**
