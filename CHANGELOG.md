@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- Classes marked `#[Singleton] #[Lazy]` share one deferred instance across direct reads and constructor injection. Initialization still happens once on first use, and PHP 8.3 keeps the eager shared fallback. Explicit contextual targets keep their selected class and singleton cache when another global binding replaces that class, including inherited singleton registrations in scopes. See [combined attributes](docs/attributes.md#combining-with-other-attributes)
 - Cycles through closure or callable-array binding and singleton factories raise `CircularDependencyException` instead of exhausting memory when they repeat an unfinished factory during constructor resolution. Failed attempts leave the container ready to retry; finite re-entry can use overrides, ready values, or replacement registrations. See [circular dependencies](docs/error-handling.md#circulardependencyexception)
 - Class-typed parameters with defaults now receive applicable registrations, including contextual bindings, aliases, stored `null`, and inherited services. Unregistered optional classes keep their defaults. See [registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too) and the [upgrade example](UPGRADE.md#optional-class-dependencies)
 - Cycles through an interface's class-string binding raise `CircularDependencyException` instead of exhausting memory. Contextual bindings can still select a separate inner implementation for a decorator

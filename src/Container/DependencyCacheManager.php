@@ -159,6 +159,7 @@ final class DependencyCacheManager
      * @param CompiledPlans $compiledPlans
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param PlanCache|null $planCache a cache shared with unrelated containers
+     * @param (Closure(class-string): mixed)|null $contextualResolver
      */
     public function __construct(
         private array &$bindings = [],
@@ -166,6 +167,7 @@ final class DependencyCacheManager
         array $compiledPlans = [],
         private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
+        private ?Closure $contextualResolver = null,
     ) {
         // Read before useSelfReference() can replace it, which is the only way
         // to know which of the two references is the owner.
@@ -498,6 +500,21 @@ final class DependencyCacheManager
         return $this->createInstance($class);
     }
 
+    /**
+     * @param class-string $class
+     */
+    public function instantiateContextual(string $class): mixed
+    {
+        if ($this->contextualResolver !== null) {
+            return ($this->contextualResolver)($class);
+        }
+
+        $instance = $this->instantiate($class);
+        $this->afterResolving?->__invoke($class, $instance);
+
+        return $instance;
+    }
+
     public function getCacheSize(): int
     {
         return count($this->resolvedKeys);
@@ -621,6 +638,7 @@ final class DependencyCacheManager
                 $this->ownedIds,
                 $this->ownerRef,
                 $this->afterResolving,
+                WeakReference::create($this),
             );
 
             if ($this->parent !== null) {

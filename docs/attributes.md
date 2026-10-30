@@ -329,8 +329,17 @@ See [bindings](bindings.md#deferred-registration).
 
 ### Combining with other attributes
 
-- `#[Singleton] #[Lazy]` — one shared instance, constructed on first touch
+- `#[Singleton] #[Lazy]`: one shared instance for direct reads and constructor injection, constructed on first touch
 - `#[Factory] #[Lazy]` — a fresh lazy instance per resolution
+
+A contextual class target keeps its singleton lifetime even when a global binding
+replaces that class for other consumers. Selecting `Heavy::class` explicitly
+shares the cached `Heavy` instance, and `forget(Heavy::class)` clears that cache.
+Scopes share an inherited singleton registration unless they shadow its binding;
+forgetting it on the parent clears the shared instance for subsequent lookups.
+Stored scope registrations and aliases still take precedence. When a parent owns
+the selected singleton, resolution hooks run from that parent through every
+intermediate scope to the requesting scope.
 
 ### PHP version
 

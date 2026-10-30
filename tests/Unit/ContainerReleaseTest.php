@@ -10,6 +10,9 @@ use Gacela\Container\ContainerInterface;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\InMemoryRepository;
+use GacelaTest\Fake\LazySingletonService;
+use GacelaTest\Fake\OuterHoldingLazySingletonService;
+use GacelaTest\Fake\ReplacementLazySingletonService;
 use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithRepository;
 use PHPUnit\Framework\TestCase;
@@ -70,6 +73,24 @@ final class ContainerReleaseTest extends TestCase
         unset($container);
 
         self::assertNull($reference->get());
+    }
+
+    public function test_a_contextual_singleton_and_its_scope_are_released_without_collecting_cycles(): void
+    {
+        $parent = new Container();
+        $parent->bind(LazySingletonService::class, ReplacementLazySingletonService::class);
+        $parent->when(OuterHoldingLazySingletonService::class)
+            ->needs(LazySingletonService::class)->give(LazySingletonService::class);
+        $scope = $parent->createScope();
+        $service = $scope->get(OuterHoldingLazySingletonService::class)->lazyService;
+        ++$service->value;
+
+        $scopeReference = WeakReference::create($scope);
+        $serviceReference = WeakReference::create($service);
+        unset($scope, $service);
+
+        self::assertNull($scopeReference->get());
+        self::assertNull($serviceReference->get());
     }
 
     public function test_a_container_with_a_closure_binding_is_released(): void
