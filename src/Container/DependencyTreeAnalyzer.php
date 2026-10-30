@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Gacela\Container\Exception\CircularDependencyException;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -118,7 +119,13 @@ final readonly class DependencyTreeAnalyzer
             /** @var class-string $paramTypeName */
             $paramTypeName = $type->getName();
 
-            $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
+            try {
+                $paramTypeName = $this->bindingResolver->resolveType($paramTypeName);
+            } catch (CircularDependencyException) {
+                $children[] = new DependencyNode($paramTypeName, $reflectionParameter->getName(), [], true);
+                $cutBelow = true;
+                continue;
+            }
 
             $childCut = false;
             $children[] = $this->buildNode($paramTypeName, $reflectionParameter->getName(), $ancestors, $memo, $childCut);
