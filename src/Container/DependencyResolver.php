@@ -16,6 +16,7 @@ use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
@@ -292,7 +293,7 @@ final class DependencyResolver
                 /** @psalm-suppress MixedAssignment */
                 $dependencies[] = array_key_exists($param['name'], $overrides)
                     ? $overrides[$param['name']]
-                    : $this->resolveParameter($param);
+                    : $this->resolveParameter($param, $toResolve);
             }
 
             return $dependencies;
@@ -812,11 +813,12 @@ final class DependencyResolver
 
     /**
      * @param ParamPlan $param
+     * @param class-string|null $consumer
      */
-    private function resolveParameter(array $param): mixed
+    private function resolveParameter(array $param, ?string $consumer = null): mixed
     {
         /** @psalm-suppress MixedAssignment */
-        [$hasNamedBinding, $namedValue] = $this->resolveNamedContextualBinding($param);
+        [$hasNamedBinding, $namedValue] = $this->resolveNamedContextualBinding($param, $consumer);
         if ($hasNamedBinding) {
             return $namedValue;
         }
@@ -884,44 +886,40 @@ final class DependencyResolver
     }
 
     /**
-     * Resolve a contextual binding matched by the parameter name (e.g. `'$apiKey'`)
-     * scoped to the parameter's declaring class.
-     *
      * @param ParamPlan $param
+     * @param class-string|null $consumer
      *
      * @return array{bool, mixed} [matched, value]
      */
-    private function resolveNamedContextualBinding(array $param): array
+    private function resolveNamedContextualBinding(array $param, ?string $consumer): array
     {
         if ($this->contextualBindings === []) {
             return [false, null];
         }
 
         $declaringClass = $param['declaringClass'];
-        if ($declaringClass === null) {
-            return [false, null];
+        $contexts = $consumer === null ? [] : [$consumer];
+        if ($declaringClass !== null && $declaringClass !== $consumer) {
+            $contexts[] = $declaringClass;
         }
 
-        $bindings = $this->contextualBindings[$declaringClass] ?? null;
-        if ($bindings === null) {
-            return [false, null];
-        }
-
-        // array_key_exists rather than isset: null is a value a caller can bind
-        // — "this consumer gets no logger" is a real answer — and isset() calls
-        // it absent.
         $key = '$' . $param['name'];
-        if (!array_key_exists($key, $bindings)) {
-            return [false, null];
+        foreach ($contexts as $context) {
+            $bindings = $this->contextualBindings[$context] ?? [];
+            if (!array_key_exists($key, $bindings)) {
+                continue;
+            }
+
+            /** @var mixed $value */
+            $value = $bindings[$key];
+            if ($value instanceof Closure) {
+                return [true, $this->invokeFactory($key, $value, $context)];
+            }
+
+            return [true, $value];
         }
 
-        /** @var mixed $value */
-        $value = $bindings[$key];
-        if ($value instanceof Closure) {
-            return [true, $this->invokeFactory($key, $value, $declaringClass)];
-        }
-
-        return [true, $value];
+        return [false, null];
     }
 
     private function invokeFactory(string $id, callable $factory, ?string $consumer = null): mixed
@@ -1315,7 +1313,7 @@ final class DependencyResolver
                 }
 
                 /** @psalm-suppress MixedAssignment */
-                $args[] = $this->resolveParameter($param);
+                $args[] = $this->resolveParameter($param, $className);
             }
 
             /** @psalm-suppress MixedMethodCall */
@@ -1501,12 +1499,11 @@ final class DependencyResolver
         $methods = [];
 
         foreach ($reflection->getMethods() as $method) {
-            if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) === []) {
+            if ($method->isConstructor()) {
                 continue;
             }
 
-            // The constructor is injected by being the constructor.
-            if ($method->isConstructor()) {
+            if (!$this->hasMethodInjection($method, $reflection)) {
                 continue;
             }
 
@@ -1528,6 +1525,38 @@ final class DependencyResolver
         }
 
         return $methods;
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private function hasMethodInjection(ReflectionMethod $method, ReflectionClass $reflection): bool
+    {
+        if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+            return true;
+        }
+
+        $name = $method->getName();
+        $parent = $method->getDeclaringClass()->getParentClass();
+        while ($parent !== false) {
+            if ($parent->hasMethod($name)) {
+                $ancestor = $parent->getMethod($name);
+                if (!$ancestor->isPrivate() && $ancestor->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                    return true;
+                }
+            }
+
+            $parent = $parent->getParentClass();
+        }
+
+        foreach ($reflection->getInterfaces() as $interface) {
+            if ($interface->hasMethod($name)
+                && $interface->getMethod($name)->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1580,7 +1609,7 @@ final class DependencyResolver
 
             foreach ($method['params'] as $param) {
                 /** @psalm-suppress MixedAssignment */
-                $args[] = $this->resolveParameter($param);
+                $args[] = $this->resolveParameter($param, $instance::class);
             }
 
             /** @psalm-suppress MixedMethodCall */
