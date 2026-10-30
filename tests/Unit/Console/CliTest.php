@@ -501,10 +501,12 @@ final class CliTest extends TestCase
     {
         $this->writeConfig('no-autoloader.php', autoload: false);
 
-        [$status, , $err] = $this->cli(['report', $this->configFlag('no-autoloader.php')]);
+        [$status, $out] = $this->cli(['report', $this->configFlag('no-autoloader.php')]);
 
         self::assertSame(Cli::EXIT_OK, $status);
-        self::assertStringContainsString('could be loaded, so nothing was', $err);
+        self::assertStringContainsString('not a loadable class', $out);
+        [$strict] = $this->cli(['report', '--strict', $this->configFlag('no-autoloader.php')]);
+        self::assertSame(Cli::EXIT_FAILURE, $strict);
     }
 
     public function test_a_directory_source_can_come_from_the_command_line(): void

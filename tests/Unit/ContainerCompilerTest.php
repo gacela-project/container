@@ -33,6 +33,7 @@ use GacelaTest\Fake\ServiceWithScalarDependency;
 use GacelaTest\Fake\ServiceWithScalarVariadicParameter;
 use GacelaTest\Fake\SingletonAttributeService;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -61,6 +62,8 @@ final class ContainerCompilerTest extends TestCase
         DatabaseRepository::class,
         ServiceWithScalarVariadicParameter::class,
         CompilableConsumer::class,
+        RepositoryInterface::class,
+        Person::class,
     ];
 
     public function test_it_compiles_a_class_with_no_dependencies(): void
@@ -332,6 +335,45 @@ final class ContainerCompilerTest extends TestCase
 
         self::assertSame($first, $second);
     }
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_compilation_accounts_only_for_requested_classes_including_missing_ones(bool $discovered): void
+    {
+        $container = new Container();
+        $container->compile(ClassSource::fromList([ClassWithoutDependencies::class, ServiceWithInjectedMethod::class]));
+        $missing = 'GacelaTest\\Fake\\MissingRequestedService';
+        $requested = [CompilableConsumer::class, $missing];
+        $source = $discovered ? ClassSource::fromList($requested) : $requested;
+        $report = $container->compileReport($source);
+
+        self::assertSame([CompilableConsumer::class], $report->compiled());
+        self::assertSame([$missing], $report->skipped());
+        self::assertFalse($report->wasCompiled($missing));
+        self::assertFalse($report->wasCompiled(ClassWithoutDependencies::class));
+        self::assertFalse($report->wasCompiled(CompilableDependency::class));
+        self::assertSame(CompilationSkipReason::NotInstantiable, $report->reasonFor($missing));
+
+        $file = tempnam(sys_get_temp_dir(), 'requested-factories');
+        try {
+            self::assertSame($report->compiled(), $container->writeCompiledFactories($source, $file));
+            $factories = Container::loadCompiledFactories($file);
+            self::assertSame($report->compiled(), array_keys($factories));
+            $receiver = new Container();
+            $receiver->useCompiledFactories($factories);
+            self::assertInstanceOf(CompilableDependency::class, $receiver->get(CompilableConsumer::class)->dependency);
+        } finally {
+            unlink($file);
+        }
+    }
+
+    public function test_empty_compilation_requests_ignore_previously_planned_classes(): void
+    {
+        $container = new Container();
+        $container->get(ClassWithoutDependencies::class);
+        self::assertSame([], $container->compileReport([])->compiled());
+        self::assertSame([], $container->compileReport([])->skipped());
+    }
+
     public function test_the_report_agrees_with_write_compiled_factories(): void
     {
         $container = self::reportingContainer();
@@ -345,12 +387,12 @@ final class ContainerCompilerTest extends TestCase
         self::assertSame($written, $container->compileReport(self::REPORT_FIXTURES)->compiled());
     }
 
-    public function test_the_report_accounts_for_every_planned_class(): void
+    public function test_the_report_accounts_for_every_requested_class(): void
     {
         $container = self::reportingContainer();
         $report = $container->compileReport(self::REPORT_FIXTURES);
 
-        $planned = array_keys($container->compile(self::REPORT_FIXTURES));
+        $planned = self::REPORT_FIXTURES;
 
         self::assertSame([], array_intersect($report->compiled(), $report->skipped()));
         self::assertEqualsCanonicalizing($planned, [...$report->compiled(), ...$report->skipped()]);

@@ -1706,6 +1706,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             $this->cacheManager->lazyClasses(),
             $this->hasCompilationOverride(...),
             $this->contextualBindings,
+            $classNames instanceof ClassSource ? $classNames->classNames() : $classNames,
         );
     }
 

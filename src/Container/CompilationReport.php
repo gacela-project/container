@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use function array_keys;
+use function in_array;
 
 /**
  * What compilation decided about each class, and why.
@@ -53,7 +54,7 @@ final class CompilationReport
      */
     public function wasCompiled(string $class): bool
     {
-        return !isset($this->reasons[$class]);
+        return in_array($class, $this->compiled, true);
     }
 
     /**

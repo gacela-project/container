@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Compilation reports:** account only for requested classes, explicitly refuse missing inputs and exclude unrelated warmed plans. `wasCompiled()` checks the compiled set. See [reports](docs/performance.md#asking-why).
+
 - **Generated factories:** memoize constructor expressions and reuse helpers for large subexpressions, preventing exponential source growth on shared dependency graphs. Objects remain transient, and receiving overrides and source checks still apply. See [generated code](docs/performance.md#generated-constructor-code).
 
 - **Cache permissions:** replacements preserve safe existing POSIX modes instead of resetting operator-selected read access. New files and replacements of group- or world-writable files remain private. See [cache permissions](docs/performance.md#cache-file-permissions).

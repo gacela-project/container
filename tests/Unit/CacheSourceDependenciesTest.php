@@ -278,7 +278,7 @@ PHP);
             default => "(new \\Gacela\\Container\\Container())->writeCompiledCache(\$classes, {$file}, {$stamp});",
         };
         $loader = $this->loader($kind);
-        $result = $this->process("\$classes = [\\CacheSourceFixture\\Entry::class, \\CacheSourceFixture\\Unchanged::class];\n{$body}\n\$entries = {$loader}({$stamp}); \$result = ['entries' => array_keys(\$entries)];");
+        $result = $this->process("\$classes = [\\CacheSourceFixture\\Entry::class, \\CacheSourceFixture\\Unchanged::class, \\CacheSourceFixture\\Leaf::class];\n{$body}\n\$entries = {$loader}({$stamp}); \$result = ['entries' => array_keys(\$entries)];");
 
         self::assertContains('CacheSourceFixture\\Entry', $result['entries']);
     }
