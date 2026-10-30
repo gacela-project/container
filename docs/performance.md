@@ -419,12 +419,9 @@ Or from the command line, where it exits non-zero on any problem:
 vendor/bin/gacela-container validate
 ```
 
-**Nothing is constructed.** Classes are described rather than resolved, and
-whether an id can be satisfied is answered by `has()` on your container — the
-same question resolution asks. So validating cannot open a connection, and
-cannot drift from what resolution actually does by re-deriving any of it: a
-binding, an alias, a stored instance or a parent scope all count here because
-they count to `has()`.
+**Nothing is constructed.** The container identifies aliases, stored values, factories and scope ownership without invoking them. Validation follows the class-string targets that runtime constructs, instead of rejecting an original abstract or walking a constructor replaced by a stored value or factory. This applies to entry points and nested dependencies, including inherited registrations and scope overrides.
+
+Class-string targets still have their constructors and injected members checked. Registering a singleton does not hide an invalid constructor before that singleton has been created. Factory return values remain outside what validation can prove without running application code.
 
 Validation follows constructor parameters, injected properties and injected method parameters, including their transitive dependencies. It also rejects readonly injected properties and non-public or static injected methods. No constructors, setters or binding closures run.
 

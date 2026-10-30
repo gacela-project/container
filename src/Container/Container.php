@@ -35,6 +35,7 @@ use function spl_object_id;
  * @psalm-import-type FactoriesMap from ContainerInterface
  * @psalm-import-type StatsArray from ContainerInterface
  * @psalm-import-type CompiledPlans from PlanRegistry
+ * @psalm-import-type StoredClassPlan from PlanRegistry
  *
  * @psalm-type ResolvedHook = array{id: string, byType: bool, callback: Closure}
  *
@@ -484,13 +485,9 @@ final class Container implements FullContainerInterface, ArrayAccess
             ? $classNames->classNames()
             : $classNames;
 
-        // Describe-only, exactly as a discovered compile does: this plans the
-        // whole reachable graph and constructs none of it.
-        $this->cacheManager->planAll($roots);
-
         return (new ContainerValidator(
-            $this,
-            $this->cacheManager->exportCompiledPlans(),
+            $this->validationPlan(...),
+            $this->validationTarget(...),
             $this->contextualBindings,
         ))->validate($roots);
     }
@@ -1661,6 +1658,41 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         return !isset($this->bindings[$class]) && ($this->parent?->providesContextualClass($class) ?? false);
+    }
+
+    /**
+     * @param class-string $class
+     *
+     * @return StoredClassPlan|null
+     */
+    private function validationPlan(string $class): ?array
+    {
+        $plans = $this->cacheManager->exportCompiledPlans();
+        if (!isset($plans[$class]['props'], $plans[$class]['methods'])) {
+            $this->cacheManager->planAll([$class]);
+            $plans = $this->cacheManager->exportCompiledPlans();
+        }
+
+        return $plans[$class] ?? null;
+    }
+
+    private function validationTarget(string $id): ?string
+    {
+        $id = $this->aliasRegistry->resolve($id);
+        if ($this->instanceRegistry->has($id) || $this->cacheManager->hasInstance($id)) {
+            return null;
+        }
+
+        if ($this->parent !== null && !$this->ownsLocally($id) && $this->parent->provides($id)) {
+            return $this->parent->validationTarget($id);
+        }
+
+        $binding = $this->bindings[$id] ?? null;
+        if ($binding !== null) {
+            return is_string($binding) ? $binding : null;
+        }
+
+        return $id;
     }
 
     /**
