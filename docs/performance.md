@@ -126,6 +126,8 @@ reflection it throws away, and never touches what a container was asked to
 keep: singletons, instances and bindings belong to the container and go away
 with it.
 
+Parameter and property plans classify builtin types from PHP's reflection metadata. An unavailable class or interface is not recorded as a scalar. Later declarations and registrations can therefore be used by the same container and shared plan cache without discarding their constructor plans.
+
 `has()` on an unregistered class shares the proven-instantiable entry above
 rather than reflecting for itself, so the probe leaves behind the constructor
 plan the following `get()` needs. Two consequences worth knowing: `has()` warms
