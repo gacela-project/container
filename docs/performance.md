@@ -555,6 +555,8 @@ A plan records its class, parent classes, interfaces and traits, including neste
 
 `loadCompiledCache()` and `loadCompiledFactories()` compare every recorded file without loading those classes. A changed or deleted file drops only the affected entries; unrelated entries remain available. A dropped entry uses normal runtime resolution when requested. Internal classes have no editable source file and retain their entries.
 
+Writers omit a user class when any required source cannot be verified, including classes defined through `eval()` or removed deployment files. Per-entry checks reject null or missing source stamps. Native internal classes remain cacheable.
+
 These are metadata comparisons, rather than content hashes or constructor reflection. Regenerate existing cache files after upgrading: the source groups use a new format, and older cache formats are rejected. `PlanCache::fromFile()` starts empty for an unsupported format.
 
 ### Trading the per-entry check for a build stamp

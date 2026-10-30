@@ -239,21 +239,17 @@ final class CompiledCacheStampTest extends TestCase
     {
         $cache = $this->cacheFile();
 
-        // An internal class has no file to stat, so it is written with an
-        // empty stamp and must still come back rather than be dropped by a
-        // check it can never pass.
         (new Container())->writeCompiledCache([ArrayObject::class], $cache);
 
         self::assertArrayHasKey(ArrayObject::class, Container::loadCompiledCache($cache));
     }
 
-    public function test_a_class_with_no_file_of_its_own_is_never_stale(): void
+    public function test_only_known_internal_sources_have_a_current_empty_stamp(): void
     {
-        // Internal classes and classes that vanished cannot be compared, and
-        // an entry that cannot be compared is kept: no edit can invalidate it.
-        self::assertNull(CacheStamp::of(ArrayObject::class));
+        self::assertSame([], CacheStamp::of(ArrayObject::class));
         self::assertNull(CacheStamp::of('No\\Such\\Class'));
-        self::assertTrue(CacheStamp::isCurrent(null));
+        self::assertTrue(CacheStamp::isCurrent([]));
+        self::assertFalse(CacheStamp::isCurrent(null));
     }
 
     /**

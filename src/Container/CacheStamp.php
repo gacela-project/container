@@ -25,7 +25,7 @@ final class CacheStamp
      * @param class-string $class
      * @param list<class-string> $dependencies
      *
-     * @return SourceStamp|null null when a user source cannot be stamped, or no class has a source file
+     * @return SourceStamp|null null when a user source cannot be stamped
      */
     public static function of(string $class, array $dependencies = []): ?array
     {
@@ -77,7 +77,7 @@ final class CacheStamp
             $stamps[] = [$file, $stat['mtime'], $stat['size']];
         }
 
-        return $stamps === [] ? null : $stamps;
+        return $stamps;
     }
 
     /**
@@ -89,7 +89,7 @@ final class CacheStamp
     public static function isCurrent(?array $stamp): bool
     {
         if ($stamp === null) {
-            return true;
+            return false;
         }
 
         foreach ($stamp as [$file, $mtime, $size]) {

@@ -86,6 +86,8 @@ $container->writeCompiledFactories($classes, __DIR__ . '/cache/factories.php');
 
 Keep passing your existing build stamp as the third argument if you use one. `PlanCache::fromFile()` starts empty when given an older format. See [staleness checks](docs/performance.md#staleness).
 
+Keep source files available when building caches. Classes defined through `eval()` or whose source files are unavailable are omitted; runtime resolution still works. Native internal classes remain cacheable.
+
 ### Cache ownership and permissions
 
 Compiled PHP caches now require trusted ownership and permissions before they
