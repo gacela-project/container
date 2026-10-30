@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Callable tracking:** resolving request handlers records stable signatures instead of object identities. Anonymous closures add no tracking entry, keeping bookkeeping bounded for repeated callable instances. See [statistics](docs/services.md#introspection).
+
 - **Definition files:** JSON and YAML reject callable arrays in factory and singleton entries. PHP files and direct `load()` calls retain callable support. See [definition formats](docs/definitions.md#from-a-file).
 
 - **Validation:** check injected properties and setter parameters, their transitive dependencies and cycles, without constructing services. Report invalid injected members with `InvalidInjection`. See [validation](docs/performance.md#proving-it-resolves-before-it-runs).
