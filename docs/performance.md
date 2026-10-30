@@ -287,6 +287,8 @@ and aliases on the compiling container also prevent inlining.
 
 ### Asking why
 
+Reports and factory files contain only requested classes. A missing requested class is refused explicitly; previously warmed unrelated classes are excluded. Dependencies may appear inside a requested factory or a generated helper without becoming separate entries. Include a dependency in the input list when you want its own factory entry. `wasCompiled()` returns false for any class outside the compiled set.
+
 `compileReport()` answers the same question programmatically, and adds the part
 the returned list cannot tell you — *why* a class dropped out:
 

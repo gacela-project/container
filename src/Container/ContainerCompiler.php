@@ -45,6 +45,9 @@ final class ContainerCompiler
 {
     private const int MAX_INLINE_BYTES = 1024;
 
+    /** @var list<class-string> */
+    private readonly array $requested;
+
     /** @var array<class-string, string> */
     private array $resolvedExpressions = [];
 
@@ -78,6 +81,7 @@ final class ContainerCompiler
      * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
      * @param (Closure(string): bool)|null $provides
      * @param ContextualBindingsMap $contextualBindings
+     * @param list<class-string>|null $requested
      */
     public function __construct(
         private array $plans,
@@ -85,7 +89,9 @@ final class ContainerCompiler
         private array $lazyClasses = [],
         private ?Closure $provides = null,
         private array $contextualBindings = [],
+        ?array $requested = null,
     ) {
+        $this->requested = $requested ?? array_keys($this->plans);
     }
 
     /**
@@ -144,13 +150,10 @@ final class ContainerCompiler
     {
         $compilable = $this->compilable();
 
-        // Recursion also judges dependencies that were never asked about; the
-        // report answers for the classes the planner described, so that
-        // compiled() and skipped() together are exactly the input.
         $reasons = [];
         $explanations = [];
 
-        foreach (array_keys($this->plans) as $class) {
+        foreach ($this->requested as $class) {
             if (isset($this->reasons[$class])) {
                 $reasons[$class] = $this->reasons[$class];
                 $explanations[$class] = $this->explanations[$class];
@@ -161,17 +164,6 @@ final class ContainerCompiler
     }
 
     /**
-     * The `new` expression for every class that has one, keyed by class and in
-     * plan order.
-     *
-     * Both public callers ask the same question of the same immutable inputs —
-     * writeCompiledFactories() calls render() and then compilable(), which used
-     * to walk the plans and generate every expression twice — so the answer is
-     * computed once. Nothing can change it afterwards: the plans, the bindings
-     * and the lazy registrations are given at construction and never written,
-     * and skip() is first-writer-wins, so a second pass could only re-derive
-     * what the first recorded.
-     *
      * @return array<class-string, string>
      */
     private function expressions(): array
@@ -182,7 +174,7 @@ final class ContainerCompiler
 
         $expressions = [];
 
-        foreach (array_keys($this->plans) as $class) {
+        foreach ($this->requested as $class) {
             $expression = $this->expressionFor($class, []);
 
             if ($expression !== null) {
