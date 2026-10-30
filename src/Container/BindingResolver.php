@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Closure;
+use Gacela\Container\Exception\CircularDependencyException;
+use Gacela\Container\Exception\DependencyNotFoundException;
 use WeakReference;
 
+use function array_keys;
+use function array_values;
 use function class_exists;
+use function interface_exists;
 use function is_array;
 use function is_callable;
 use function is_object;
 use function is_string;
+use function spl_object_id;
 
 /**
  * Resolves abstract types to concrete implementations using bindings.
  *
- * @psalm-import-type Binding from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  *
  * @internal
@@ -27,16 +32,21 @@ final class BindingResolver
 {
     private ?self $parent = null;
 
+    /** @var array<string, true> */
+    private array $resolvingBindings = [];
+
     /** @var WeakReference<ContainerInterface>|null */
     private readonly ?WeakReference $ownerRef;
 
     /**
      * @param BindingsMap $bindings
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
+     * @param (Closure(string): array{string, bool})|null $registrationInfo
      */
     public function __construct(
         private array &$bindings = [],
         private ?WeakReference $containerRef = null,
+        private ?Closure $registrationInfo = null,
     ) {
         $this->ownerRef = $containerRef;
     }
@@ -81,8 +91,16 @@ final class BindingResolver
                 return $binding;
             }
 
-            if (is_string($binding) && class_exists($binding)) {
-                return $cacheManager->instantiate($binding);
+            if (is_string($binding)) {
+                if (class_exists($binding)) {
+                    return $cacheManager->instantiate($binding);
+                }
+
+                if (interface_exists($binding)) {
+                    return $this->resolveInterface($class, $binding, $cacheManager);
+                }
+
+                throw DependencyNotFoundException::unresolvableId($binding);
             }
         }
 
@@ -108,7 +126,7 @@ final class BindingResolver
     }
 
     /**
-     * Resolve a type name to its concrete implementation (for dependency analysis).
+     * Resolve a type name to its concrete implementation without constructing it.
      *
      * @param class-string $typeName
      *
@@ -116,27 +134,85 @@ final class BindingResolver
      */
     public function resolveType(string $typeName): string
     {
-        $binding = $this->bindings[$typeName] ?? $this->parent?->findBinding($typeName);
+        return $this->resolveTypeChain($typeName, [], $typeName);
+    }
 
-        if (is_string($binding) && class_exists($binding)) {
-            return $binding;
+    private function resolveInterface(string $class, string $target, DependencyCacheManager $cacheManager): mixed
+    {
+        $alreadyResolving = isset($this->resolvingBindings[$class]);
+        if ($alreadyResolving && !$cacheManager->canReuse($class)) {
+            throw CircularDependencyException::create([...array_keys($this->resolvingBindings), $class]);
         }
 
-        return $typeName;
+        $this->resolvingBindings[$class] = true;
+
+        try {
+            $owner = $this->containerRef?->get() ?? $this->ownerRef?->get();
+            if ($owner !== null) {
+                if (!$owner->has($target)) {
+                    throw DependencyNotFoundException::unresolvableId($target);
+                }
+
+                return $owner->get($target);
+            }
+
+            if (!isset($this->bindings[$target])) {
+                throw DependencyNotFoundException::unresolvableId($target);
+            }
+
+            return $this->resolve($target, $cacheManager);
+        } finally {
+            if (!$alreadyResolving) {
+                unset($this->resolvingBindings[$class]);
+            }
+        }
     }
 
     /**
-     * The binding for one id, from the nearest container in the chain that has
-     * one.
+     * @param array<string, string> $seen
+     * @param class-string $fallback
      *
-     * Deliberately not `getBindings()[$id]`: this runs once per constructor
-     * parameter of every node of a dependency tree, and building the merged map
-     * each time made analysing a scope scale with the size of its parent.
-     *
-     * @return Binding|null
+     * @return class-string
      */
-    private function findBinding(string $typeName): mixed
+    private function resolveTypeChain(string $id, array $seen, string $fallback): string
     {
-        return $this->bindings[$typeName] ?? $this->parent?->findBinding($typeName);
+        $stored = false;
+        if ($this->registrationInfo !== null) {
+            [$id, $stored] = ($this->registrationInfo)($id);
+        }
+
+        if (class_exists($id) || interface_exists($id)) {
+            $fallback = $id;
+        }
+
+        if ($stored && !isset($this->bindings[$id])) {
+            return $fallback;
+        }
+
+        if (!isset($this->bindings[$id])) {
+            return $this->parent?->resolveTypeChain($id, $seen, $fallback) ?? $fallback;
+        }
+
+        $binding = $this->bindings[$id];
+        if (!is_string($binding)) {
+            return $fallback;
+        }
+
+        if (class_exists($binding)) {
+            return $binding;
+        }
+
+        if (!interface_exists($binding)) {
+            return $fallback;
+        }
+
+        $key = spl_object_id($this) . ':' . $id;
+        if (isset($seen[$key])) {
+            throw CircularDependencyException::create([...array_values($seen), $id]);
+        }
+
+        $seen[$key] = $id;
+
+        return $this->resolveTypeChain($binding, $seen, $binding);
     }
 }
