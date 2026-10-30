@@ -520,6 +520,8 @@ No console framework: the argv parsing is thirty lines, and `psr/container`
 stays the only runtime dependency. The CLI is `@internal` — a build tool, not
 part of the API surface.
 
+`vendor/bin/gacela-container --version` (or `-V`) prints the installed Composer version, including development versions such as `dev-main`, without loading application configuration. If Composer has no version metadata for the package, it prints `unknown`.
+
 ### Skipping work entirely
 
 The compiled cache makes construction cheaper. `#[Lazy]` avoids it altogether
