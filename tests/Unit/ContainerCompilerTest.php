@@ -14,6 +14,8 @@ use GacelaTest\Fake\CircularA;
 use GacelaTest\Fake\CircularB;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\CompilableConsumer;
+use GacelaTest\Fake\CompilableDependency;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\FactoryAttributeService;
@@ -58,6 +60,7 @@ final class ContainerCompilerTest extends TestCase
         ServiceWithDefaultedClassDependency::class,
         DatabaseRepository::class,
         ServiceWithScalarVariadicParameter::class,
+        CompilableConsumer::class,
     ];
 
     public function test_it_compiles_a_class_with_no_dependencies(): void
@@ -372,6 +375,7 @@ final class ContainerCompilerTest extends TestCase
     public static function skipReasonProvider(): iterable
     {
         yield 'bound' => [RepositoryInterface::class, CompilationSkipReason::Bound];
+        yield 'contextual binding' => [CompilableConsumer::class, CompilationSkipReason::ContextualBinding];
         yield 'lazy()' => [ExpensiveReportGenerator::class, CompilationSkipReason::LazyRegistration];
         yield 'abstract' => [AbstractService::class, CompilationSkipReason::NotInstantiable];
         yield 'attribute' => [SingletonAttributeService::class, CompilationSkipReason::LifetimeAttribute];
@@ -483,6 +487,7 @@ final class ContainerCompilerTest extends TestCase
     {
         $container = new Container([RepositoryInterface::class => InMemoryRepository::class]);
         $container->lazy(ExpensiveReportGenerator::class);
+        $container->when(CompilableConsumer::class)->needs(CompilableDependency::class)->give(new CompilableDependency());
 
         return $container;
     }

@@ -20,6 +20,8 @@ enum CompilationSkipReason: string
      */
     case Bound = 'bound';
 
+    case ContextualBinding = 'contextual-binding';
+
     /**
      * Registered through lazy(): construction is deferred, which a `new` expression is not.
      */
