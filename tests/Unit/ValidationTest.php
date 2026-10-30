@@ -8,6 +8,7 @@ use Gacela\Container\Container;
 use Gacela\Container\ValidationIssue;
 use Gacela\Container\ValidationProblem;
 use Gacela\Container\ValidationReport;
+use GacelaTest\Fake\AbstractService;
 use GacelaTest\Fake\CircularA;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -84,6 +85,91 @@ final class ValidationTest extends TestCase
         $container->when(ServiceWithInjectedMethodTakingAScalar::class)->needs('$dsn')->give('test');
         self::assertTrue($container->validate([ServiceWithInjectedMethodTakingAScalar::class])->isValid());
         self::assertTrue($container->validate([ServiceWithInjectedProperty::class, ServiceWithInjectedMethod::class])->isValid());
+    }
+
+    #[TestWith(['instance', false])]
+    #[TestWith(['factory', false])]
+    #[TestWith(['singleton', false])]
+    #[TestWith(['instance', true])]
+    #[TestWith(['factory', true])]
+    #[TestWith(['singleton', true])]
+    public function test_validation_uses_root_and_nested_registrations_without_invoking_factories(string $registration, bool $scope): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $factory = static function () use (&$calls): PersonWithoutDefaultValues {
+            ++$calls;
+            return new PersonWithoutDefaultValues('registered');
+        };
+        match ($registration) {
+            'instance' => $container->set(PersonWithoutDefaultValues::class, new PersonWithoutDefaultValues('registered')),
+            'factory' => $container->bind(PersonWithoutDefaultValues::class, $factory),
+            'singleton' => $container->singleton(PersonWithoutDefaultValues::class, $factory),
+        };
+        $receiver = $scope ? $container->createScope() : $container;
+        $root = new class(new PersonWithoutDefaultValues('unused')) {
+            public function __construct(public PersonWithoutDefaultValues $person)
+            {
+            }
+        };
+        $report = $receiver->validate([PersonWithoutDefaultValues::class, $root::class]);
+
+        self::assertTrue($report->isValid(), $report->render());
+        self::assertSame(0, $calls);
+        self::assertSame('registered', $receiver->get($root::class)->person->name);
+    }
+
+    public function test_validation_checks_class_string_targets_instead_of_original_abstracts(): void
+    {
+        $container = new Container();
+        $container->bind(AbstractService::class, ClassWithoutDependencies::class);
+        self::assertTrue($container->validate([AbstractService::class])->isValid());
+        $container->bind(AbstractService::class, PersonWithoutDefaultValues::class);
+        $report = $container->validate([AbstractService::class]);
+        self::assertFalse($report->isValid());
+        self::assertNotEmpty($report->issuesFor(PersonWithoutDefaultValues::class));
+    }
+
+    public function test_validation_follows_aliases_and_scope_overrides(): void
+    {
+        $container = new Container();
+        $container->alias(AbstractService::class, PersonWithoutDefaultValues::class);
+        $container->set(PersonWithoutDefaultValues::class, new PersonWithoutDefaultValues('parent'));
+        $scope = $container->createScope();
+        $scope->set(PersonWithoutDefaultValues::class, new PersonWithoutDefaultValues('scope'));
+        self::assertTrue($scope->validate([AbstractService::class])->isValid());
+        self::assertSame('scope', $scope->get(AbstractService::class)->name);
+    }
+
+    public function test_validation_reports_unresolved_singleton_constructors(): void
+    {
+        $container = new Container();
+        $container->singleton(PersonWithoutDefaultValues::class);
+        self::assertFalse($container->validate([PersonWithoutDefaultValues::class])->isValid());
+    }
+
+    public function test_validation_keeps_concrete_binding_target_constructor_semantics(): void
+    {
+        $container = new Container();
+        $container->bind(AbstractService::class, PersonWithoutDefaultValues::class);
+        $container->bind(PersonWithoutDefaultValues::class, static fn (): PersonWithoutDefaultValues => new PersonWithoutDefaultValues('factory'));
+        self::assertFalse($container->validate([PersonWithoutDefaultValues::class, AbstractService::class])->isValid());
+    }
+
+    public function test_a_registered_factory_can_supply_a_concrete_targets_self_dependency(): void
+    {
+        $value = new class(null) {
+            public function __construct(public ?self $dependency)
+            {
+            }
+        };
+        $container = new Container();
+        $container->bind(AbstractService::class, $value::class);
+        $container->bind($value::class, static fn (): object => $value);
+        $report = $container->validate([AbstractService::class]);
+
+        self::assertTrue($report->isValid(), $report->render());
+        self::assertSame($value, $container->get(AbstractService::class)->dependency);
     }
 
     public function test_a_resolvable_graph_is_valid(): void

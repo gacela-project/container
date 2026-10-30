@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use Closure;
+use Gacela\Container\Exception\ContainerException;
+
 use function array_keys;
 use function class_exists;
 use function implode;
@@ -12,27 +15,7 @@ use function interface_exists;
 use function sprintf;
 
 /**
- * Proves ahead of time that a class can be resolved, without resolving it.
- *
- * The gap #140 identified: Symfony tells you at compile time that a service is
- * missing because it has a definition set to walk; an autowiring container
- * finds out when a request resolves it. This closes that without importing
- * compiler passes, which have nothing to operate on here — most classes have no
- * definition until they are resolved.
- *
- * Deliberately not a second resolver, for the same reason ContainerCompiler is
- * not one. It answers from two things only: the constructor plans the planner
- * already built, and `has()` on the container itself. `has()` is what makes it
- * honest — it already accounts for bindings, aliases, stored instances,
- * autowirable concretes and parent scopes, so this cannot drift from what
- * resolution would actually do by re-deriving any of it.
- *
- * It therefore reports what is *decidable*: a class that does not exist, an
- * abstract with nothing bound to it, a parameter nothing can supply, a cycle.
- * It does not attempt to predict a closure binding's return value or anything
- * else that only running the code can settle.
- *
- * @psalm-import-type CompiledPlans from PlanRegistry
+ * @psalm-import-type StoredClassPlan from PlanRegistry
  * @psalm-import-type ParamPlan from PlanRegistry
  * @psalm-import-type PropPlan from PlanRegistry
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
@@ -49,14 +32,17 @@ final class ContainerValidator
     /** @var array<string, true> */
     private array $checked = [];
 
+    /** @var array<string, true> */
+    private array $inspected = [];
+
     /**
-     * @param CompiledPlans $plans every class reachable from the roots, already
-     *   described — see DependencyResolver::planDeep()
+     * @param Closure(class-string): (StoredClassPlan|null) $planFor
+     * @param Closure(string): (string|null) $targetFor
      * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
-        private readonly ContainerInterface $container,
-        private readonly array $plans,
+        private readonly Closure $planFor,
+        private readonly Closure $targetFor,
         private readonly array $contextualBindings = [],
     ) {
     }
@@ -76,8 +62,22 @@ final class ContainerValidator
     /**
      * @param list<string> $chain how this class was reached
      */
-    private function walk(string $class, array $chain): void
+    private function walk(string $class, array $chain, bool $useRegistration = true): void
     {
+        $target = $class;
+        if ($useRegistration) {
+            try {
+                $target = ($this->targetFor)($class);
+            } catch (ContainerException $exception) {
+                $this->issues[] = new ValidationIssue($class, ValidationProblem::DependencyCycle, $exception->getMessage(), $chain);
+                return;
+            }
+            if ($target === null) {
+                $this->checked[$class] = true;
+                return;
+            }
+        }
+
         if (in_array($class, $chain, true)) {
             $this->issues[] = new ValidationIssue(
                 $class,
@@ -89,13 +89,17 @@ final class ContainerValidator
             return;
         }
 
-        // Reached more than once through different parents is normal — a
-        // diamond, not a problem. Only walk it once.
-        if (isset($this->checked[$class])) {
+        $inspection = ($useRegistration ? 'registered:' : 'constructor:') . $class;
+        if (isset($this->inspected[$inspection])) {
             return;
         }
 
         $this->checked[$class] = true;
+        $this->inspected[$inspection] = true;
+        if ($target !== $class) {
+            $this->walk($target, [...$chain, $class], !class_exists($target));
+            return;
+        }
 
         if (!class_exists($class)) {
             $this->issues[] = new ValidationIssue(
@@ -110,7 +114,7 @@ final class ContainerValidator
             return;
         }
 
-        $plan = $this->plans[$class] ?? null;
+        $plan = ($this->planFor)($class);
 
         if ($plan === null) {
             return;
@@ -160,7 +164,7 @@ final class ContainerValidator
         }
 
         if ($prop['inject'] !== null) {
-            $this->descend($prop['inject'], $chain);
+            $this->walk($prop['inject'], $chain);
             return;
         }
 
@@ -169,7 +173,7 @@ final class ContainerValidator
             return;
         }
 
-        $this->descend($prop['type'], $chain);
+        $this->walk($prop['type'], $chain);
     }
 
     /**
@@ -195,7 +199,7 @@ final class ContainerValidator
         }
 
         if ($param['inject'] !== null) {
-            $this->descend($param['inject'], $chain);
+            $this->walk($param['inject'], $chain);
 
             return;
         }
@@ -228,23 +232,6 @@ final class ContainerValidator
                 $this->unresolvable($class, $param['name'], 'its type is not a single class', $chain);
             }
 
-            return;
-        }
-
-        $this->descend($type, $chain);
-    }
-
-    /**
-     * @param list<string> $chain
-     */
-    private function descend(string $type, array $chain): void
-    {
-        // The container is the authority on whether an id resolves: it knows
-        // the bindings, aliases, instances and parent scopes this class does
-        // not, and asking it is what keeps this from becoming a second
-        // resolver. A bound abstract is satisfied here and goes no deeper,
-        // since what it binds *to* is the container's business.
-        if (!class_exists($type) && $this->container->has($type)) {
             return;
         }
 
