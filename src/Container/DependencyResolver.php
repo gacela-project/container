@@ -16,6 +16,7 @@ use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
@@ -1482,12 +1483,11 @@ final class DependencyResolver
         $methods = [];
 
         foreach ($reflection->getMethods() as $method) {
-            if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) === []) {
+            if ($method->isConstructor()) {
                 continue;
             }
 
-            // The constructor is injected by being the constructor.
-            if ($method->isConstructor()) {
+            if (!$this->hasMethodInjection($method, $reflection)) {
                 continue;
             }
 
@@ -1509,6 +1509,38 @@ final class DependencyResolver
         }
 
         return $methods;
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private function hasMethodInjection(ReflectionMethod $method, ReflectionClass $reflection): bool
+    {
+        if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+            return true;
+        }
+
+        $name = $method->getName();
+        $parent = $method->getDeclaringClass()->getParentClass();
+        while ($parent !== false) {
+            if ($parent->hasMethod($name)) {
+                $ancestor = $parent->getMethod($name);
+                if (!$ancestor->isPrivate() && $ancestor->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                    return true;
+                }
+            }
+
+            $parent = $parent->getParentClass();
+        }
+
+        foreach ($reflection->getInterfaces() as $interface) {
+            if ($interface->hasMethod($name)
+                && $interface->getMethod($name)->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -119,8 +119,7 @@ public function setRepository(
 ): void { ... }
 ```
 
-Inherited methods are called. The constructor is never treated as one of these,
-whatever it is annotated with.
+Inherited methods are called. A `#[Inject]` marker on an interface method or a non-private parent method also applies to its implementation or override, without repeating the attribute. Each method runs once, using the implementation's parameter names, attributes and defaults. The constructor is never treated as an injected method, whatever it is annotated with.
 
 #### What a property cannot do
 
