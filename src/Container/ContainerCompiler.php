@@ -94,15 +94,19 @@ final class ContainerCompiler
         $stamps = [];
 
         foreach ($this->expressions() as $class => $expression) {
-            $factory = 'static fn (): object => ' . $expression;
             $dependencies = array_keys($this->dependencies[$class] ?? []);
+            $stamp = CacheStamp::of($class, $dependencies);
+            if ($stamp === null) {
+                continue;
+            }
 
+            $factory = 'static fn (): object => ' . $expression;
             if ($dependencies !== []) {
                 $factory = '#[\\' . CompiledFactory::class . '(' . var_export($dependencies, true) . ')] ' . $factory;
             }
 
             $entries[] = '        ' . var_export($class, true) . ' => ' . $factory . ',';
-            $stamps[$class] = CacheStamp::of($class, $dependencies);
+            $stamps[$class] = $stamp;
         }
 
         return CompiledCacheWriter::envelope($buildStamp, $stamps, 'factories', $entries);
