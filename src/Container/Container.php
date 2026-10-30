@@ -24,6 +24,7 @@ use function is_object;
 use function is_string;
 use function max;
 use function method_exists;
+use function spl_object_id;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
@@ -160,7 +161,20 @@ final class Container implements FullContainerInterface, ArrayAccess
         $containerRef = WeakReference::create($this);
         $this->selfReference = $containerRef;
 
-        $this->bindingResolver = new BindingResolver($this->bindings, $containerRef);
+        $this->bindingResolver = new BindingResolver(
+            $this->bindings,
+            $containerRef,
+            static function (string $id) use ($containerRef): array {
+                $owner = $containerRef->get();
+                if ($owner === null) {
+                    return [$id, false];
+                }
+
+                $id = $owner->aliasRegistry->resolve($id);
+
+                return [$id, $owner->instanceRegistry->has($id)];
+            },
+        );
         $this->cacheManager = new DependencyCacheManager(
             $this->bindings,
             $this->contextualBindings,
@@ -168,6 +182,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             $containerRef,
             $planCache,
             static fn (string $class): mixed => $containerRef->get()?->resolveContextualClass($class),
+            static fn (string $id, bool $contextual): bool => $containerRef->get()?->hasSharedInstance($id, $contextual) ?? false,
         );
     }
 
@@ -890,7 +905,6 @@ final class Container implements FullContainerInterface, ArrayAccess
                 static function (string $resolvedId, mixed $instance) use ($owner): void {
                     $owner->get()?->fireAfterResolving($resolvedId, $instance);
                 },
-                static fn (string $resolvedId, bool $contextual): bool => $owner->get()?->hasSharedInstance($resolvedId, $contextual) ?? false,
             );
         }
 
@@ -946,7 +960,9 @@ final class Container implements FullContainerInterface, ArrayAccess
         $id = $this->aliasRegistry->resolve($className);
 
         /** @var class-string<T> $concrete */
-        $concrete = $this->bindingResolver->resolveType($id);
+        $concrete = $this->bindings === [] && $this->parent === null
+            ? $id
+            : $this->bindingResolver->resolveType($id);
 
         $instance = $this->cacheManager->instantiateWith($concrete, $parameters);
 
@@ -1557,7 +1573,10 @@ final class Container implements FullContainerInterface, ArrayAccess
             || $this->cacheManager->ownsSingleton($id);
     }
 
-    private function hasSharedInstance(string $id, bool $contextual = false): bool
+    /**
+     * @param array<string, true> $seenBindings
+     */
+    private function hasSharedInstance(string $id, bool $contextual = false, array $seenBindings = []): bool
     {
         if ($contextual) {
             return $this->hasContextualSharedInstance($id);
@@ -1573,7 +1592,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         }
 
         if ($this->parent !== null && !$this->ownsLocally($id) && $this->parent->provides($id)) {
-            return $this->parent->hasSharedInstance($id);
+            return $this->parent->hasSharedInstance($id, seenBindings: $seenBindings);
         }
 
         $binding = $this->bindings[$id] ?? null;
@@ -1583,6 +1602,17 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         if (is_object($binding)) {
             return true;
+        }
+
+        if (is_string($binding) && interface_exists($binding)) {
+            $key = spl_object_id($this) . ':' . $id;
+            if (isset($seenBindings[$key])) {
+                return false;
+            }
+
+            $seenBindings[$key] = true;
+
+            return $this->hasSharedInstance($binding, seenBindings: $seenBindings);
         }
 
         return $this->cacheManager->hasInstance(is_string($binding) ? $binding : $id);

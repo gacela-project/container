@@ -32,6 +32,8 @@ use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
+use function count;
+use function get_debug_type;
 use function in_array;
 use function interface_exists;
 use function is_a;
@@ -288,6 +290,11 @@ final class DependencyResolver
             $dependencies = [];
 
             foreach ($params as $param) {
+                if (($param['isVariadic'] ?? false) && !array_key_exists($param['name'], $overrides)) {
+                    $this->appendVariadicArgument($dependencies, $param, $toResolve);
+                    continue;
+                }
+
                 /** @psalm-suppress MixedAssignment */
                 $dependencies[] = array_key_exists($param['name'], $overrides)
                     ? $overrides[$param['name']]
@@ -720,7 +727,7 @@ final class DependencyResolver
             // be answered by configuration, which is exactly what this may not
             // decide ahead of time. A default is no better: reading it here
             // would pin the value the plan happened to capture.
-            if (!$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $param['hasDefault'] || $type === null) {
+            if (($param['isVariadic'] ?? false) || !$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $param['hasDefault'] || $type === null) {
                 return null;
             }
 
@@ -798,11 +805,39 @@ final class DependencyResolver
                 continue;
             }
 
+            if ($param['isVariadic'] ?? false) {
+                $this->appendVariadicArgument($dependencies, $param);
+                continue;
+            }
+
             /** @psalm-suppress MixedAssignment */
             $dependencies[] = $this->resolveParameter($param);
         }
 
         return $dependencies;
+    }
+
+    /**
+     * @param list<mixed> $arguments
+     * @param ParamPlan $param
+     * @param class-string|null $consumer
+     */
+    private function appendVariadicArgument(array &$arguments, array $param, ?string $consumer = null): void
+    {
+        /** @psalm-suppress MixedAssignment */
+        [$hasNamedBinding, $value] = $this->resolveNamedContextualBinding($param, $consumer);
+        if ($hasNamedBinding) {
+            /** @psalm-suppress MixedAssignment */
+            $arguments[] = $value;
+
+            return;
+        }
+
+        $type = $param['type'];
+        if ($param['inject'] !== null || ($type !== null && $this->getContextualBinding($type) !== null)) {
+            /** @psalm-suppress MixedAssignment */
+            $arguments[] = $this->resolveParameter($param, $consumer);
+        }
     }
 
     /**
@@ -1018,7 +1053,9 @@ final class DependencyResolver
             return $bindClass;
         }
 
-        if ($contextualBinding === null && is_string($bindClass) && $bindClass !== $paramTypeName && class_exists($bindClass)) {
+        $interfaceTarget = is_string($bindClass) && interface_exists($bindClass);
+        if (($contextualBinding === null || interface_exists($paramTypeName)) && is_string($bindClass)
+            && (($bindClass !== $paramTypeName && class_exists($bindClass)) || $interfaceTarget)) {
             // Keep the requested type in compilation reports before delegating.
             $this->describeClass($paramTypeName);
             $owner = $this->container();
@@ -1026,7 +1063,20 @@ final class DependencyResolver
                 return $this->delegateTo($owner, $paramTypeName);
             }
 
-            $paramTypeName = $bindClass;
+            if (interface_exists($bindClass)) {
+                $this->checkCircularDependency($paramTypeName);
+                $this->resolvingStack[$paramTypeName] = true;
+
+                try {
+                    return $this->resolveClass($bindClass);
+                } finally {
+                    unset($this->resolvingStack[$paramTypeName]);
+                }
+            }
+
+            if (class_exists($bindClass)) {
+                $paramTypeName = $bindClass;
+            }
         }
 
         $plan = $this->describeClass($paramTypeName);
@@ -1269,10 +1319,64 @@ final class DependencyResolver
          *
          * @phpstan-ignore method.notFound, return.type
          */
-        return $reflection->newLazyProxy(static function () use ($factory, $container): object {
-            /** @var object */
-            return $factory($container);
+        return $reflection->newLazyProxy(static function () use ($factory, $container, $reflection, $className): object {
+            /** @var mixed $instance */
+            $instance = $factory($container);
+            if (!is_object($instance) || !self::lazyFactoryResultIsCompatible($reflection, $instance)) {
+                throw new ContainerException(sprintf(
+                    "The lazy() factory for '%s' returned '%s', which is incompatible with its native proxy.\n\nReturn an instance of '%s', or register lazy() for the concrete class the factory creates.",
+                    $className,
+                    get_debug_type($instance),
+                    $className,
+                ));
+            }
+
+            return $instance;
         });
+    }
+
+    /**
+     * @param ReflectionClass<object> $proxy
+     */
+    private static function lazyFactoryResultIsCompatible(ReflectionClass $proxy, object $instance): bool
+    {
+        if ($proxy->getName() === $instance::class) {
+            return true;
+        }
+
+        if (!$proxy->isSubclassOf($instance::class)) {
+            return false;
+        }
+
+        $real = new ReflectionClass($instance);
+        if (self::classPropertyCount($proxy) !== self::classPropertyCount($real)) {
+            return false;
+        }
+
+        foreach (['__clone', '__destruct'] as $method) {
+            $proxyMethod = $proxy->hasMethod($method) ? $proxy->getMethod($method)->getDeclaringClass()->getName() : null;
+            $realMethod = $real->hasMethod($method) ? $real->getMethod($method)->getDeclaringClass()->getName() : null;
+            if ($proxyMethod !== $realMethod) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private static function classPropertyCount(ReflectionClass $reflection): int
+    {
+        $properties = [];
+        for ($class = $reflection; $class !== false; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                $properties[$property->getName()] = true;
+            }
+        }
+
+        return count($properties);
     }
 
     /**
@@ -1289,7 +1393,8 @@ final class DependencyResolver
             $args = [];
 
             foreach ($plan['params'] as $param) {
-                if (!$param['hasType'] && ($param['isVariadic'] ?? false)) {
+                if ($param['isVariadic'] ?? false) {
+                    $this->appendVariadicArgument($args, $param, $className);
                     continue;
                 }
 
@@ -1589,6 +1694,11 @@ final class DependencyResolver
             $args = [];
 
             foreach ($method['params'] as $param) {
+                if ($param['isVariadic'] ?? false) {
+                    $this->appendVariadicArgument($args, $param, $instance::class);
+                    continue;
+                }
+
                 /** @psalm-suppress MixedAssignment */
                 $args[] = $this->resolveParameter($param, $instance::class);
             }
@@ -1859,9 +1969,6 @@ final class DependencyResolver
         }
     }
 
-    /**
-     * @param class-string $abstract
-     */
     private function getContextualBinding(string $abstract): mixed
     {
         if ($this->contextualBindings === [] || $this->buildStack === []) {

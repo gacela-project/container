@@ -62,6 +62,21 @@ $container->make(RedisCache::class, ['hots' => 'cache.local']);
 //   - host
 ```
 
+## Variadic parameters
+
+An absent variadic parameter receives no arguments, including scalar, untyped, class, interface, union and intersection types. Autowiring and ordinary global registrations do not add an element. This applies to constructors, injected methods and callables passed to `resolve()`.
+
+An explicit runtime override, named contextual binding, typed contextual binding or parameter `#[Inject]` selection supplies one value:
+
+```php
+$container->get(EventBus::class); // No handlers unless explicitly configured.
+
+$container->when(EventBus::class)->needs(Handler::class)->give($handler);
+$container->make(EventBus::class, ['handlers' => $handler]);
+```
+
+Values are passed as single arguments. An array supplied for an untyped variadic stays one array value; it is not spread into several arguments. Classes with variadic constructor parameters use runtime resolution, including after installing generated factories, so later contextual bindings still apply.
+
 ## getOrFail()
 
 Like `get()`, but throws `DependencyNotFoundException` instead of returning
