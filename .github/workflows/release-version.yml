@@ -1,0 +1,28 @@
+name: Release version diagnostics
+
+on:
+  pull_request:
+    paths:
+      - release.sh
+      - tools/test-release-version.sh
+      - .github/workflows/release-version.yml
+  push:
+    branches: [main]
+    paths:
+      - release.sh
+      - tools/test-release-version.sh
+      - .github/workflows/release-version.yml
+
+jobs:
+  release-version:
+    name: Release version diagnostics on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check release script syntax
+        run: bash -n release.sh tools/test-release-version.sh
+      - name: Check missing and valid version tags
+        run: bash tools/test-release-version.sh

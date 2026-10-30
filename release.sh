@@ -152,7 +152,7 @@ run_preflight() {
 read_current_version() {
   # Version is derived at runtime from Composer metadata (the git tag), so the
   # latest tag — not a file — is the source of truth for the current version.
-  CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
+  CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+") || CURRENT_VERSION=""
   [[ -n "$CURRENT_VERSION" ]] || {
     log_error "Could not read current version from git tags."
     exit $EXIT_VALIDATION_ERROR
