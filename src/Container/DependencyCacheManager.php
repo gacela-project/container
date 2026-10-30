@@ -33,7 +33,7 @@ use function count;
 final class DependencyCacheManager
 {
     /**
-     * Keys (class names / callable keys) resolved at least once.
+     * Class names and stable callable signatures resolved at least once.
      * Dependencies are intentionally rebuilt per resolution so that transient
      * services do not share their child instances; only reflection is cached
      * (in the resolver).
@@ -384,9 +384,12 @@ final class DependencyCacheManager
      *
      * @return list<mixed>
      */
-    public function resolveCallableDependencies(string $callableKey, callable $callable, array $overrides = []): array
+    public function resolveCallableDependencies(callable $callable, array $overrides = []): array
     {
-        $this->resolvedKeys[$callableKey] = true;
+        $signature = CallableKey::signatureFor($callable);
+        if ($signature !== null) {
+            $this->resolvedKeys[$signature] = true;
+        }
 
         return $this->getDependencyResolver()->resolveCallableDependencies($callable, $overrides);
     }

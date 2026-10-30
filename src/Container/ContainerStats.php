@@ -26,8 +26,8 @@ final readonly class ContainerStats
      *   no longer be overwritten
      * @param int $factoryServices of those, how many are factory closures
      * @param int $bindings abstract-to-concrete mappings registered here
-     * @param int $cachedDependencies classes this container has resolved at
-     *   least once
+     * @param int $cachedDependencies class names and stable callable signatures
+     *   this container has resolved at least once; anonymous closures are omitted
      * @param int $processMemoryBytes **the whole PHP process**, not this
      *   container — memory_get_usage(true), the real memory the allocator has
      *   handed the process. It moves when anything anywhere allocates, and two

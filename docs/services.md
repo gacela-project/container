@@ -149,6 +149,8 @@ $stats->processMemoryBytes;        // 2453667 — an int, so it can be compared
 $stats->processMemoryFormatted();  // '2.34 MB'
 ```
 
+`cachedDependencies` counts distinct class names and named callable signatures resolved by this container. Instances of the same callable class share an entry per method; anonymous closures add no tracking entry. Repeated request handlers therefore do not grow this counter per object.
+
 **`processMemoryBytes` is the whole PHP process, not this container.** It is
 `memory_get_usage(true)`: the real memory the allocator has handed the process.
 It moves when anything anywhere allocates, and two containers in the same

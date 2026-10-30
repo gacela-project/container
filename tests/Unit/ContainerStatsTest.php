@@ -6,11 +6,43 @@ namespace GacelaTest\Unit;
 
 use Gacela\Container\Container;
 use GacelaTest\Fake\ClassWithoutDependencies;
+use GacelaTest\Fake\InvokableHandler;
 use GacelaTest\Fake\Person;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class ContainerStatsTest extends TestCase
 {
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_request_handlers_share_one_tracking_entry(bool $invokable): void
+    {
+        $container = new Container();
+        $handlers = [];
+        for ($i = 0; $i < 200; ++$i) {
+            $handler = new InvokableHandler();
+            $handlers[] = $handler;
+            self::assertSame($invokable ? 'invoked' : 'handled', $container->resolve($invokable ? $handler : [$handler, 'handle']));
+        }
+
+        self::assertSame(1, $container->stats()->cachedDependencies);
+    }
+
+    public function test_closures_add_no_tracking_entries(): void
+    {
+        $container = new Container();
+        $container->get(ClassWithoutDependencies::class);
+        $before = $container->stats()->cachedDependencies;
+        $closures = [];
+        for ($i = 0; $i < 200; ++$i) {
+            $callable = static fn (ClassWithoutDependencies $dependency): ClassWithoutDependencies => $dependency;
+            $closures[] = $callable;
+            self::assertInstanceOf(ClassWithoutDependencies::class, $container->resolve($callable));
+        }
+
+        self::assertSame($before, $container->stats()->cachedDependencies);
+    }
+
     public function test_get_stats_returns_correct_structure(): void
     {
         $container = new Container();

@@ -981,9 +981,7 @@ final class Container implements FullContainerInterface, ArrayAccess
     #[Override]
     public function resolve(callable $callable, array $parameters = []): mixed
     {
-        $callableKey = CallableKey::for($callable);
-
-        $dependencies = $this->cacheManager->resolveCallableDependencies($callableKey, $callable, $parameters);
+        $dependencies = $this->cacheManager->resolveCallableDependencies($callable, $parameters);
 
         return $callable(...$dependencies);
     }
