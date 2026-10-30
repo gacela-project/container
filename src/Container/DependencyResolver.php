@@ -924,7 +924,7 @@ final class DependencyResolver
 
     private function invokeFactory(string $id, callable $factory, ?string $consumer = null): mixed
     {
-        $key = $consumer . "\0" . $id . "\0" . CallableKey::for($factory);
+        $key = ($consumer ?? '') . "\0" . $id . "\0" . CallableKey::for($factory);
         if (isset($this->resolvingFactories[$key])) {
             throw CircularDependencyException::create([...$this->getResolutionChain(), ...array_values($this->resolvingFactories), $id]);
         }
@@ -947,8 +947,9 @@ final class DependencyResolver
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
             if ($contextualBinding instanceof Closure || (is_array($contextualBinding) && is_callable($contextualBinding))) {
+                $consumer = $this->buildStack === [] ? null : $this->buildStack[array_key_last($this->buildStack)];
                 /** @psalm-suppress MixedAssignment */
-                $instance = $this->invokeFactory($paramTypeName, $contextualBinding, $this->buildStack[array_key_last($this->buildStack)] ?? null);
+                $instance = $this->invokeFactory($paramTypeName, $contextualBinding, $consumer);
                 $this->afterResolving?->__invoke($paramTypeName, $instance);
 
                 return $instance;
