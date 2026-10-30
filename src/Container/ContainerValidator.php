@@ -34,6 +34,7 @@ use function sprintf;
  *
  * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type ParamPlan from PlanRegistry
+ * @psalm-import-type PropPlan from PlanRegistry
  * @psalm-import-type ContextualBindingsMap from ContainerInterface
  *
  * @internal
@@ -131,6 +132,52 @@ final class ContainerValidator
         foreach ($plan['params'] as $param) {
             $this->checkParameter($class, $param, $chain);
         }
+
+        foreach ($plan['props'] ?? [] as $prop) {
+            $this->checkProperty($class, $prop, $chain);
+        }
+
+        foreach ($plan['methods'] ?? [] as $method) {
+            if ($method['isStatic'] || !$method['isPublic']) {
+                $this->invalidInjection($class, sprintf('method %s() must be public and non-static', $method['name']), $chain);
+                continue;
+            }
+            foreach ($method['params'] as $param) {
+                $this->checkParameter($class, $param, $chain);
+            }
+        }
+    }
+
+    /**
+     * @param PropPlan $prop
+     * @param list<string> $chain
+     */
+    private function checkProperty(string $class, array $prop, array $chain): void
+    {
+        if ($prop['isReadonly']) {
+            $this->invalidInjection($class, sprintf('property $%s is readonly', $prop['name']), $chain);
+            return;
+        }
+
+        if ($prop['inject'] !== null) {
+            $this->descend($prop['inject'], $chain);
+            return;
+        }
+
+        if (!$prop['hasType'] || $prop['isScalar'] || $prop['type'] === null) {
+            $this->invalidInjection($class, sprintf('property $%s needs a class type or an explicit injection target', $prop['name']), $chain);
+            return;
+        }
+
+        $this->descend($prop['type'], $chain);
+    }
+
+    /**
+     * @param list<string> $chain
+     */
+    private function invalidInjection(string $class, string $why, array $chain): void
+    {
+        $this->issues[] = new ValidationIssue($class, ValidationProblem::InvalidInjection, $why, $chain);
     }
 
     /**

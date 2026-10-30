@@ -449,10 +449,14 @@ final class DependencyResolver
             return;
         }
 
-        foreach ($plan['params'] as $param) {
-            $type = $param['type'];
+        $dependencies = [...$plan['params'], ...$plan['props']];
+        foreach ($plan['methods'] as $method) {
+            $dependencies = [...$dependencies, ...$method['params']];
+        }
 
-            if ($type === null || $param['isScalar'] || !class_exists($type)) {
+        foreach ($dependencies as $dependency) {
+            $type = $dependency['inject'] ?? $dependency['type'];
+            if ($type === null || ($dependency['inject'] === null && $dependency['isScalar']) || !class_exists($type)) {
                 continue;
             }
 
