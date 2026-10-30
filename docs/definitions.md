@@ -116,6 +116,8 @@ $container->load(Yaml::parseFile('services.yaml'));
 
 ## Knowing what a source registered
 
+Decimal-integer keys such as `'404'` are accepted and returned as strings, including in registration listeners. Non-empty arrays with consecutive keys starting at `0` are treated as lists and rejected, even when those keys were written as strings. To load `'0'`, include it in a map with a named or non-consecutive key. An empty map registers nothing.
+
 Both return the ids they registered, in definition order:
 
 ```php
@@ -172,7 +174,7 @@ Every failure names the offending id and, when it came from a file, the file:
 - an unknown key, with the allowed set listed
 - two binding keys in one entry
 - a value of the wrong type for its key
-- an id that is not a string — usually a JSON array where an object was meant
+- a non-empty list where a map of service IDs was expected
 - a missing, unreadable, or unsupported file
 - a `.php` file that returns something other than an array, or invalid JSON
 
