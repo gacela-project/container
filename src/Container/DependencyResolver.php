@@ -290,6 +290,11 @@ final class DependencyResolver
             $dependencies = [];
 
             foreach ($params as $param) {
+                if (($param['isVariadic'] ?? false) && !array_key_exists($param['name'], $overrides)) {
+                    $this->appendVariadicArgument($dependencies, $param, $toResolve);
+                    continue;
+                }
+
                 /** @psalm-suppress MixedAssignment */
                 $dependencies[] = array_key_exists($param['name'], $overrides)
                     ? $overrides[$param['name']]
@@ -726,7 +731,7 @@ final class DependencyResolver
             // be answered by configuration, which is exactly what this may not
             // decide ahead of time. A default is no better: reading it here
             // would pin the value the plan happened to capture.
-            if (!$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $param['hasDefault'] || $type === null) {
+            if (($param['isVariadic'] ?? false) || !$param['hasType'] || $param['isScalar'] || $param['inject'] !== null || $param['hasDefault'] || $type === null) {
                 return null;
             }
 
@@ -804,11 +809,38 @@ final class DependencyResolver
                 continue;
             }
 
+            if ($param['isVariadic'] ?? false) {
+                $this->appendVariadicArgument($dependencies, $param);
+                continue;
+            }
+
             /** @psalm-suppress MixedAssignment */
             $dependencies[] = $this->resolveParameter($param);
         }
 
         return $dependencies;
+    }
+
+    /**
+     * @param list<mixed> $arguments
+     * @param ParamPlan $param
+     * @param class-string|null $consumer
+     */
+    private function appendVariadicArgument(array &$arguments, array $param, ?string $consumer = null): void
+    {
+        /** @psalm-suppress MixedAssignment */
+        [$hasNamedBinding, $value] = $this->resolveNamedContextualBinding($param, $consumer);
+        if ($hasNamedBinding) {
+            $arguments[] = $value;
+
+            return;
+        }
+
+        $type = $param['type'];
+        if ($param['inject'] !== null || ($type !== null && $this->getContextualBinding($type) !== null)) {
+            /** @psalm-suppress MixedAssignment */
+            $arguments[] = $this->resolveParameter($param, $consumer);
+        }
     }
 
     /**
@@ -1293,7 +1325,8 @@ final class DependencyResolver
             $args = [];
 
             foreach ($plan['params'] as $param) {
-                if (!$param['hasType'] && ($param['isVariadic'] ?? false)) {
+                if ($param['isVariadic'] ?? false) {
+                    $this->appendVariadicArgument($args, $param, $className);
                     continue;
                 }
 
@@ -1593,6 +1626,11 @@ final class DependencyResolver
             $args = [];
 
             foreach ($method['params'] as $param) {
+                if ($param['isVariadic'] ?? false) {
+                    $this->appendVariadicArgument($args, $param, $instance::class);
+                    continue;
+                }
+
                 /** @psalm-suppress MixedAssignment */
                 $args[] = $this->resolveParameter($param, $instance::class);
             }

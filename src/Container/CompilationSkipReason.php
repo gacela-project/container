@@ -60,6 +60,8 @@ enum CompilationSkipReason: string
      */
     case DefaultParameter = 'default-parameter';
 
+    case VariadicParameter = 'variadic-parameter';
+
     /**
      * The class takes part in a dependency cycle.
      */

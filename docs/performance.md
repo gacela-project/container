@@ -317,6 +317,7 @@ per branch that can refuse a class:
 | `InjectedParameter` | an `#[Inject]` parameter is resolved at runtime |
 | `ScalarParameter` | a scalar or untyped constructor parameter |
 | `DefaultParameter` | a class-typed constructor parameter with a declared default |
+| `VariadicParameter` | a variadic constructor parameter whose explicit arguments are selected at runtime |
 | `DependencyCycle` | the class takes part in a cycle |
 | `NoPlan` | the planner never described it |
 | `Dependency` | one of its constructor dependencies could not be compiled |
