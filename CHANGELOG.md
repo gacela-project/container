@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Shared plan persistence:** `writeTo()` requires a non-empty loaded-release stamp for user-class plans; readers without the matching stamp discard them. Unstamped writes retain native internal-class plans, and in-memory sharing is unchanged. Regenerate older cache formats. See [migration](UPGRADE.md#persisted-shared-plans-require-a-release-stamp).
+
 - **CLI reporting:** reject values on `--strict` instead of silently disabling the failure gate. Use bare `--strict` to enable it. See [CLI compilation](docs/performance.md#compiling-from-the-command-line).
 
 - **Callable tracking:** resolving request handlers records stable signatures instead of object identities. Anonymous closures add no tracking entry, keeping bookkeeping bounded for repeated callable instances. See [statistics](docs/services.md#introspection).

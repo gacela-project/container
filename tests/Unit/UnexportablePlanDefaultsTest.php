@@ -57,7 +57,7 @@ final class UnexportablePlanDefaultsTest extends TestCase
     {
         $this->writePlans([$class, Person::class], $shared);
 
-        $plans = Container::loadCompiledCache($this->file);
+        $plans = Container::loadCompiledCache($this->file, $shared ? 'test-build' : null);
         self::assertArrayNotHasKey($class, $plans);
         self::assertArrayHasKey(Person::class, $plans);
         $container = new Container([], [], $plans);
@@ -81,7 +81,7 @@ final class UnexportablePlanDefaultsTest extends TestCase
     {
         $this->writePlans([ExportableCacheDefaults::class], $shared);
 
-        $plans = Container::loadCompiledCache($this->file);
+        $plans = Container::loadCompiledCache($this->file, $shared ? 'test-build' : null);
         self::assertArrayHasKey(ExportableCacheDefaults::class, $plans);
         $service = (new Container([], [], $plans))->get(ExportableCacheDefaults::class);
         self::assertSame([
@@ -130,7 +130,7 @@ final class UnexportablePlanDefaultsTest extends TestCase
             $container->get($class);
         }
 
-        $cache->writeTo($this->file);
+        $cache->writeTo($this->file, 'test-build');
     }
 }
 

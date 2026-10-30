@@ -164,7 +164,7 @@ bindings, instances and singletons stay private to each container. See
 [performance](performance.md#one-plan-cache-for-several-containers).
 
 `PlanCache::fromFile($file, ?$buildStamp)` and `$planCache->writeTo($file, ?$buildStamp)`
-carry it from one process to the next; see
+carry it from one process to the next using the same non-empty identifier of the loaded release. Unstamped writes persist only native internal-class plans; user-class plans remain in memory. See
 [performance](performance.md#carry-it-to-the-next-process).
 
 All four parameters are optional and part of the stable API — their names, order,

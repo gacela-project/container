@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Persisted shared plans require a release stamp
+
+Pass the same non-empty identifier of the loaded release to `PlanCache::fromFile()` and `writeTo()`:
+
+```php
+$stamp = Release::ID;
+$plans = PlanCache::fromFile($file, $stamp);
+// Share $plans with your containers.
+$plans->writeTo($file, $stamp);
+```
+
+Without it, writes omit user-class plans and reads fall back to reflection. Native internal-class plans remain cacheable without a stamp. Existing in-memory sharing is unchanged. Load the release identifier at worker startup, keep that release's sources immutable and restart workers on deployment.
+
+Regenerate plan and factory cache files after upgrading. The new format rejects older files whose metadata may describe a different release than the code that produced their plans. See [shared plan persistence](docs/performance.md#carry-it-to-the-next-process).
+
 ### CLI strict flag
 
 Replace `report --strict=true` or `report --strict=1` with `report --strict`. The flag rejects all values, including `false` and empty values. Omit it to disable strict reporting.

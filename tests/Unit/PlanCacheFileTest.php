@@ -8,7 +8,9 @@ use Gacela\Container\Container;
 use Gacela\Container\PlanCache;
 use GacelaTest\Fake\ClassWithObjectDependencies;
 use GacelaTest\Fake\Person;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 use function bin2hex;
 use function file_put_contents;
@@ -48,13 +50,41 @@ final class PlanCacheFileTest extends TestCase
         @rmdir($this->directory);
     }
 
+    public function test_a_new_cache_cannot_stamp_a_preloaded_old_class_with_replaced_source(): void
+    {
+        $class = $this->loadedClass('ChangedAfterLoad');
+        $source = $this->directory . DIRECTORY_SEPARATOR . 'ChangedAfterLoad.php';
+        $name = substr($class, strrpos($class, '\\') + 1);
+        file_put_contents($source, '<?php namespace GacelaTest\\Tmp; final class ' . $name . ' { public function __construct(public string $required) {} }');
+        touch($source, time() - 60);
+        clearstatcache(true, $source);
+        $plans = new PlanCache();
+        (new Container(planCache: $plans))->get($class);
+
+        $plans->writeTo($this->file);
+
+        self::assertNotContains($class, PlanCache::fromFile($this->file)->classes());
+        self::assertContains($class, $plans->classes());
+    }
+
+    public function test_release_bound_user_plans_cannot_be_loaded_without_the_release_stamp(): void
+    {
+        $plans = new PlanCache();
+        (new Container(planCache: $plans))->get(Person::class);
+        $plans->writeTo($this->file, 'loaded-release');
+
+        self::assertContains(Person::class, PlanCache::fromFile($this->file, 'loaded-release')->classes());
+        self::assertNotContains(Person::class, PlanCache::fromFile($this->file)->classes());
+        self::assertArrayNotHasKey(Person::class, Container::loadCompiledCache($this->file));
+    }
+
     public function test_a_cache_read_back_holds_what_was_planned_before_it_was_written(): void
     {
         $plans = new PlanCache();
         (new Container([], [], [], $plans))->get(ClassWithObjectDependencies::class);
 
-        $plans->writeTo($this->file);
-        $restored = PlanCache::fromFile($this->file);
+        $plans->writeTo($this->file, 'release-1');
+        $restored = PlanCache::fromFile($this->file, 'release-1');
 
         self::assertContains(ClassWithObjectDependencies::class, $restored->classes());
         self::assertContains(Person::class, $restored->classes());
@@ -86,7 +116,9 @@ final class PlanCacheFileTest extends TestCase
         self::assertContains(Person::class, PlanCache::fromFile($this->file, 'build-1')->classes());
     }
 
-    public function test_a_class_whose_file_changed_after_the_cache_was_created_is_not_written(): void
+    #[TestWith([null])]
+    #[TestWith([''])]
+    public function test_unstamped_writes_keep_user_plans_in_memory_and_only_persist_internal_plans(?string $stamp): void
     {
         $changed = $this->loadedClass('ChangedAfterLoad');
         $unchanged = $this->loadedClass('UnchangedAfterLoad');
@@ -96,15 +128,16 @@ final class PlanCacheFileTest extends TestCase
         $container->get($changed);
         $container->get($unchanged);
 
-        // A deploy lands while the process still holds the plan of the old
-        // file: stamping the new file now would vouch for that plan.
-        touch($this->directory . DIRECTORY_SEPARATOR . 'ChangedAfterLoad.php', time() + 60);
+        $container->get(stdClass::class);
 
-        $plans->writeTo($this->file);
+        $plans->writeTo($this->file, $stamp);
         $restored = PlanCache::fromFile($this->file)->classes();
 
         self::assertNotContains($changed, $restored);
-        self::assertContains($unchanged, $restored);
+        self::assertNotContains($unchanged, $restored);
+        self::assertContains(stdClass::class, $restored);
+        self::assertContains($changed, $plans->classes());
+        self::assertContains($unchanged, $plans->classes());
     }
 
     public function test_writing_leaves_only_the_file_behind(): void

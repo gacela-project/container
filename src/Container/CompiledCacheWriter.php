@@ -46,11 +46,8 @@ use function var_export;
  */
 final class CompiledCacheWriter
 {
-    /**
-     * Bumped whenever the envelope changes shape. A file written by another
-     * version is refused outright rather than half-understood.
-     */
-    public const FORMAT = 2;
+    // Format changes also invalidate plans written under older provenance rules.
+    public const FORMAT = 3;
 
     /**
      * Classes whose default values cannot be statically exported are skipped
@@ -60,12 +57,9 @@ final class CompiledCacheWriter
      * @param CompiledPlans $plans
      * @param string|null $buildStamp identifies the build this file belongs to;
      *   see read() for what it buys
-     * @param int|null $plannedSince when the plans were made from loaded classes,
-     *   skip a class whose file changed at or after this time: it may no longer
-     *   be the file the process loaded, and stamping it now would vouch for a
-     *   plan of the old constructor
+     * @param bool $releaseBound user-class plans require a matching non-empty build stamp
      */
-    public static function write(array $plans, string $file, ?string $buildStamp = null, ?int $plannedSince = null): void
+    public static function write(array $plans, string $file, ?string $buildStamp = null, bool $releaseBound = false): void
     {
         $entries = [];
         $stamps = [];
@@ -86,16 +80,12 @@ final class CompiledCacheWriter
                 continue;
             }
 
-            if ($plannedSince !== null) {
-                foreach ($stamp as $source) {
-                    if ($source[1] >= $plannedSince) {
-                        continue 2;
-                    }
-                }
+            if ($releaseBound && $stamp !== [] && ($buildStamp === null || $buildStamp === '')) {
+                continue;
             }
 
             $entries[] = '        ' . var_export($class, true) . ' => ' . $exportedPlan . ',';
-            $stamps[$class] = $stamp;
+            $stamps[$class] = $releaseBound && $stamp !== [] ? null : $stamp;
         }
 
         self::put($file, self::envelope($buildStamp, $stamps, 'plans', $entries));

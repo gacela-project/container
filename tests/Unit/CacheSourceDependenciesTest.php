@@ -59,7 +59,11 @@ final class CacheSourceDependenciesTest extends TestCase
         $result = $this->readCache($kind, $deleted ? 'null' : $value, !$deleted);
 
         self::assertNotContains('CacheSourceFixture\\Entry', $result['entries']);
-        self::assertContains('CacheSourceFixture\\Unchanged', $result['entries']);
+        if ($kind === 'shared plans') {
+            self::assertNotContains('CacheSourceFixture\\Unchanged', $result['entries']);
+        } else {
+            self::assertContains('CacheSourceFixture\\Unchanged', $result['entries']);
+        }
         self::assertFalse($result['autoloaded']);
         self::assertSame(99, $result['unchanged']);
         if (!$deleted) {
@@ -128,10 +132,14 @@ PHP);
         self::assertContains('CacheSourceFixture\\Entry', $result['matching']);
         self::assertSame([], $result['different']);
         self::assertNotContains('CacheSourceFixture\\Entry', $result['unstamped']);
-        self::assertContains('CacheSourceFixture\\Unchanged', $result['unstamped']);
+        if ($kind === 'shared plans') {
+            self::assertSame([], $result['unstamped']);
+        } else {
+            self::assertContains('CacheSourceFixture\\Unchanged', $result['unstamped']);
+        }
     }
 
-    public function test_the_existing_plan_cache_write_cutoff_checks_inherited_sources(): void
+    public function test_a_new_plan_cache_cannot_vouch_for_preloaded_replaced_parent_sources(): void
     {
         [$changed, $replacement, $value] = $this->fixture('parent constructor');
         $origin = var_export($this->path($changed . '.php'), true);
@@ -139,17 +147,19 @@ PHP);
         $file = var_export($this->path('cache.php'), true);
         $loader = $this->loader('shared plans');
         $result = $this->process(<<<PHP
+class_exists(\\CacheSourceFixture\\Entry::class);
+file_put_contents({$origin}, {$code});
+touch({$origin}, time() - 60);
+clearstatcache();
 \$cache = new \\Gacela\\Container\\PlanCache();
 \$container = new \\Gacela\\Container\\Container([], [], [], \$cache);
 \$container->compile([\\CacheSourceFixture\\Entry::class, \\CacheSourceFixture\\Unchanged::class]);
-file_put_contents({$origin}, {$code});
-touch({$origin}, time() + 60);
 \$cache->writeTo({$file});
 \$result = ['entries' => array_keys({$loader}(null))];
 PHP);
 
         self::assertNotContains('CacheSourceFixture\\Entry', $result['entries']);
-        self::assertContains('CacheSourceFixture\\Unchanged', $result['entries']);
+        self::assertSame([], $result['entries']);
         $resolved = $this->readCache('shared plans', $value, true);
         self::assertSame(23, $resolved['value']);
     }
@@ -259,6 +269,7 @@ PHP);
 
     private function writeCache(string $kind, ?string $buildStamp = null): void
     {
+        $buildStamp ??= $kind === 'shared plans' ? 'deployment-1' : null;
         $stamp = var_export($buildStamp, true);
         $file = var_export($this->path('cache.php'), true);
         $body = match ($kind) {
