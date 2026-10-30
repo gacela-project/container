@@ -840,7 +840,7 @@ final class DependencyResolver
             return $this->resolveClass($param['inject']);
         }
 
-        if ($param['hasDefault']) {
+        if ($param['hasDefault'] && ($param['isScalar'] || $param['type'] === null)) {
             return $param['default'];
         }
 
@@ -855,12 +855,30 @@ final class DependencyResolver
 
         /** @var class-string $type */
         $type = $param['type'];
+        if ($param['hasDefault'] && !$this->hasRegistrationFor($type)) {
+            return $param['default'];
+        }
+
         $this->parameterInFocus = $this->isCallableParameter()
             ? sprintf('parameter $%s of the callable passed to resolve()', $param['name'])
             : sprintf('parameter $%s of %s::__construct()', $param['name'], $param['declaringClass'] ?? '?');
         $this->typeInFocus = $type;
 
         return $this->resolveClass($type);
+    }
+
+    /**
+     * @param class-string $type
+     */
+    private function hasRegistrationFor(string $type): bool
+    {
+        if ($this->getContextualBinding($type) !== null || isset($this->bindings[$type]) || isset($this->lazyClasses[$type])) {
+            return true;
+        }
+
+        $owner = $this->container() ?? $this->parent;
+
+        return $owner !== null && ($owner->bound($type) || $owner->provides($type));
     }
 
     /**
@@ -1038,7 +1056,7 @@ final class DependencyResolver
     /**
      * @param class-string $class
      */
-    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): object
+    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): mixed
     {
         $alreadyResolving = isset($this->resolvingStack[$class]);
         if (!$alreadyResolving || !$cacheManager->canReuse($class, contextual: true)) {
@@ -1050,10 +1068,7 @@ final class DependencyResolver
         }
 
         try {
-            $instance = $cacheManager->instantiateContextual($class);
-            $this->afterResolving?->__invoke($class, $instance);
-
-            return $instance;
+            return $cacheManager->instantiateContextual($class);
         } finally {
             if (!$alreadyResolving) {
                 unset($this->resolvingStack[$class]);

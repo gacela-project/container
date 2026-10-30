@@ -187,6 +187,94 @@ final class SingletonParameterTest extends TestCase
         self::assertNotSame($first, $transientScope->get(CompilableConsumer::class)->dependency);
     }
 
+    #[DataProvider('storedContextualOverrides')]
+    public function test_a_stored_scope_registration_outranks_the_contextual_singleton_cache(string $kind, bool $nested): void
+    {
+        $parent = new Container();
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+        $shared = $parent->get(CompilableConsumer::class)->dependency;
+        $scope = $parent->createScope();
+        $local = new CompilableDependency();
+        $calls = 0;
+        $definition = static function () use ($local, &$calls, $kind): CompilableDependency {
+            ++$calls;
+            return $kind === 'factory' ? new CompilableDependency() : $local;
+        };
+        if ($kind === 'factory') {
+            $scope->factory($definition);
+        }
+        $scope->set(CompilableDependency::class, $kind === 'object' ? $local : $definition);
+        $consumerScope = $nested ? $scope->createScope() : $scope;
+
+        $first = $consumerScope->get(CompilableConsumer::class)->dependency;
+        $second = $consumerScope->get(CompilableConsumer::class)->dependency;
+        self::assertNotSame($shared, $first);
+        if ($kind === 'factory') {
+            self::assertNotSame($first, $second);
+            self::assertSame(2, $calls);
+        } else {
+            self::assertSame($local, $first);
+            self::assertSame($first, $second);
+            self::assertSame($kind === 'object' ? 0 : 1, $calls);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function storedContextualOverrides(): iterable
+    {
+        foreach (['object', 'shared closure', 'factory'] as $kind) {
+            yield $kind . ' on child' => [$kind, false];
+            yield $kind . ' on middle scope' => [$kind, true];
+        }
+    }
+
+    public function test_a_scope_alias_keeps_its_stored_contextual_override(): void
+    {
+        $parent = new Container();
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+        $scope = $parent->createScope();
+        $local = new CompilableDependency();
+        $scope->set('local dependency', $local);
+        $scope->alias(CompilableDependency::class, 'local dependency');
+
+        self::assertSame($local, $scope->get(CompilableConsumer::class)->dependency);
+        self::assertSame($local, $scope->createScope()->get(CompilableConsumer::class)->dependency);
+    }
+
+    public function test_a_contextual_singleton_notifies_every_scope_from_parent_to_child(): void
+    {
+        $parent = new Container();
+        $parent->singleton(CompilableDependency::class);
+        $parent->bind(CompilableDependency::class, AlternativeCompilableDependency::class);
+        $parent->when(CompilableConsumer::class)
+            ->needs(CompilableDependency::class)->give(CompilableDependency::class);
+        $middle = $parent->createScope();
+        $leaf = $middle->createScope();
+        $order = [];
+        foreach (['parent' => $parent, 'middle' => $middle, 'leaf' => $leaf] as $name => $container) {
+            $container->afterResolving(CompilableDependency::class, static function () use ($name, &$order): void {
+                $order[] = $name;
+            });
+        }
+
+        $first = $leaf->get(CompilableConsumer::class)->dependency;
+        self::assertSame(['parent', 'middle', 'leaf'], $order);
+        self::assertSame($first, $leaf->get(CompilableConsumer::class)->dependency);
+        self::assertSame(['parent', 'middle', 'leaf'], $order);
+
+        $parent->forget(CompilableDependency::class);
+        self::assertNotSame($first, $leaf->get(CompilableConsumer::class)->dependency);
+        self::assertSame(['parent', 'middle', 'leaf', 'parent', 'middle', 'leaf'], $order);
+    }
+
     public function test_a_contextual_interface_target_still_uses_its_concrete_singleton_binding(): void
     {
         $container = new Container();
