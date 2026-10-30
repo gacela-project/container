@@ -32,6 +32,8 @@ use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
+use function count;
+use function get_debug_type;
 use function in_array;
 use function interface_exists;
 use function is_a;
@@ -1287,10 +1289,64 @@ final class DependencyResolver
          *
          * @phpstan-ignore method.notFound, return.type
          */
-        return $reflection->newLazyProxy(static function () use ($factory, $container): object {
-            /** @var object */
-            return $factory($container);
+        return $reflection->newLazyProxy(static function () use ($factory, $container, $reflection, $className): object {
+            /** @var mixed $instance */
+            $instance = $factory($container);
+            if (!is_object($instance) || !self::lazyFactoryResultIsCompatible($reflection, $instance)) {
+                throw new ContainerException(sprintf(
+                    "The lazy() factory for '%s' returned '%s', which is incompatible with its native proxy.\n\nReturn an instance of '%s', or register lazy() for the concrete class the factory creates.",
+                    $className,
+                    get_debug_type($instance),
+                    $className,
+                ));
+            }
+
+            return $instance;
         });
+    }
+
+    /**
+     * @param ReflectionClass<object> $proxy
+     */
+    private static function lazyFactoryResultIsCompatible(ReflectionClass $proxy, object $instance): bool
+    {
+        if ($proxy->getName() === $instance::class) {
+            return true;
+        }
+
+        if (!$proxy->isSubclassOf($instance::class)) {
+            return false;
+        }
+
+        $real = new ReflectionClass($instance);
+        if (self::classPropertyCount($proxy) !== self::classPropertyCount($real)) {
+            return false;
+        }
+
+        foreach (['__clone', '__destruct'] as $method) {
+            $proxyMethod = $proxy->hasMethod($method) ? $proxy->getMethod($method)->getDeclaringClass()->getName() : null;
+            $realMethod = $real->hasMethod($method) ? $real->getMethod($method)->getDeclaringClass()->getName() : null;
+            if ($proxyMethod !== $realMethod) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private static function classPropertyCount(ReflectionClass $reflection): int
+    {
+        $properties = [];
+        for ($class = $reflection; $class !== false; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                $properties[$property->getName()] = true;
+            }
+        }
+
+        return count($properties);
     }
 
     /**
