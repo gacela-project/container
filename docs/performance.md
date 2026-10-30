@@ -226,6 +226,8 @@ Load the file with `loadCompiledFactories()` rather than `require`-ing it: the
 same [staleness](#staleness) check that protects compiled plans protects
 generated expressions, and a raw `require` skips it.
 
+The generator computes each constructor expression once. Small expressions stay inline; large subexpressions use shared generated helpers so repeated dependency branches do not duplicate their full source. Each helper call constructs a fresh object. Receiving-container overrides and source stamps still account for every transitive dependency.
+
 Resolving the same four-level chain on a fresh container:
 
 | | mode | peak memory |

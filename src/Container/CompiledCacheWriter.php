@@ -34,7 +34,7 @@ use function var_export;
  * CacheStamp per entry, and the entries themselves — because an entry that
  * cannot say what it was compiled from cannot be known to be stale, and a
  * stale plan is worse than no plan. The envelope is itself a plain
- * `return [...]`, so opcache maps it as it would any array file.
+ * array, with optional constructor helpers for large generated graphs.
  *
  * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type FactoriesMap from ContainerInterface
@@ -180,7 +180,7 @@ final class CompiledCacheWriter
      * @param string $key the section the entries belong to
      * @param list<string> $entries already-rendered `'Class' => …,` lines
      */
-    public static function envelope(?string $buildStamp, array $stamps, string $key, array $entries): string
+    public static function envelope(?string $buildStamp, array $stamps, string $key, array $entries, string $setup = ''): string
     {
         $stampLines = [];
 
@@ -188,7 +188,7 @@ final class CompiledCacheWriter
             $stampLines[] = '        ' . var_export($class, true) . ' => ' . self::renderStamp($stamp) . ',';
         }
 
-        return "<?php\n\ndeclare(strict_types=1);\n\nreturn [\n"
+        return "<?php\n\ndeclare(strict_types=1);\n\n" . $setup . "return [\n"
             . "    'format' => " . self::FORMAT . ",\n"
             . "    'build' => " . var_export($buildStamp, true) . ",\n"
             . "    'stamps' => [\n"
