@@ -82,9 +82,12 @@ final class CompiledCacheWriter
             }
 
             $stamp = CacheStamp::of($class);
+            if ($stamp === null) {
+                continue;
+            }
 
             if ($plannedSince !== null) {
-                foreach ($stamp ?? [] as $source) {
+                foreach ($stamp as $source) {
                     if ($source[1] >= $plannedSince) {
                         continue 2;
                     }
