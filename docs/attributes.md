@@ -314,6 +314,15 @@ The target must be a concrete, instantiable class either way: a lazy instance ha
 to be an instance of *something*. `lazy(SomeInterface::class)` with no concrete
 throws a `ContainerException`.
 
+A callable factory must return a non-lazy object compatible with the registered class's native proxy. Returning a subclass is incompatible, even if it adds no properties. First use raises `ContainerException` naming the registration and returned type. Same-class results work; an ancestor result works only when the proxy adds no properties and changes neither `__clone()` nor `__destruct()`. See [PHP's proxy rules](https://www.php.net/manual/en/reflectionclass.newlazyproxy.php).
+
+Register the actual concrete result class for a subtype factory, then bind the base name to it:
+
+```php
+$container->lazy(SesMailer::class, fn () => new SesMailer());
+$container->bind(Mailer::class, SesMailer::class);
+```
+
 Registering both `#[Lazy]` and `lazy()` for the same class is not an error, and
 `singleton()` combines with it the way `#[Singleton] #[Lazy]` does — one shared
 instance, constructed on first touch. A [scope](scopes.md) inherits the lazy
@@ -346,3 +355,5 @@ intermediate scope to the requesting scope.
 Native lazy objects require **PHP 8.4**. On 8.3 a `#[Lazy]` class is constructed
 eagerly instead. That is unobservable apart from the timing, so the attribute is
 safe to use across both.
+
+Callable factories are also eager on PHP 8.3, so native proxy class restrictions do not apply there.
