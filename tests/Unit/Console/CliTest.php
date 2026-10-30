@@ -303,6 +303,57 @@ final class CliTest extends TestCase
         self::assertStringContainsString("'source' key", $err);
     }
 
+    #[TestWith(['factorys'])]
+    #[TestWith(['stmap'])]
+    #[TestWith([0])]
+    public function test_unknown_config_keys_are_rejected(string|int $key): void
+    {
+        $this->writeConfigValue($key, 'mistyped');
+
+        [$status, $out, $err] = $this->cli(['compile', $this->configFlag('overridden.php')]);
+
+        self::assertSame(Cli::EXIT_FAILURE, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString((string) $key, $err);
+        self::assertFileDoesNotExist($this->workspace . '/var/plans.php');
+        self::assertFileDoesNotExist($this->workspace . '/var/factories.php');
+    }
+
+    #[TestWith(['plans', false])]
+    #[TestWith(['plans', 123])]
+    #[TestWith(['plans', []])]
+    #[TestWith(['plans', 1.5])]
+    #[TestWith(['factories', false])]
+    #[TestWith(['factories', 123])]
+    #[TestWith(['factories', []])]
+    #[TestWith(['stamp', false])]
+    #[TestWith(['stamp', 123])]
+    #[TestWith(['stamp', []])]
+    public function test_config_paths_and_stamp_reject_non_string_values(string $key, mixed $value): void
+    {
+        $this->writeConfigValue($key, $value);
+
+        [$status, $out, $err] = $this->cli(['compile', $this->configFlag('overridden.php')]);
+
+        self::assertSame(Cli::EXIT_FAILURE, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString("'{$key}' key", $err);
+        self::assertFileDoesNotExist($this->workspace . '/var/plans.php');
+        self::assertFileDoesNotExist($this->workspace . '/var/factories.php');
+    }
+
+    #[TestWith(['plans'])]
+    #[TestWith(['factories'])]
+    #[TestWith(['stamp'])]
+    public function test_optional_config_values_may_be_null(string $key): void
+    {
+        $this->writeConfigValue($key, null);
+
+        [$status] = $this->cli(['compile', $this->configFlag('overridden.php')]);
+
+        self::assertSame(Cli::EXIT_OK, $status);
+    }
+
     /**
      * Nothing found is not the same as nothing loadable, so it must not trip
      * the autoloader warning.
@@ -605,6 +656,14 @@ final class CliTest extends TestCase
     private function exportedWorkspace(): string
     {
         return var_export($this->workspace, true);
+    }
+
+    private function writeConfigValue(string|int $key, mixed $value): void
+    {
+        $file = var_export($this->workspace . '/gacela-container.php', true);
+        $override = var_export([$key => $value], true);
+
+        file_put_contents($this->workspace . '/overridden.php', "<?php return array_replace(require {$file}, {$override});");
     }
 
     private function configFlag(string $name = 'gacela-container.php'): string

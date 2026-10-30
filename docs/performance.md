@@ -500,6 +500,8 @@ container is what stops that.
 Everything in the file is a default the command line can override, so CI and a
 developer's shell run the same thing without repeating the flags.
 
+Array configurations accept only `container`, `source`, `plans`, `factories` and `stamp`. Unknown keys are errors, including misspellings such as `factorys` and `stmap`. The optional `plans`, `factories` and `stamp` values must be strings or `null`; `null` leaves a value unset. Invalid configuration fails before the container factory runs or any output files are written.
+
 #### It does not guess
 
 The command reports mistakes that could otherwise silently change its output:

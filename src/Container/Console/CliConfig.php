@@ -8,6 +8,8 @@ use Closure;
 use Gacela\Container\ClassSource;
 use Gacela\Container\Container;
 
+use function array_keys;
+use function in_array;
 use function is_array;
 use function is_callable;
 use function is_string;
@@ -66,6 +68,12 @@ final class CliConfig
             throw CliException::configInvalid($file, 'it returned neither a Container, a callable, nor an array');
         }
 
+        foreach (array_keys($returned) as $key) {
+            if (!in_array($key, ['container', 'source', 'plans', 'factories', 'stamp'], true)) {
+                throw CliException::configInvalid($file, "unknown key '{$key}'; allowed keys are container, source, plans, factories and stamp");
+            }
+        }
+
         /** @var mixed $factory */
         $factory = $returned['container'] ?? null;
 
@@ -86,9 +94,9 @@ final class CliConfig
         return new self(
             self::assertBuildsContainer($factory, $file),
             $source,
-            self::stringOrNull($returned['plans'] ?? null),
-            self::stringOrNull($returned['factories'] ?? null),
-            self::stringOrNull($returned['stamp'] ?? null),
+            self::optionalString($returned['plans'] ?? null, 'plans', $file),
+            self::optionalString($returned['factories'] ?? null, 'factories', $file),
+            self::optionalString($returned['stamp'] ?? null, 'stamp', $file),
         );
     }
 
@@ -118,8 +126,12 @@ final class CliConfig
         };
     }
 
-    private static function stringOrNull(mixed $value): ?string
+    private static function optionalString(mixed $value, string $key, string $file): ?string
     {
-        return is_string($value) ? $value : null;
+        if ($value !== null && !is_string($value)) {
+            throw CliException::configInvalid($file, "its '{$key}' key is not a string or null");
+        }
+
+        return $value;
     }
 }
