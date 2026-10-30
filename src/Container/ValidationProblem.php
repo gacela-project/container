@@ -38,4 +38,6 @@ enum ValidationProblem: string
      * on.
      */
     case DependencyCycle = 'dependency-cycle';
+
+    case InvalidInjection = 'invalid-injection';
 }

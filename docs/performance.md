@@ -426,6 +426,8 @@ cannot drift from what resolution actually does by re-deriving any of it: a
 binding, an alias, a stored instance or a parent scope all count here because
 they count to `has()`.
 
+Validation follows constructor parameters, injected properties and injected method parameters, including their transitive dependencies. It also rejects readonly injected properties and non-public or static injected methods. No constructors, setters or binding closures run.
+
 It reports what is decidable ahead of time:
 
 | Problem | Meaning |
@@ -433,7 +435,8 @@ It reports what is decidable ahead of time:
 | `MissingClass` | the class does not exist, or is an interface with nothing bound to it |
 | `NotInstantiable` | abstract, or a non-public constructor, with nothing bound |
 | `UnresolvableParameter` | untyped, or a scalar with no default and no contextual binding |
-| `DependencyCycle` | the class takes part in a constructor cycle |
+| `DependencyCycle` | the class takes part in a constructor or member injection cycle |
+| `InvalidInjection` | an injected property or method cannot be used at runtime |
 
 Each issue carries the `chain` that reached it, because "which of my entry
 points does this break" is the question a build is actually asking. A cycle is

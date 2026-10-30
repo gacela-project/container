@@ -15,10 +15,22 @@ use GacelaTest\Fake\ConstructionCounter;
 use GacelaTest\Fake\DatabaseRepository;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\PersonWithoutParamType;
+use GacelaTest\Fake\PropertyCycleA;
 use GacelaTest\Fake\RepositoryInterface;
+use GacelaTest\Fake\ServiceWithInjectedMethod;
+use GacelaTest\Fake\ServiceWithInjectedMethodTakingAScalar;
+use GacelaTest\Fake\ServiceWithInjectedProperty;
+use GacelaTest\Fake\ServiceWithPrivateInjectedMethod;
 use GacelaTest\Fake\ServiceWithPromotedInject;
+use GacelaTest\Fake\ServiceWithReadonlyInjectedProperty;
 use GacelaTest\Fake\ServiceWithRepository;
+use GacelaTest\Fake\ServiceWithScalarInjectedProperty;
+use GacelaTest\Fake\ServiceWithStaticInjectedMethod;
+use GacelaTest\Fake\ServiceWithUnboundInjectedMethod;
+use GacelaTest\Fake\ServiceWithUnboundInjectedProperty;
 use GacelaTest\Fake\ServiceWithUnionType;
+use GacelaTest\Fake\ServiceWithUntypedInjectedProperty;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 use function count;
@@ -33,6 +45,45 @@ final class ValidationTest extends TestCase
     protected function tearDown(): void
     {
         Container::resetStaticCaches();
+    }
+
+    #[TestWith([ServiceWithUnboundInjectedProperty::class])]
+    #[TestWith([ServiceWithUnboundInjectedMethod::class])]
+    public function test_validation_walks_injected_members_and_their_dependencies(string $class): void
+    {
+        $report = (new Container())->validate([$class]);
+
+        self::assertFalse($report->isValid());
+        self::assertSame(ValidationProblem::MissingClass, $report->issuesFor(RepositoryInterface::class)[0]->problem);
+        self::assertSame(ValidationProblem::UnresolvableParameter, $report->issuesFor(PersonWithoutDefaultValues::class)[0]->problem);
+        self::assertContains($class, $report->issuesFor(PersonWithoutDefaultValues::class)[0]->chain);
+    }
+
+    public function test_validation_walks_property_cycles(): void
+    {
+        $report = (new Container())->validate([PropertyCycleA::class]);
+
+        self::assertFalse($report->isValid());
+        self::assertSame(ValidationProblem::DependencyCycle, $report->issuesFor(PropertyCycleA::class)[0]->problem);
+    }
+
+    #[TestWith([ServiceWithReadonlyInjectedProperty::class])]
+    #[TestWith([ServiceWithPrivateInjectedMethod::class])]
+    #[TestWith([ServiceWithStaticInjectedMethod::class])]
+    #[TestWith([ServiceWithScalarInjectedProperty::class])]
+    #[TestWith([ServiceWithUntypedInjectedProperty::class])]
+    public function test_invalid_injection_members_are_reported(string $class): void
+    {
+        self::assertFalse((new Container())->validate([$class])->isValid());
+    }
+
+    public function test_injected_setter_parameters_need_values_without_invoking_the_setter(): void
+    {
+        $container = new Container();
+        self::assertFalse($container->validate([ServiceWithInjectedMethodTakingAScalar::class])->isValid());
+        $container->when(ServiceWithInjectedMethodTakingAScalar::class)->needs('$dsn')->give('test');
+        self::assertTrue($container->validate([ServiceWithInjectedMethodTakingAScalar::class])->isValid());
+        self::assertTrue($container->validate([ServiceWithInjectedProperty::class, ServiceWithInjectedMethod::class])->isValid());
     }
 
     public function test_a_resolvable_graph_is_valid(): void
