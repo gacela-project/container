@@ -76,6 +76,9 @@ final class DependencyResolver
     /** @var array<class-string, bool> */
     private array $resolvingStack = [];
 
+    /** @var array<string, string> */
+    private array $resolvingFactories = [];
+
     /** @var array<class-string, true> guards the recursion in composeBuilder() */
     private array $buildingBuilders = [];
 
@@ -262,7 +265,6 @@ final class DependencyResolver
      */
     public function resolveDependencies(string $toResolve, array $overrides = []): array
     {
-        // Track which class is being resolved for contextual bindings.
         $this->buildStack[] = $toResolve;
 
         try {
@@ -916,10 +918,26 @@ final class DependencyResolver
         /** @var mixed $value */
         $value = $bindings[$key];
         if ($value instanceof Closure) {
-            return [true, $value($this->container())];
+            return [true, $this->invokeFactory($key, $value, $declaringClass)];
         }
 
         return [true, $value];
+    }
+
+    private function invokeFactory(string $id, callable $factory, ?string $consumer = null): mixed
+    {
+        $key = ($consumer ?? '') . "\0" . $id . "\0" . CallableKey::for($factory);
+        if (isset($this->resolvingFactories[$key])) {
+            throw CircularDependencyException::create([...$this->getResolutionChain(), ...array_values($this->resolvingFactories), $id]);
+        }
+
+        $this->resolvingFactories[$key] = $id;
+
+        try {
+            return $factory($this->container());
+        } finally {
+            unset($this->resolvingFactories[$key]);
+        }
     }
 
     /**
@@ -931,8 +949,9 @@ final class DependencyResolver
         $contextualBinding = $this->getContextualBinding($paramTypeName);
         if ($contextualBinding !== null) {
             if ($contextualBinding instanceof Closure || (is_array($contextualBinding) && is_callable($contextualBinding))) {
+                $consumer = $this->buildStack === [] ? null : $this->buildStack[array_key_last($this->buildStack)];
                 /** @psalm-suppress MixedAssignment */
-                $instance = $contextualBinding($this->container());
+                $instance = $this->invokeFactory($paramTypeName, $contextualBinding, $consumer);
                 $this->afterResolving?->__invoke($paramTypeName, $instance);
 
                 return $instance;
@@ -995,7 +1014,7 @@ final class DependencyResolver
             }
 
             /** @psalm-suppress MixedAssignment */
-            $instance = $bindClass($this->container());
+            $instance = $this->invokeFactory($paramTypeName, $bindClass);
             $this->afterResolving?->__invoke($paramTypeName, $instance);
 
             return $instance;
