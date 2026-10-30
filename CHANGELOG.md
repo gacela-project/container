@@ -12,6 +12,7 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- A hook for an already-built singleton or stored shared object can resolve another consumer of that object without a false `CircularDependencyException`. Aliases, scopes, and contextual singleton selections follow the same rule while unfinished constructions remain guarded. See [resolution hooks](docs/services.md#resolution-hooks)
 - Classes marked `#[Singleton] #[Lazy]` share one deferred instance across direct reads and constructor injection. Initialization still happens once on first use, and PHP 8.3 keeps the eager shared fallback. Explicit contextual targets keep their selected class and singleton cache when another global binding replaces that class, including inherited singleton registrations in scopes. See [combined attributes](docs/attributes.md#combining-with-other-attributes)
 - Cycles through an interface's class-string binding raise `CircularDependencyException` instead of exhausting memory. Contextual bindings can still select a separate inner implementation for a decorator
 - Class-string bindings from a concrete class to a subclass now apply to nested constructor parameters, including scope-local and `lazy()` replacements. Nested resolution uses the same target lifetime as `get()`, including after constructor builders or generated factories have been installed. See [registration precedence](docs/resolution.md#a-registration-answers-a-constructor-parameter-too)

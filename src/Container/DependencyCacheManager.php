@@ -97,6 +97,9 @@ final class DependencyCacheManager
     /** @var (Closure(string, mixed): void)|null */
     private ?Closure $afterResolving = null;
 
+    /** @var (Closure(string, bool): bool)|null */
+    private ?Closure $sharedReadiness = null;
+
     /**
      * The container a scope falls through to, held only to hand to the resolver
      * built later. Typed as the interface for the reason
@@ -277,6 +280,16 @@ final class DependencyCacheManager
         return isset($this->singletonInstances[$class]) || isset($this->forcedSingletons[$class]);
     }
 
+    public function hasInstance(string $class): bool
+    {
+        return isset($this->singletonInstances[$class]);
+    }
+
+    public function canReuse(string $id, bool $contextual = false): bool
+    {
+        return $this->sharedReadiness?->__invoke($id, $contextual) ?? false;
+    }
+
     public function forget(string $id): void
     {
         unset($this->singletonInstances[$id]);
@@ -452,10 +465,12 @@ final class DependencyCacheManager
 
     /**
      * @param Closure(string, mixed): void $callback
+     * @param (Closure(string, bool): bool)|null $sharedReadiness
      */
-    public function afterResolving(Closure $callback): void
+    public function afterResolving(Closure $callback, ?Closure $sharedReadiness = null): void
     {
         $this->afterResolving = $callback;
+        $this->sharedReadiness = $sharedReadiness;
         $this->dropArgBuilders();
     }
 

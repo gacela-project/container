@@ -18,10 +18,12 @@ use function class_exists;
 use function count;
 use function in_array;
 use function interface_exists;
+use function is_array;
 use function is_int;
 use function is_object;
 use function is_string;
 use function max;
+use function method_exists;
 
 /**
  * @psalm-import-type Binding from ContainerInterface
@@ -883,9 +885,12 @@ final class Container implements FullContainerInterface, ArrayAccess
 
         if ($this->afterResolvingCallbacks === []) {
             $owner = WeakReference::create($this);
-            $this->cacheManager->afterResolving(static function (string $resolvedId, mixed $instance) use ($owner): void {
-                $owner->get()?->fireAfterResolving($resolvedId, $instance);
-            });
+            $this->cacheManager->afterResolving(
+                static function (string $resolvedId, mixed $instance) use ($owner): void {
+                    $owner->get()?->fireAfterResolving($resolvedId, $instance);
+                },
+                static fn (string $resolvedId, bool $contextual): bool => $owner->get()?->hasSharedInstance($resolvedId, $contextual) ?? false,
+            );
         }
 
         $this->afterResolvingCallbacks[] = [
@@ -1549,6 +1554,50 @@ final class Container implements FullContainerInterface, ArrayAccess
         return isset($this->bindings[$id])
             || $this->instanceRegistry->has($id)
             || $this->cacheManager->ownsSingleton($id);
+    }
+
+    private function hasSharedInstance(string $id, bool $contextual = false): bool
+    {
+        if ($contextual) {
+            return $this->hasContextualSharedInstance($id);
+        }
+
+        $id = $this->aliasRegistry->resolve($id);
+        if ($this->instanceRegistry->has($id)) {
+            /** @var mixed $instance */
+            $instance = $this->instanceRegistry->getRaw($id);
+
+            return is_object($instance)
+                && ($this->factoryManager->isProtected($instance) || !method_exists($instance, '__invoke'));
+        }
+
+        if ($this->parent !== null && !$this->ownsLocally($id) && $this->parent->provides($id)) {
+            return $this->parent->hasSharedInstance($id);
+        }
+
+        $binding = $this->bindings[$id] ?? null;
+        if ($binding instanceof Closure || is_array($binding)) {
+            return ($this->singletonMemos[$id] ?? null)?->hasInstance() ?? false;
+        }
+
+        if (is_object($binding)) {
+            return true;
+        }
+
+        return $this->cacheManager->hasInstance(is_string($binding) ? $binding : $id);
+    }
+
+    private function hasContextualSharedInstance(string $class): bool
+    {
+        if ($this->instanceRegistry->has($class) || $this->aliasRegistry->resolve($class) !== $class) {
+            return $this->hasSharedInstance($class);
+        }
+
+        if (!$this->ownsLocally($class) && $this->parent !== null) {
+            return $this->parent->hasContextualSharedInstance($class);
+        }
+
+        return $this->cacheManager->hasInstance($class);
     }
 
     /**

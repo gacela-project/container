@@ -1000,8 +1000,6 @@ final class DependencyResolver
             $paramTypeName = $bindClass;
         }
 
-        $this->checkCircularDependency($paramTypeName);
-
         $plan = $this->describeClass($paramTypeName);
         if (!$plan['instantiable']) {
             $paramTypeName = $this->resolveConcreteForAbstract($paramTypeName);
@@ -1018,6 +1016,8 @@ final class DependencyResolver
                 return $this->delegateTo($owner, $paramTypeName);
             }
         }
+
+        $this->checkCircularDependency($paramTypeName);
 
         // Deferred here rather than in instantiateFromPlan(): a lazy target must
         // not have its constructor arguments resolved yet, and that is what the
@@ -1040,8 +1040,14 @@ final class DependencyResolver
      */
     private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): object
     {
-        $this->checkCircularDependency($class);
-        $this->resolvingStack[$class] = true;
+        $alreadyResolving = isset($this->resolvingStack[$class]);
+        if (!$alreadyResolving || !$cacheManager->canReuse($class, contextual: true)) {
+            $this->checkCircularDependency($class);
+        }
+
+        if (!$alreadyResolving) {
+            $this->resolvingStack[$class] = true;
+        }
 
         try {
             $instance = $cacheManager->instantiateContextual($class);
@@ -1049,7 +1055,9 @@ final class DependencyResolver
 
             return $instance;
         } finally {
-            unset($this->resolvingStack[$class]);
+            if (!$alreadyResolving) {
+                unset($this->resolvingStack[$class]);
+            }
         }
     }
 
@@ -1073,6 +1081,10 @@ final class DependencyResolver
      */
     private function delegateTo(ContainerInterface $owner, string $id): mixed
     {
+        if (isset($this->resolvingStack[$id]) && $this->cacheManagerRef?->get()?->canReuse($id) === true) {
+            return $owner->get($id);
+        }
+
         $this->checkCircularDependency($id);
 
         $this->resolvingStack[$id] = true;
