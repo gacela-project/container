@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use function is_object;
+
 /**
  * @internal
  */
@@ -28,5 +30,10 @@ final class SingletonMemo
     {
         $this->hasResolved = false;
         $this->value = null;
+    }
+
+    public function hasInstance(): bool
+    {
+        return $this->hasResolved && is_object($this->value);
     }
 }
