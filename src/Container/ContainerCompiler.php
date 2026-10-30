@@ -11,6 +11,7 @@ use Gacela\Container\Attribute\Singleton;
 use ReflectionAttribute;
 use ReflectionClass;
 
+use function array_key_exists;
 use function array_keys;
 use function implode;
 use function in_array;
@@ -30,6 +31,7 @@ use function var_export;
  * Each refusal records why, on the branch that makes it, so report() explains
  * the same decision render() acted on rather than re-deriving it.
  *
+ * @psalm-import-type ContextualBindingsMap from ContainerInterface
  * @psalm-import-type BindingsMap from ContainerInterface
  * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type ParamPlan from PlanRegistry
@@ -66,12 +68,14 @@ final class ContainerCompiler
      * @param BindingsMap $bindings
      * @param array<class-string, true> $lazyClasses classes made lazy through Container::lazy()
      * @param (Closure(string): bool)|null $provides
+     * @param ContextualBindingsMap $contextualBindings
      */
     public function __construct(
         private array $plans,
         private array $bindings = [],
         private array $lazyClasses = [],
         private ?Closure $provides = null,
+        private array $contextualBindings = [],
     ) {
     }
 
@@ -251,6 +255,22 @@ final class ContainerCompiler
      */
     private function argumentFor(string $class, array $param, array $stack): ?string
     {
+        $contexts = [$class];
+
+        if ($param['declaringClass'] !== null && $param['declaringClass'] !== $class) {
+            $contexts[] = $param['declaringClass'];
+        }
+
+        foreach ($contexts as $context) {
+            if (array_key_exists('$' . $param['name'], $this->contextualBindings[$context] ?? [])) {
+                return $this->skip($class, CompilationSkipReason::ContextualBinding, sprintf(
+                    "parameter \$%s has a named contextual binding for '%s', selected at runtime",
+                    $param['name'],
+                    $context,
+                ));
+            }
+        }
+
         if ($param['isVariadic'] ?? false) {
             return $this->skip($class, CompilationSkipReason::VariadicParameter, sprintf(
                 'parameter $%s is variadic, so explicit arguments are selected at runtime',
@@ -272,6 +292,14 @@ final class ContainerCompiler
             return $this->skip($class, CompilationSkipReason::ScalarParameter, sprintf(
                 'parameter $%s is scalar or untyped, so its value may come from a contextual binding',
                 $param['name'],
+            ));
+        }
+
+        if (isset($this->contextualBindings[$class][$param['type']])) {
+            return $this->skip($class, CompilationSkipReason::ContextualBinding, sprintf(
+                "parameter \$%s has a contextual type binding for '%s', selected at runtime",
+                $param['name'],
+                $class,
             ));
         }
 

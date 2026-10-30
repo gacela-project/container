@@ -242,12 +242,15 @@ The generator is deliberately conservative and simply leaves out anything it
 cannot decide statically:
 
 - classes behind a **binding** — the binding could change after compilation
+- constructor parameters with an applicable contextual type or named binding in the compiling container (`ContextualBinding` in the report), and classes that depend on them
 - **scalar** or untyped parameters — the value may come from a contextual binding
 - class-typed parameters with a declared default, such as `?Logger $logger = null`, so the runtime keeps selecting that default
 - `#[Inject]`, `#[Singleton]`, `#[Factory]`, `#[Lazy]` — lifetime and
   construction belong to the runtime
 - classes registered with `lazy()` — same reason, without the attribute to see
 - abstract classes and interfaces, and anything in a dependency cycle
+
+Named contextual checks use the actual consumer first, then the constructor's declaring class, including explicit `null` values. Type checks use the actual consumer. Unrelated contextual bindings do not prevent compilation. Configure the compiling container with the contextual bindings its consumers need.
 
 A container with `afterResolving()` hooks uses the runtime resolver instead of generated factories or composed argument builders, so hooks can configure nested dependencies. Registering hooks after either optimization has been used takes effect on the next resolution.
 
