@@ -350,7 +350,7 @@ final class Container implements FullContainerInterface, ArrayAccess
         if ($classNames instanceof ClassSource) {
             $this->cacheManager->planAll($classNames->classNames());
         } else {
-            $this->warmUp($classNames);
+            $this->warmUp(ClassSource::fromList($classNames)->classNames());
         }
 
         return $this->cacheManager->exportCompiledPlans();
@@ -1706,7 +1706,7 @@ final class Container implements FullContainerInterface, ArrayAccess
             $this->cacheManager->lazyClasses(),
             $this->hasCompilationOverride(...),
             $this->contextualBindings,
-            $classNames instanceof ClassSource ? $classNames->classNames() : $classNames,
+            $classNames instanceof ClassSource ? $classNames->classNames() : ClassSource::fromList($classNames)->classNames(),
         );
     }
 

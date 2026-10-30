@@ -366,6 +366,31 @@ final class ContainerCompilerTest extends TestCase
         }
     }
 
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_leading_namespace_separators_produce_loadable_factories_with_normalized_keys(bool $discovered): void
+    {
+        $names = ['\\' . CompilableConsumer::class, CompilableConsumer::class];
+        $source = $discovered ? ClassSource::fromList($names) : $names;
+        $container = new Container();
+        $file = tempnam(sys_get_temp_dir(), 'normalized-factories');
+        try {
+            $written = $container->writeCompiledFactories($source, $file);
+            $factories = Container::loadCompiledFactories($file);
+            self::assertSame([CompilableConsumer::class], $written);
+            self::assertSame($written, array_keys($factories));
+            self::assertTrue($container->compileReport($source)->wasCompiled(CompilableConsumer::class));
+            $receiver = new Container();
+            $receiver->useCompiledFactories($factories);
+            self::assertInstanceOf(CompilableDependency::class, $receiver->get(CompilableConsumer::class)->dependency);
+            $plans = $container->compile($source);
+            self::assertArrayHasKey(CompilableConsumer::class, $plans);
+            self::assertArrayNotHasKey('\\' . CompilableConsumer::class, $plans);
+        } finally {
+            unlink($file);
+        }
+    }
+
     public function test_empty_compilation_requests_ignore_previously_planned_classes(): void
     {
         $container = new Container();

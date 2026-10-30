@@ -341,6 +341,8 @@ if ($report->skipped() !== []) {
 
 ### Finding the classes to compile
 
+Compilation inputs and `ClassSource::classNames()` remove leading namespace separators and deduplicate equivalent names. `\App\Service` and `App\Service` therefore produce one factory entry with the same normalized key.
+
 Everything above takes a `list<class-string>`, and nothing produces that list.
 Written by hand it costs maintenance proportional to the size of the
 application, and it fails quietly: a class you add and forget to list keeps
