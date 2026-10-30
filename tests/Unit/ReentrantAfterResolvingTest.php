@@ -50,6 +50,25 @@ final class ReentrantAfterResolvingTest extends TestCase
         self::assertSame(1, $calls);
     }
 
+    public function test_a_completed_dependency_hook_can_reenter_the_same_consumer_class(): void
+    {
+        $container = new Container();
+        $fromHook = null;
+        $calls = 0;
+        $container->afterResolving(SingletonAttributeService::class, static function (SingletonAttributeService $service, ContainerInterface $current) use (&$fromHook, &$calls): void {
+            ++$calls;
+            $fromHook = $current->get(ConsumerOfSingletonAttributeService::class);
+            self::assertSame($service, $fromHook->service);
+        });
+
+        $consumer = $container->get(ConsumerOfSingletonAttributeService::class);
+
+        self::assertInstanceOf(ConsumerOfSingletonAttributeService::class, $fromHook);
+        self::assertNotSame($consumer, $fromHook);
+        self::assertSame($consumer->service, $fromHook->service);
+        self::assertSame(1, $calls);
+    }
+
     /**
      * @return iterable<string, array{string, bool}>
      */
