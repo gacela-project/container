@@ -9,11 +9,13 @@ use Closure;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\Exception\DependencyNotFoundException;
 use Override;
+use ReflectionClass;
 use Throwable;
 use TypeError;
 use WeakMap;
 use WeakReference;
 
+use function array_key_exists;
 use function class_exists;
 use function count;
 use function in_array;
@@ -1805,7 +1807,30 @@ final class Container implements FullContainerInterface, ArrayAccess
 
     private function runtimeOwns(string $class): bool
     {
-        return isset($this->bindings[$class]) || $this->cacheManager->ownsSingleton($class);
+        if (isset($this->bindings[$class])
+            || isset($this->contextualBindings[$class])
+            || isset($this->cacheManager->lazyClasses()[$class])
+            || $this->cacheManager->ownsSingleton($class)) {
+            return true;
+        }
+
+        if ($this->contextualBindings === [] || !class_exists($class)) {
+            return false;
+        }
+
+        $constructor = (new ReflectionClass($class))->getConstructor();
+        if ($constructor === null) {
+            return false;
+        }
+
+        $bindings = $this->contextualBindings[$constructor->getDeclaringClass()->getName()] ?? [];
+        foreach ($constructor->getParameters() as $parameter) {
+            if (array_key_exists('$' . $parameter->getName(), $bindings)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function hasCompilationOverride(string $class): bool
@@ -1818,14 +1843,14 @@ final class Container implements FullContainerInterface, ArrayAccess
      */
     private function ownsCompiledDependency(string $class, callable $factory): bool
     {
-        if ($this->bindings === [] && !$this->cacheManager->hasOwnedIds() && $this->parent === null) {
+        if ($this->bindings === [] && $this->contextualBindings === [] && $this->cacheManager->lazyClasses() === [] && !$this->cacheManager->hasOwnedIds() && $this->parent === null) {
             return false;
         }
 
         $dependencies = $this->compiledDependencies[$class] ??= CompiledFactory::dependenciesOf($factory);
 
         foreach ($dependencies as $dependency) {
-            if ($this->hasCompilationOverride($dependency)) {
+            if ($this->runtimeOwns($dependency) || $this->hasCompilationOverride($dependency)) {
                 return true;
             }
         }
