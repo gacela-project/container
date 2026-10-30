@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit;
 
+use Gacela\Container\Attribute\Inject;
 use Gacela\Container\Container;
 use Gacela\Container\ValidationIssue;
 use Gacela\Container\ValidationProblem;
@@ -14,6 +15,7 @@ use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\ConstructionCounter;
 use GacelaTest\Fake\DatabaseRepository;
+use GacelaTest\Fake\InMemoryRepository;
 use GacelaTest\Fake\PersonWithoutDefaultValues;
 use GacelaTest\Fake\PersonWithoutParamType;
 use GacelaTest\Fake\PropertyCycleA;
@@ -21,6 +23,8 @@ use GacelaTest\Fake\RepositoryInterface;
 use GacelaTest\Fake\ServiceWithInjectedMethod;
 use GacelaTest\Fake\ServiceWithInjectedMethodTakingAScalar;
 use GacelaTest\Fake\ServiceWithInjectedProperty;
+use GacelaTest\Fake\ServiceWithNullableDependency;
+use GacelaTest\Fake\ServiceWithOptionalRepository;
 use GacelaTest\Fake\ServiceWithPrivateInjectedMethod;
 use GacelaTest\Fake\ServiceWithPromotedInject;
 use GacelaTest\Fake\ServiceWithReadonlyInjectedProperty;
@@ -170,6 +174,119 @@ final class ValidationTest extends TestCase
 
         self::assertTrue($report->isValid(), $report->render());
         self::assertSame($value, $container->get(AbstractService::class)->dependency);
+    }
+
+    public function test_unregistered_optional_class_dependencies_keep_their_defaults(): void
+    {
+        $container = new Container();
+        self::assertTrue($container->validate([ServiceWithOptionalRepository::class])->isValid());
+        self::assertNull($container->get(ServiceWithOptionalRepository::class)->repository);
+    }
+
+    public function test_registered_optional_dependencies_are_checked_instead_of_using_defaults(): void
+    {
+        $container = new Container();
+        $container->bind(RepositoryInterface::class, ValidationBrokenRepository::class);
+        self::assertFalse($container->validate([ServiceWithOptionalRepository::class])->isValid());
+    }
+
+    #[TestWith(['class'])]
+    #[TestWith(['object'])]
+    #[TestWith(['factory'])]
+    public function test_contextual_types_satisfy_parameters_without_running_factories(string $kind): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $implementation = match ($kind) {
+            'class' => InMemoryRepository::class,
+            'object' => new InMemoryRepository(),
+            'factory' => static function () use (&$calls): InMemoryRepository {
+                ++$calls;
+                return new InMemoryRepository();
+            },
+        };
+        $container->when(ServiceWithRepository::class)->needs(RepositoryInterface::class)->give($implementation);
+        $report = $container->validate([ServiceWithRepository::class]);
+        self::assertTrue($report->isValid(), $report->render());
+        self::assertSame(0, $calls);
+        self::assertInstanceOf(InMemoryRepository::class, $container->get(ServiceWithRepository::class)->repository);
+    }
+
+    public function test_named_null_values_satisfy_required_nullable_parameters(): void
+    {
+        $container = new Container();
+        $container->when(ServiceWithNullableDependency::class)->needs('$repository')->give(null);
+        self::assertTrue($container->validate([ServiceWithNullableDependency::class])->isValid());
+        self::assertNull($container->get(ServiceWithNullableDependency::class)->repository);
+    }
+
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_inherited_named_null_bindings_use_the_actual_consumer_and_declaring_fallback(bool $setter): void
+    {
+        $parent = $setter ? ValidationSelectionSetter::class : ValidationSelectionParent::class;
+        $child = $setter ? ValidationSelectionSetterChild::class : ValidationSelectionChild::class;
+        $container = new Container();
+        $container->when($parent)->needs('$repository')->give(new InMemoryRepository());
+        $container->when($child)->needs('$repository')->give(null);
+        self::assertTrue($container->validate([$child])->isValid());
+        self::assertNull($container->get($child)->repository);
+        $fallback = new Container();
+        $fallback->when($parent)->needs('$repository')->give(null);
+        self::assertTrue($fallback->validate([$child])->isValid());
+        self::assertNull($fallback->get($child)->repository);
+    }
+
+    public function test_contextual_types_use_the_actual_consumer_without_a_parent_fallback(): void
+    {
+        $container = new Container();
+        $container->when(ValidationSelectionParent::class)->needs(RepositoryInterface::class)->give(InMemoryRepository::class);
+        self::assertFalse($container->validate([ValidationSelectionChild::class])->isValid());
+        $container->when(ValidationSelectionChild::class)->needs(RepositoryInterface::class)->give(InMemoryRepository::class);
+        self::assertTrue($container->validate([ValidationSelectionChild::class])->isValid());
+    }
+
+    public function test_contextually_selected_classes_are_checked_even_when_globally_replaced(): void
+    {
+        $container = new Container();
+        $container->bind(ValidationBrokenRepository::class, static fn (): ValidationBrokenRepository => new ValidationBrokenRepository('global'));
+        $container->when(ServiceWithOptionalRepository::class)->needs(RepositoryInterface::class)->give(ValidationBrokenRepository::class);
+        self::assertFalse($container->validate([ServiceWithOptionalRepository::class])->isValid());
+    }
+
+    public function test_contextual_class_selection_can_use_an_existing_target_instance(): void
+    {
+        $container = new Container();
+        $instance = new ValidationBrokenRepository('stored');
+        $container->set(ValidationBrokenRepository::class, $instance);
+        $container->when(ServiceWithRepository::class)->needs(RepositoryInterface::class)->give(ValidationBrokenRepository::class);
+        self::assertTrue($container->validate([ServiceWithRepository::class])->isValid());
+        self::assertSame($instance, $container->get(ServiceWithRepository::class)->repository);
+    }
+
+    public function test_optional_alias_cycles_are_reported_instead_of_using_the_default(): void
+    {
+        $container = new Container();
+        $container->alias(RepositoryInterface::class, 'repository-loop');
+        $container->alias('repository-loop', RepositoryInterface::class);
+        $report = $container->validate([ServiceWithOptionalRepository::class]);
+        self::assertFalse($report->isValid());
+        self::assertSame(ValidationProblem::DependencyCycle, $report->issuesFor(RepositoryInterface::class)[0]->problem);
+    }
+
+    public function test_contextual_types_supply_injected_properties_without_running_factories(): void
+    {
+        $container = new Container();
+        $calls = 0;
+        $factory = static function () use (&$calls): InMemoryRepository {
+            ++$calls;
+            return new InMemoryRepository();
+        };
+        $container->when(ServiceWithUnboundInjectedProperty::class)->needs(RepositoryInterface::class)->give($factory);
+        $container->when(ServiceWithUnboundInjectedProperty::class)->needs(PersonWithoutDefaultValues::class)->give(new PersonWithoutDefaultValues('contextual'));
+        self::assertTrue($container->validate([ServiceWithUnboundInjectedProperty::class])->isValid());
+        self::assertSame(0, $calls);
+        self::assertInstanceOf(InMemoryRepository::class, $container->get(ServiceWithUnboundInjectedProperty::class)->repository);
     }
 
     public function test_a_resolvable_graph_is_valid(): void
@@ -465,5 +582,38 @@ final class ValidationTest extends TestCase
             "[unresolvable-parameter] App\\C: nothing supplies \$name\n    via App\\A -> App\\B -> App\\C",
             $issue->describe(),
         );
+    }
+}
+
+class ValidationSelectionParent
+{
+    public function __construct(public ?RepositoryInterface $repository)
+    {
+    }
+}
+
+final class ValidationSelectionChild extends ValidationSelectionParent
+{
+}
+
+class ValidationSelectionSetter
+{
+    public ?RepositoryInterface $repository = null;
+
+    #[Inject]
+    public function configure(?RepositoryInterface $repository): void
+    {
+        $this->repository = $repository;
+    }
+}
+
+final class ValidationSelectionSetterChild extends ValidationSelectionSetter
+{
+}
+
+final class ValidationBrokenRepository implements RepositoryInterface
+{
+    public function __construct(public string $name)
+    {
     }
 }
