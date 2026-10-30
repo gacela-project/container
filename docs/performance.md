@@ -552,25 +552,17 @@ when PHP does not provide `posix_geteuid()`.
 
 ## Staleness
 
-Regenerate the cache whenever a compiled constructor changes. When that does not
-happen — a deploy that ships new code over an old cache — the container does not
-build the old shape:
+Regenerate plan and factory caches when code changes. Each entry records source-file signatures (path, modification time and size).
 
-Every entry is written with a **fingerprint** of the file its class was declared
-in (path, mtime, size). `loadCompiledCache()` and `loadCompiledFactories()`
-compare it, and an entry whose file has changed is dropped. A dropped entry
-behaves exactly like one that was never written: the class falls back to
-reflection, nothing throws, and correctness never depends on the cache being
-current. The same holds for a class whose file has been deleted, and for classes
-with no file of their own — an internal class cannot go stale by an edit, so its
-entry is kept.
+A plan records its class, parent classes, interfaces and traits, including nested traits and interface ancestors. Changes to an inherited constructor, an injected property or method, or an inherited injection marker therefore invalidate the plan even when the class's own file is unchanged. A generated factory also records every class inlined into its expression, with each class's source hierarchy.
 
-The file rather than the constructor signature, because verifying a signature
-means reflecting the class, which is the work the cache exists to avoid.
+`loadCompiledCache()` and `loadCompiledFactories()` compare every recorded file without loading those classes. A changed or deleted file drops only the affected entries; unrelated entries remain available. A dropped entry uses normal runtime resolution when requested. Internal classes have no editable source file and retain their entries.
+
+These are metadata comparisons, rather than content hashes or constructor reflection. Regenerate existing cache files after upgrading: the source groups use a new format, and older cache formats are rejected. `PlanCache::fromFile()` starts empty for an unsupported format.
 
 ### Trading the per-entry check for a build stamp
 
-The check costs one `stat` per entry. For a map of a few thousand classes that
+The check costs one `stat` per recorded file in each entry. For a map of a few thousand classes that
 can cost more than the reflection it saves, so pass a **build stamp** instead —
 a deploy id, a commit sha, anything that changes when the code does:
 

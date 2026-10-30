@@ -7,27 +7,13 @@ namespace Gacela\Container;
 use ReflectionClass;
 use Throwable;
 
+use function array_keys;
+use function array_pop;
 use function stat;
 
 /**
- * What a compiled entry was compiled from, and whether that is still true.
- *
- * A plan describes a constructor signature. Nothing in the plan says which
- * signature, so a plan written before a constructor changed reads as current
- * and the container builds with the old argument list. The stamp closes that
- * gap: the declaring file's path, mtime and size, taken at build time and
- * compared once on read.
- *
- * The file rather than the signature, because verifying a signature means
- * reflecting the class — precisely the work the cache exists to avoid. A stat
- * costs one syscall and cannot be fooled by an edit, which is the only thing
- * that can invalidate a plan in the first place.
- *
- * A null stamp means "nothing to compare": an internal class, or one whose
- * file could not be read when the cache was written. Those are treated as
- * current, since the alternative is discarding entries no edit can invalidate.
- *
  * @psalm-type FileStamp = array{string, int, int}
+ * @psalm-type SourceStamp = list<FileStamp>
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -37,35 +23,68 @@ final class CacheStamp
 {
     /**
      * @param class-string $class
+     * @param list<class-string> $dependencies
      *
-     * @return FileStamp|null null when the class has no readable file of its own
+     * @return SourceStamp|null null when a user source cannot be stamped, or no class has a source file
      */
-    public static function of(string $class): ?array
+    public static function of(string $class, array $dependencies = []): ?array
     {
         try {
-            $file = (new ReflectionClass($class))->getFileName();
+            $pending = [];
+            foreach ([$class, ...$dependencies] as $dependency) {
+                $pending[] = new ReflectionClass($dependency);
+            }
+
+            $seen = [];
+            $files = [];
+            while (($reflection = array_pop($pending)) !== null) {
+                $name = $reflection->getName();
+                if (isset($seen[$name])) {
+                    continue;
+                }
+                $seen[$name] = true;
+
+                $file = $reflection->getFileName();
+                if ($file === false) {
+                    if (!$reflection->isInternal()) {
+                        return null;
+                    }
+                } else {
+                    $files[$file] = true;
+                }
+
+                $parent = $reflection->getParentClass();
+                if ($parent !== false) {
+                    $pending[] = $parent;
+                }
+                foreach ($reflection->getInterfaces() as $interface) {
+                    $pending[] = $interface;
+                }
+                foreach ($reflection->getTraits() as $trait) {
+                    $pending[] = $trait;
+                }
+            }
         } catch (Throwable) {
             return null;
         }
 
-        if ($file === false) {
-            return null;
+        $stamps = [];
+        foreach (array_keys($files) as $file) {
+            $stat = @stat($file);
+            if ($stat === false) {
+                return null;
+            }
+            $stamps[] = [$file, $stat['mtime'], $stat['size']];
         }
 
-        $stat = @stat($file);
-
-        if ($stat === false) {
-            return null;
-        }
-
-        return [$file, $stat['mtime'], $stat['size']];
+        return $stamps === [] ? null : $stamps;
     }
 
     /**
      * A deleted file counts as changed: the entry is dropped and the class
      * falls back to reflection, which will report the real problem.
      *
-     * @param FileStamp|null $stamp
+     * @param SourceStamp|null $stamp
      */
     public static function isCurrent(?array $stamp): bool
     {
@@ -73,12 +92,13 @@ final class CacheStamp
             return true;
         }
 
-        [$file, $mtime, $size] = $stamp;
+        foreach ($stamp as [$file, $mtime, $size]) {
+            $stat = @stat($file);
+            if ($stat === false || $stat['mtime'] !== $mtime || $stat['size'] !== $size) {
+                return false;
+            }
+        }
 
-        $stat = @stat($file);
-
-        return $stat !== false
-            && $stat['mtime'] === $mtime
-            && $stat['size'] === $size;
+        return true;
     }
 }

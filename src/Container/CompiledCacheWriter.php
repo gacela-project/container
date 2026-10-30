@@ -36,7 +36,7 @@ use function var_export;
  *
  * @psalm-import-type CompiledPlans from PlanRegistry
  * @psalm-import-type FactoriesMap from ContainerInterface
- * @psalm-import-type FileStamp from CacheStamp
+ * @psalm-import-type SourceStamp from CacheStamp
  *
  * @internal
  * Not covered by backward compatibility: this class is an implementation
@@ -48,7 +48,7 @@ final class CompiledCacheWriter
      * Bumped whenever the envelope changes shape. A file written by another
      * version is refused outright rather than half-understood.
      */
-    public const FORMAT = 1;
+    public const FORMAT = 2;
 
     /**
      * Classes whose default values cannot be statically exported are skipped
@@ -77,8 +77,12 @@ final class CompiledCacheWriter
 
             $stamp = CacheStamp::of($class);
 
-            if ($plannedSince !== null && $stamp !== null && $stamp[1] >= $plannedSince) {
-                continue;
+            if ($plannedSince !== null) {
+                foreach ($stamp ?? [] as $source) {
+                    if ($source[1] >= $plannedSince) {
+                        continue 2;
+                    }
+                }
             }
 
             $entries[] = '        ' . var_export($class, true) . ' => ' . $exportedPlan . ',';
@@ -89,11 +93,11 @@ final class CompiledCacheWriter
     }
 
     /**
-     * Entries whose declaring file has changed since the cache was written are
+     * Entries whose source files changed since the cache was written are
      * dropped, so a stale entry behaves exactly like a missing one and the
      * class falls back to reflection.
      *
-     * $buildStamp is the escape hatch for large maps, where one stat per class
+     * $buildStamp is the escape hatch for large maps, where checking source files
      * costs more than the reflection it replaces. Pass the same value here and
      * at write time — a deploy id, a commit sha — and the whole file is taken
      * on that single comparison, with no per-entry stat at all. A stamp that
@@ -173,7 +177,7 @@ final class CompiledCacheWriter
      * The one place that knows the file's shape, so plans and generated
      * factories cannot drift into two formats read by one reader.
      *
-     * @param array<class-string, FileStamp|null> $stamps
+     * @param array<class-string, SourceStamp|null> $stamps
      * @param string $key the section the entries belong to
      * @param list<string> $entries already-rendered `'Class' => …,` lines
      */
@@ -223,7 +227,7 @@ final class CompiledCacheWriter
             return $entries;
         }
 
-        /** @var array<class-string, FileStamp|null> $stamps */
+        /** @var array<class-string, SourceStamp|null> $stamps */
         $stamps = is_array($envelope['stamps'] ?? null) ? $envelope['stamps'] : [];
 
         foreach ($entries as $class => $_) {
@@ -306,10 +310,7 @@ final class CompiledCacheWriter
     }
 
     /**
-     * Rendered by hand rather than var_export()ed: a stamp is three scalars,
-     * and one line per class keeps the file readable when a build inspects it.
-     *
-     * @param FileStamp|null $stamp
+     * @param SourceStamp|null $stamp
      */
     private static function renderStamp(?array $stamp): string
     {
@@ -317,8 +318,11 @@ final class CompiledCacheWriter
             return 'null';
         }
 
-        [$file, $mtime, $size] = $stamp;
+        $files = [];
+        foreach ($stamp as [$file, $mtime, $size]) {
+            $files[] = '[' . var_export($file, true) . ', ' . $mtime . ', ' . $size . ']';
+        }
 
-        return '[' . var_export($file, true) . ', ' . $mtime . ', ' . $size . ']';
+        return '[' . implode(', ', $files) . ']';
     }
 }

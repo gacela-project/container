@@ -6,6 +6,7 @@ namespace GacelaTest\Unit;
 
 use ArrayObject;
 use Gacela\Container\CacheStamp;
+use Gacela\Container\CompiledCacheWriter;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
 use GacelaTest\Fake\ClassWithoutDependencies;
@@ -14,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use function bin2hex;
 use function file_put_contents;
 use function random_bytes;
+use function realpath;
 use function sys_get_temp_dir;
 use function touch;
 use function uniqid;
@@ -193,12 +195,34 @@ final class CompiledCacheStampTest extends TestCase
     public function test_a_cache_without_the_expected_entries_is_refused(): void
     {
         $cache = $this->cacheFile();
-        file_put_contents($cache, "<?php return ['format' => 1, 'build' => null, 'stamps' => []];");
+        file_put_contents($cache, "<?php return ['format' => " . CompiledCacheWriter::FORMAT . ", 'build' => null, 'stamps' => []];");
 
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessageMatches('/did not return an array/');
 
         Container::loadCompiledCache($cache);
+    }
+
+    public function test_the_previous_single_file_stamp_format_is_refused(): void
+    {
+        $cache = $this->cacheFile();
+        file_put_contents($cache, "<?php return ['format' => 1, 'build' => null, 'stamps' => [], 'plans' => []];");
+
+        $this->expectException(ContainerException::class);
+        Container::loadCompiledCache($cache);
+    }
+
+    public function test_source_stamps_are_lists_of_file_stamps(): void
+    {
+        [$class, $classFile] = $this->fixtureClass();
+        $cache = $this->cacheFile();
+        (new Container())->writeCompiledCache([$class], $cache);
+        $envelope = require $cache;
+
+        self::assertIsArray($envelope);
+        self::assertSame(2, $envelope['format']);
+        self::assertCount(1, $envelope['stamps'][$class]);
+        self::assertSame(realpath($classFile), $envelope['stamps'][$class][0][0]);
     }
 
     public function test_a_factories_file_read_as_plans_is_refused(): void
