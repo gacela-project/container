@@ -181,7 +181,7 @@ final class DefinitionLoader
 
         try {
             /** @var mixed $definitions */
-            $definitions = SymfonyYaml::parseFile($file);
+            $definitions = SymfonyYaml::parseFile($file, SymfonyYaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
         } catch (Throwable $exception) {
             throw ContainerException::definitionFileInvalid($file, $exception->getMessage());
         }
