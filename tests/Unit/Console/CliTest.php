@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace GacelaTest\Unit\Console;
 
+use Composer\InstalledVersions;
 use Gacela\Container\Console\Cli;
 use Gacela\Container\Container;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
+use function dirname;
 use function sys_get_temp_dir;
 
 final class CliTest extends TestCase
@@ -86,12 +88,39 @@ final class CliTest extends TestCase
 
     public function test_version_is_its_own_command(): void
     {
+        $version = InstalledVersions::getPrettyVersion('gacela-project/container') ?? 'unknown';
+
         foreach (['--version', '-V'] as $spelling) {
-            [$status, $out] = $this->cli([$spelling]);
+            [$status, $out, $err] = $this->cli([$spelling]);
 
             self::assertSame(Cli::EXIT_OK, $status, $spelling);
-            self::assertStringContainsString('gacela-project/container', $out, $spelling);
+            self::assertSame('gacela-container ' . $version . " (gacela-project/container)\n", $out, $spelling);
+            self::assertSame('', $err, $spelling);
         }
+    }
+
+    #[TestWith(['2.4.1', true])]
+    #[TestWith(['dev-main', true])]
+    #[TestWith([null, true])]
+    #[TestWith([null, false])]
+    public function test_version_reads_composer_metadata_without_application_configuration(?string $version, bool $installed): void
+    {
+        $root = dirname(__DIR__, 3);
+        $metadata = ['versions' => $installed ? ['gacela-project/container' => ['pretty_version' => $version]] : []];
+        $script = 'require ' . var_export($root . '/vendor/composer/InstalledVersions.php', true) . ';'
+            . 'Composer\\InstalledVersions::reload(' . var_export($metadata, true) . ');'
+            . 'require ' . var_export($root . '/src/Container/Console/Cli.php', true) . ';'
+            . 'exit(Gacela\\Container\\Console\\Cli::main(["gacela-container", "--version"]));';
+        $process = proc_open([PHP_BINARY, '-r', $script], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $this->workspace);
+        self::assertIsResource($process);
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        self::assertSame(Cli::EXIT_OK, proc_close($process));
+        self::assertSame('gacela-container ' . ($version ?? 'unknown') . " (gacela-project/container)\n", $out);
+        self::assertSame('', $err);
     }
 
     /**

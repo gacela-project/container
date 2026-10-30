@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container\Console;
 
+use Composer\InstalledVersions;
 use Gacela\Container\ClassSource;
 use Gacela\Container\CompilationReport;
 use Gacela\Container\Container;
@@ -420,7 +421,10 @@ final class Cli
 
     private function version(): int
     {
-        $this->write($this->out, "gacela-container (gacela-project/container)\n");
+        $package = 'gacela-project/container';
+        $version = InstalledVersions::isInstalled($package) ? InstalledVersions::getPrettyVersion($package) : null;
+
+        $this->write($this->out, sprintf("gacela-container %s (%s)\n", $version ?? 'unknown', $package));
 
         return self::EXIT_OK;
     }
