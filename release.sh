@@ -363,11 +363,12 @@ main() {
   log_info "Current: $CURRENT_VERSION  →  New: $VERSION"
   confirm "Proceed with release?" || { log_info "Aborted."; exit $EXIT_SUCCESS; }
 
+  verify_ci_green
+
   [[ "$DRY_RUN" == true ]] || backup_init
 
   capture_release_notes
   update_changelog
-  verify_ci_green
   git_commit_and_tag
   git_push
   create_gh_release

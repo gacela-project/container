@@ -10,8 +10,10 @@ Guide to cut a new Gacela Container release.
 ./release.sh --dry-run    # preview without touching anything
 ```
 
-The script handles pre-flight checks, file updates, quality+tests, commit, tag, push, and GitHub release.
+The script handles pre-flight checks, CI verification, file updates, commit, tag, push, and GitHub release.
 Run `./release.sh --help` for all options.
+
+Pending or failing CI stops the release before backups, release notes, or changelog changes. Retry after CI passes; the working tree stays clean.
 
 ## Pre-flight requirements
 

@@ -1,0 +1,28 @@
+name: Release CI precheck
+
+on:
+  pull_request:
+    paths:
+      - release.sh
+      - tools/test-release-ci-precheck.sh
+      - .github/workflows/release-ci-precheck.yml
+  push:
+    branches: [main]
+    paths:
+      - release.sh
+      - tools/test-release-ci-precheck.sh
+      - .github/workflows/release-ci-precheck.yml
+
+jobs:
+  release-ci-precheck:
+    name: Release CI precheck on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check release script syntax
+        run: bash -n release.sh tools/test-release-ci-precheck.sh
+      - name: Check release CI preconditions
+        run: bash tools/test-release-ci-precheck.sh
