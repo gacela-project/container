@@ -1026,12 +1026,25 @@ final class DependencyResolver
             return $bindClass;
         }
 
-        if ($contextualBinding === null && is_string($bindClass) && $bindClass !== $paramTypeName && class_exists($bindClass)) {
+        $interfaceTarget = is_string($bindClass) && interface_exists($bindClass);
+        if (($contextualBinding === null || interface_exists($paramTypeName)) && is_string($bindClass)
+            && (($bindClass !== $paramTypeName && class_exists($bindClass)) || $interfaceTarget)) {
             // Keep the requested type in compilation reports before delegating.
             $this->describeClass($paramTypeName);
             $owner = $this->container();
             if ($owner !== null) {
                 return $this->delegateTo($owner, $paramTypeName);
+            }
+
+            if ($interfaceTarget) {
+                $this->checkCircularDependency($paramTypeName);
+                $this->resolvingStack[$paramTypeName] = true;
+
+                try {
+                    return $this->resolveClass($bindClass);
+                } finally {
+                    unset($this->resolvingStack[$paramTypeName]);
+                }
             }
 
             $paramTypeName = $bindClass;

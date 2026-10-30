@@ -163,6 +163,7 @@ final class DependencyCacheManager
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param PlanCache|null $planCache a cache shared with unrelated containers
      * @param (Closure(class-string): mixed)|null $contextualResolver
+     * @param (Closure(string, bool): bool)|null $sharedReadiness
      */
     public function __construct(
         private array &$bindings = [],
@@ -171,7 +172,9 @@ final class DependencyCacheManager
         private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
         private ?Closure $contextualResolver = null,
+        ?Closure $sharedReadiness = null,
     ) {
+        $this->sharedReadiness = $sharedReadiness;
         // Read before useSelfReference() can replace it, which is the only way
         // to know which of the two references is the owner.
         $this->ownerRef = $containerRef;
@@ -285,7 +288,11 @@ final class DependencyCacheManager
 
     public function canReuse(string $id, bool $contextual = false): bool
     {
-        return $this->sharedReadiness?->__invoke($id, $contextual) ?? false;
+        if ($this->sharedReadiness === null) {
+            return false;
+        }
+
+        return ($this->sharedReadiness)($id, $contextual);
     }
 
     public function forget(string $id): void
@@ -468,7 +475,7 @@ final class DependencyCacheManager
     public function afterResolving(Closure $callback, ?Closure $sharedReadiness = null): void
     {
         $this->afterResolving = $callback;
-        $this->sharedReadiness = $sharedReadiness;
+        $this->sharedReadiness = $sharedReadiness ?? $this->sharedReadiness;
         $this->dropArgBuilders();
     }
 
