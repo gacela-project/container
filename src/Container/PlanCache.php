@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gacela\Container;
 
 use Gacela\Container\Exception\ContainerException;
+use Throwable;
 
 use function array_keys;
 use function count;
@@ -72,15 +73,15 @@ final class PlanCache
      * Entries whose class changed since are dropped, as loadCompiledCache()
      * drops them; pass the $buildStamp used at write time to trust the whole
      * file on one comparison instead. A plan cache only saves reflection, so a
-     * file that is missing, unreadable or from another container version gives
-     * an empty cache rather than an error: the first request of a deploy, or
-     * one after an upgrade, plans by reflection and can write the file again.
+     * file that cannot be read, including corrupt PHP or an old object export,
+     * gives an empty cache rather than an error: the first request of a deploy
+     * or one after an upgrade plans by reflection and can write the file again.
      */
     public static function fromFile(string $file, ?string $buildStamp = null): self
     {
         try {
             return new self(CompiledCacheWriter::read($file, $buildStamp));
-        } catch (ContainerException) {
+        } catch (Throwable) {
             return new self();
         }
     }

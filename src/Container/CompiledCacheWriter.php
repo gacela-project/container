@@ -6,6 +6,7 @@ namespace Gacela\Container;
 
 use Gacela\Container\Exception\ContainerException;
 use Throwable;
+use UnitEnum;
 
 use function basename;
 use function dirname;
@@ -14,6 +15,7 @@ use function implode;
 use function is_array;
 use function is_dir;
 use function is_file;
+use function is_object;
 use function is_readable;
 use function is_string;
 use function is_writable;
@@ -69,6 +71,10 @@ final class CompiledCacheWriter
         $stamps = [];
 
         foreach ($plans as $class => $plan) {
+            if (!self::isExportable($plan)) {
+                continue;
+            }
+
             try {
                 $exportedPlan = var_export($plan, true);
             } catch (Throwable) {
@@ -198,6 +204,24 @@ final class CompiledCacheWriter
             . "    '" . $key . "' => [\n"
             . implode("\n", $entries)
             . "\n    ],\n];\n";
+    }
+
+    private static function isExportable(mixed $value): bool
+    {
+        if (is_object($value)) {
+            return $value instanceof UnitEnum;
+        }
+
+        if (is_array($value)) {
+            /** @var mixed $entry */
+            foreach ($value as $entry) {
+                if (!self::isExportable($entry)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**
