@@ -391,6 +391,25 @@ final class ContainerCompilerTest extends TestCase
         }
     }
 
+    public function test_legacy_seed_plans_cannot_hide_injected_setters_from_compilation(): void
+    {
+        $seed = [ServiceWithInjectedMethod::class => ['instantiable' => true, 'params' => [], 'props' => []]];
+        $container = new Container(compiledPlans: $seed);
+        $source = ClassSource::fromList([ServiceWithInjectedMethod::class]);
+        self::assertSame(CompilationSkipReason::InjectedMethod, $container->compileReport($source)->reasonFor(ServiceWithInjectedMethod::class));
+        $file = tempnam(sys_get_temp_dir(), 'legacy-setter-plan');
+        try {
+            self::assertSame([], $container->writeCompiledFactories($source, $file));
+            $receiver = new Container(compiledPlans: $seed);
+            $receiver->useCompiledFactories(Container::loadCompiledFactories($file));
+            $service = $receiver->get(ServiceWithInjectedMethod::class);
+            self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency);
+            self::assertSame(1, $service->calls);
+        } finally {
+            unlink($file);
+        }
+    }
+
     public function test_empty_compilation_requests_ignore_previously_planned_classes(): void
     {
         $container = new Container();
