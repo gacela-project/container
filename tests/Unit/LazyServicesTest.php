@@ -19,7 +19,9 @@ use GacelaTest\Fake\LazyServiceWithoutConstructor;
 use GacelaTest\Fake\LazyServiceWithoutProperties;
 use GacelaTest\Fake\LazySingletonService;
 use GacelaTest\Fake\OuterHoldingLazyService;
+use GacelaTest\Fake\OuterHoldingLazySingletonService;
 use GacelaTest\Fake\OuterHoldingReportGenerator;
+use GacelaTest\Fake\ReplacementLazySingletonService;
 use GacelaTest\Fake\ReportGeneratorInterface;
 use GacelaTest\Fake\ServiceWithInjectedMethod;
 use GacelaTest\Fake\ServiceWithInjectedProperty;
@@ -27,6 +29,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
+use RuntimeException;
 
 final class LazyServicesTest extends TestCase
 {
@@ -126,6 +129,178 @@ final class LazyServicesTest extends TestCase
         $reflection->getProperties();
 
         self::assertLessThanOrEqual(1, ConstructionCounter::countFor(LazySingletonService::class));
+    }
+
+    #[DataProvider('lazySingletonResolutionProvider')]
+    public function test_a_lazy_singleton_is_shared_by_direct_and_nested_resolution(bool $directFirst, bool $forceEager): void
+    {
+        if (!$forceEager && !self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
+        $available = new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable');
+        $previous = $available->getValue();
+        if ($forceEager) {
+            $available->setValue(null, false);
+        }
+
+        try {
+            $container = new Container();
+            $direct = $directFirst ? $container->get(LazySingletonService::class) : null;
+            $first = $container->get(OuterHoldingLazySingletonService::class)->lazyService;
+            $second = $container->get(OuterHoldingLazySingletonService::class)->lazyService;
+            $direct ??= $container->get(LazySingletonService::class);
+
+            self::assertSame($direct, $first);
+            self::assertSame($first, $second);
+            self::assertSame($forceEager ? 1 : 0, ConstructionCounter::countFor(LazySingletonService::class));
+
+            foreach ([$direct, $first, $second] as $service) {
+                ++$service->value;
+            }
+
+            self::assertSame(3, $direct->value);
+            self::assertSame(1, ConstructionCounter::countFor(LazySingletonService::class));
+        } finally {
+            if ($forceEager) {
+                $available->setValue(null, $previous);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{bool, bool}>
+     */
+    public static function lazySingletonResolutionProvider(): iterable
+    {
+        yield 'direct first, native' => [true, false];
+        yield 'nested first, native' => [false, false];
+        yield 'direct first, eager fallback' => [true, true];
+        yield 'nested first, eager fallback' => [false, true];
+    }
+
+    #[DataProvider('lazySingletonResolutionProvider')]
+    public function test_a_contextual_lazy_singleton_keeps_its_target_and_shared_cache(bool $directFirst, bool $forceEager): void
+    {
+        if (!$forceEager && !self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
+        $available = new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable');
+        $previous = $available->getValue();
+        if ($forceEager) {
+            $available->setValue(null, false);
+        }
+
+        try {
+            $container = new Container();
+            $direct = $directFirst ? $container->get(LazySingletonService::class) : null;
+            $container->bind(LazySingletonService::class, ReplacementLazySingletonService::class);
+            $container->when(OuterHoldingLazySingletonService::class)
+                ->needs(LazySingletonService::class)->give(LazySingletonService::class);
+
+            $first = $container->get(OuterHoldingLazySingletonService::class)->lazyService;
+            self::assertSame(LazySingletonService::class, $first::class);
+            self::assertSame($first, $container->get(OuterHoldingLazySingletonService::class)->lazyService);
+            if ($directFirst) {
+                self::assertSame($direct, $first);
+            }
+            self::assertSame($forceEager ? 1 : 0, ConstructionCounter::countFor(LazySingletonService::class));
+            ++$first->value;
+            self::assertSame(1, ConstructionCounter::countFor(LazySingletonService::class));
+            self::assertInstanceOf(ReplacementLazySingletonService::class, $container->get(LazySingletonService::class));
+
+            $container->forget(LazySingletonService::class);
+            $rebuilt = $container->get(OuterHoldingLazySingletonService::class)->lazyService;
+            self::assertSame(LazySingletonService::class, $rebuilt::class);
+            self::assertNotSame($first, $rebuilt);
+            self::assertSame($rebuilt, $container->get(OuterHoldingLazySingletonService::class)->lazyService);
+            self::assertSame(0, $rebuilt->value);
+            self::assertSame(2, ConstructionCounter::countFor(LazySingletonService::class));
+        } finally {
+            if ($forceEager) {
+                $available->setValue(null, $previous);
+            }
+        }
+    }
+
+    public function test_a_failed_contextual_singleton_hook_discards_the_cached_instance(): void
+    {
+        $container = new Container();
+        $container->bind(LazySingletonService::class, ReplacementLazySingletonService::class);
+        $container->when(OuterHoldingLazySingletonService::class)
+            ->needs(LazySingletonService::class)->give(LazySingletonService::class);
+        $calls = 0;
+        $container->afterResolving(LazySingletonService::class, static function (LazySingletonService $service) use (&$calls): void {
+            ++$calls;
+            ++$service->value;
+            if ($calls === 1) {
+                throw new RuntimeException('Failed configuration');
+            }
+        });
+
+        try {
+            $container->get(OuterHoldingLazySingletonService::class);
+            self::fail('The first hook must throw');
+        } catch (RuntimeException) {
+            self::assertSame(1, $calls);
+        }
+
+        $first = $container->get(OuterHoldingLazySingletonService::class)->lazyService;
+        self::assertSame($first, $container->get(OuterHoldingLazySingletonService::class)->lazyService);
+        self::assertSame(1, $first->value);
+        self::assertSame(2, $calls);
+        self::assertSame(2, ConstructionCounter::countFor(LazySingletonService::class));
+    }
+
+    #[DataProvider('lazySingletonModes')]
+    public function test_contextual_lazy_singletons_keep_scope_ownership(bool $forceEager): void
+    {
+        if (!$forceEager && !self::supportsLazyObjects()) {
+            self::markTestSkipped('Native lazy objects require PHP 8.4');
+        }
+
+        $available = new ReflectionProperty(DependencyResolver::class, 'lazyObjectsAvailable');
+        $previous = $available->getValue();
+        if ($forceEager) {
+            $available->setValue(null, false);
+        }
+
+        try {
+            $parent = new Container();
+            $parent->when(OuterHoldingLazySingletonService::class)
+                ->needs(LazySingletonService::class)->give(LazySingletonService::class);
+            $parentInstance = $parent->get(LazySingletonService::class);
+            $scope = $parent->createScope();
+            self::assertSame($parentInstance, $scope->get(OuterHoldingLazySingletonService::class)->lazyService);
+
+            $parent = new Container();
+            $parent->bind(LazySingletonService::class, ReplacementLazySingletonService::class);
+            $parent->when(OuterHoldingLazySingletonService::class)
+                ->needs(LazySingletonService::class)->give(LazySingletonService::class);
+            $scope = $parent->createScope();
+            $sibling = $parent->createScope();
+            $first = $scope->get(OuterHoldingLazySingletonService::class)->lazyService;
+            self::assertSame(LazySingletonService::class, $first::class);
+            self::assertSame($first, $scope->get(OuterHoldingLazySingletonService::class)->lazyService);
+            self::assertNotSame($first, $sibling->get(OuterHoldingLazySingletonService::class)->lazyService);
+
+            $scope->forget(LazySingletonService::class);
+            self::assertNotSame($first, $scope->get(OuterHoldingLazySingletonService::class)->lazyService);
+        } finally {
+            if ($forceEager) {
+                $available->setValue(null, $previous);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function lazySingletonModes(): iterable
+    {
+        yield 'native' => [false];
+        yield 'eager fallback' => [true];
     }
 
     public function test_lazy_combined_with_factory_yields_distinct_instances(): void

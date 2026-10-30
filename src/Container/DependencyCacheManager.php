@@ -97,6 +97,9 @@ final class DependencyCacheManager
     /** @var (Closure(string, mixed): void)|null */
     private ?Closure $afterResolving = null;
 
+    /** @var (Closure(string, bool): bool)|null */
+    private ?Closure $sharedReadiness = null;
+
     /**
      * The container a scope falls through to, held only to hand to the resolver
      * built later. Typed as the interface for the reason
@@ -159,6 +162,7 @@ final class DependencyCacheManager
      * @param CompiledPlans $compiledPlans
      * @param WeakReference<ContainerInterface>|null $containerRef weak on purpose; see Container::__construct()
      * @param PlanCache|null $planCache a cache shared with unrelated containers
+     * @param (Closure(class-string): mixed)|null $contextualResolver
      */
     public function __construct(
         private array &$bindings = [],
@@ -166,6 +170,7 @@ final class DependencyCacheManager
         array $compiledPlans = [],
         private ?WeakReference $containerRef = null,
         ?PlanCache $planCache = null,
+        private ?Closure $contextualResolver = null,
     ) {
         // Read before useSelfReference() can replace it, which is the only way
         // to know which of the two references is the owner.
@@ -271,6 +276,20 @@ final class DependencyCacheManager
     public function ownsSingleton(string $class): bool
     {
         return isset($this->singletonInstances[$class]) || isset($this->forcedSingletons[$class]);
+    }
+
+    public function hasInstance(string $class): bool
+    {
+        return isset($this->singletonInstances[$class]);
+    }
+
+    public function canReuse(string $id, bool $contextual = false): bool
+    {
+        if ($this->sharedReadiness === null) {
+            return false;
+        }
+
+        return ($this->sharedReadiness)($id, $contextual);
     }
 
     public function forget(string $id): void
@@ -448,10 +467,12 @@ final class DependencyCacheManager
 
     /**
      * @param Closure(string, mixed): void $callback
+     * @param (Closure(string, bool): bool)|null $sharedReadiness
      */
-    public function afterResolving(Closure $callback): void
+    public function afterResolving(Closure $callback, ?Closure $sharedReadiness = null): void
     {
         $this->afterResolving = $callback;
+        $this->sharedReadiness = $sharedReadiness;
         $this->dropArgBuilders();
     }
 
@@ -496,6 +517,21 @@ final class DependencyCacheManager
         }
 
         return $this->createInstance($class);
+    }
+
+    /**
+     * @param class-string $class
+     */
+    public function instantiateContextual(string $class): mixed
+    {
+        if ($this->contextualResolver !== null) {
+            return ($this->contextualResolver)($class);
+        }
+
+        $instance = $this->instantiate($class);
+        $this->afterResolving?->__invoke($class, $instance);
+
+        return $instance;
     }
 
     public function getCacheSize(): int
@@ -621,6 +657,7 @@ final class DependencyCacheManager
                 $this->ownedIds,
                 $this->ownerRef,
                 $this->afterResolving,
+                WeakReference::create($this),
             );
 
             if ($this->parent !== null) {

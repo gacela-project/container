@@ -192,6 +192,7 @@ final class DependencyResolver
      * @param WeakReference<ContainerInterface>|null $ownerRef the container this
      *   resolver belongs to, which a facade never replaces; see container()
      * @param (Closure(string, mixed): void)|null $afterResolving
+     * @param WeakReference<DependencyCacheManager>|null $cacheManagerRef
      */
     public function __construct(
         private array &$bindings = [],
@@ -203,6 +204,7 @@ final class DependencyResolver
         private array &$ownedIds = [],
         private ?WeakReference $ownerRef = null,
         private ?Closure &$afterResolving = null,
+        private ?WeakReference $cacheManagerRef = null,
     ) {
         $this->supportsLazyObjects = self::$lazyObjectsAvailable
             ??= method_exists(ReflectionClass::class, 'newLazyGhost');
@@ -960,6 +962,14 @@ final class DependencyResolver
 
             /** @var class-string $contextualBinding */
             $paramTypeName = $contextualBinding;
+
+            // A contextual class selects that class, not its global replacement.
+            $binding = $this->bindings[$paramTypeName] ?? $this->parent?->getBindings()[$paramTypeName] ?? null;
+            $cacheManager = $this->cacheManagerRef?->get();
+            if ($binding !== null && $binding !== $paramTypeName && $cacheManager !== null
+                && $cacheManager->isInstantiable($paramTypeName)) {
+                return $this->instantiateContextual($cacheManager, $paramTypeName);
+            }
         }
 
         // An id the container answers for itself — a stored instance, a factory
@@ -1024,8 +1034,6 @@ final class DependencyResolver
             $paramTypeName = $bindClass;
         }
 
-        $this->checkCircularDependency($paramTypeName);
-
         $plan = $this->describeClass($paramTypeName);
         if (!$plan['instantiable']) {
             $paramTypeName = $this->resolveConcreteForAbstract($paramTypeName);
@@ -1034,6 +1042,16 @@ final class DependencyResolver
                 throw ContainerException::classNotInstantiable($paramTypeName);
             }
         }
+
+        if ($this->isSingletonClass($paramTypeName, $plan)) {
+            $owner = $this->container();
+
+            if ($owner !== null) {
+                return $this->delegateTo($owner, $paramTypeName);
+            }
+        }
+
+        $this->checkCircularDependency($paramTypeName);
 
         // Deferred here rather than in instantiateFromPlan(): a lazy target must
         // not have its constructor arguments resolved yet, and that is what the
@@ -1048,17 +1066,30 @@ final class DependencyResolver
             return $instance;
         }
 
-        // get() keeps the shared instance; building one here would hand the
-        // parameter a second copy.
-        if ($this->isSingletonClass($paramTypeName, $plan)) {
-            $owner = $this->container();
+        return $this->instantiateFromPlan($paramTypeName, $plan);
+    }
 
-            if ($owner !== null) {
-                return $this->delegateTo($owner, $paramTypeName);
-            }
+    /**
+     * @param class-string $class
+     */
+    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): mixed
+    {
+        $alreadyResolving = isset($this->resolvingStack[$class]);
+        if (!$alreadyResolving || !$cacheManager->canReuse($class, contextual: true)) {
+            $this->checkCircularDependency($class);
         }
 
-        return $this->instantiateFromPlan($paramTypeName, $plan);
+        if (!$alreadyResolving) {
+            $this->resolvingStack[$class] = true;
+        }
+
+        try {
+            return $cacheManager->instantiateContextual($class);
+        } finally {
+            if (!$alreadyResolving) {
+                unset($this->resolvingStack[$class]);
+            }
+        }
     }
 
     /**
@@ -1081,6 +1112,10 @@ final class DependencyResolver
      */
     private function delegateTo(ContainerInterface $owner, string $id): mixed
     {
+        if (isset($this->resolvingStack[$id]) && $this->cacheManagerRef?->get()?->canReuse($id) === true) {
+            return $owner->get($id);
+        }
+
         $this->checkCircularDependency($id);
 
         $this->resolvingStack[$id] = true;
