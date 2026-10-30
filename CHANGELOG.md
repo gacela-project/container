@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Cache source checks:** SHA-256 stamps detect same-size source edits with preserved timestamps. File checks are reused within each cache operation. Regenerate older cache formats. See [staleness](docs/performance.md#staleness).
+
 - **Compilation reports:** account only for requested classes, explicitly refuse missing inputs and exclude unrelated warmed plans. `wasCompiled()` checks the compiled set. See [reports](docs/performance.md#asking-why).
 
 - **Generated factories:** memoize constructor expressions and reuse helpers for large subexpressions, preventing exponential source growth on shared dependency graphs. Objects remain transient, and receiving overrides and source checks still apply. See [generated code](docs/performance.md#generated-constructor-code).

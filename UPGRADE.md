@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Source stamps include content hashes
+
+Regenerate plan and factory caches after upgrading. Source stamps now include SHA-256 hashes, so same-size edits with unchanged timestamps invalidate stale entries. Older metadata-only formats are rejected. Matching explicit build stamps retain their existing whole-file trust behavior.
+
 ### Persisted shared plans require a release stamp
 
 Pass the same non-empty identifier of the loaded release to `PlanCache::fromFile()` and `writeTo()`:

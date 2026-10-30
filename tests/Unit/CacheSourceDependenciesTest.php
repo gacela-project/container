@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 use function dirname;
+use function strlen;
 
 final class CacheSourceDependenciesTest extends TestCase
 {
@@ -137,6 +139,33 @@ PHP);
         } else {
             self::assertContains('CacheSourceFixture\\Unchanged', $result['unstamped']);
         }
+    }
+
+    #[TestWith(['plans'])]
+    #[TestWith(['factories'])]
+    public function test_same_size_edits_with_preserved_timestamps_invalidate_inherited_sources(string $kind): void
+    {
+        [$changed, $replacement, $value] = $this->fixture('parent constructor');
+        $file = $this->path($changed . '.php');
+        $original = file_get_contents($file);
+        $updated = $this->sourceCode($replacement);
+        $length = max(strlen($original), strlen($updated)) + 20;
+        $mtime = time() - 60;
+        file_put_contents($file, str_pad($original, $length));
+        touch($file, $mtime);
+        $this->writeCache($kind);
+        file_put_contents($file, str_pad($updated, $length));
+        touch($file, $mtime);
+        clearstatcache();
+        self::assertSame($length, filesize($file));
+        self::assertSame($mtime, filemtime($file));
+        $loader = $this->loader($kind);
+        $entries = $this->process("\$result = array_keys({$loader}(null));");
+
+        self::assertNotContains('CacheSourceFixture\\Entry', $entries);
+        self::assertContains('CacheSourceFixture\\Unchanged', $entries);
+        $resolved = $this->readCache($kind, $value, true);
+        self::assertSame(23, $resolved['value']);
     }
 
     public function test_a_new_plan_cache_cannot_vouch_for_preloaded_replaced_parent_sources(): void

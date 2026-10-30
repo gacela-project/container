@@ -107,10 +107,11 @@ final class ContainerCompiler
     {
         $entries = [];
         $stamps = [];
+        $checked = [];
 
         foreach ($this->expressions() as $class => $expression) {
             $dependencies = array_keys($this->dependencies[$class] ?? []);
-            $stamp = CacheStamp::of($class, $dependencies);
+            $stamp = CacheStamp::of($class, $dependencies, $checked);
             if ($stamp === null) {
                 continue;
             }

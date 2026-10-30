@@ -220,9 +220,10 @@ final class CompiledCacheStampTest extends TestCase
         $envelope = require $cache;
 
         self::assertIsArray($envelope);
-        self::assertSame(3, $envelope['format']);
+        self::assertSame(4, $envelope['format']);
         self::assertCount(1, $envelope['stamps'][$class]);
         self::assertSame(realpath($classFile), $envelope['stamps'][$class][0][0]);
+        self::assertSame(hash_file('sha256', $classFile), $envelope['stamps'][$class][0][3]);
     }
 
     public function test_a_factories_file_read_as_plans_is_refused(): void
