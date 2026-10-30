@@ -1096,21 +1096,6 @@ final class DependencyResolver
     }
 
     /**
-     * @param class-string $class
-     */
-    private function instantiateContextual(DependencyCacheManager $cacheManager, string $class): mixed
-    {
-        $this->checkCircularDependency($class);
-        $this->resolvingStack[$class] = true;
-
-        try {
-            return $cacheManager->instantiateContextual($class);
-        } finally {
-            unset($this->resolvingStack[$class]);
-        }
-    }
-
-    /**
      * Hand an id the container owns back to the container.
      *
      * get() is the answer to "what does this container hand out for this id",
