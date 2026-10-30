@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gacela\Container;
 
+use function chmod;
 use function clearstatcache;
 use function dirname;
 use function function_exists;
@@ -67,6 +68,21 @@ final class CacheFile
         }
 
         return $temporary;
+    }
+
+    public static function preservePermissions(string $temporary, string $destination): bool
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return true;
+        }
+
+        clearstatcache(true, $destination);
+        $metadata = @stat($destination);
+        if ($metadata === false || ($metadata['mode'] & 0o022) !== 0) {
+            return true;
+        }
+
+        return @chmod($temporary, $metadata['mode'] & 0o777);
     }
 
     private static function isTrustedDirectory(string $directory): bool

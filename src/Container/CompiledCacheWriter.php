@@ -165,7 +165,7 @@ final class CompiledCacheWriter
         }
 
         $destination = dirname($temporary) . DIRECTORY_SEPARATOR . basename($file);
-        if (!@rename($temporary, $destination)) {
+        if (!CacheFile::preservePermissions($temporary, $destination) || !@rename($temporary, $destination)) {
             @unlink($temporary);
 
             throw ContainerException::compiledCacheNotWritable($file);

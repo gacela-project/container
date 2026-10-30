@@ -55,6 +55,45 @@ final class CompiledCacheTrustTest extends TestCase
         yield 'plan cache fallback' => ['plan-cache'];
     }
 
+    public static function replacementPermissions(): iterable
+    {
+        foreach (self::loaders() as $name => [$writer]) {
+            foreach ([0o600, 0o640, 0o644] as $mode) {
+                yield $name . ' ' . decoct($mode) => [$writer, $mode];
+            }
+        }
+    }
+
+    #[DataProvider('replacementPermissions')]
+    public function test_replacing_caches_preserves_safe_permissions(string $writer, int $mode): void
+    {
+        $this->requirePosixPermissions();
+        $this->write($writer);
+        chmod($this->file, $mode);
+        $previous = umask(0);
+        try {
+            $this->write($writer);
+            clearstatcache(true, $this->file);
+            self::assertSame($mode, fileperms($this->file) & 0o777);
+            self::assertArrayHasKey(ClassWithoutDependencies::class, $this->load($writer, $this->file));
+            self::assertSame(['.', '..', 'cache.php'], scandir($this->directory));
+        } finally {
+            umask($previous);
+        }
+    }
+
+    #[DataProvider('loaders')]
+    public function test_replacing_unsafe_modes_restores_private_permissions(string $writer): void
+    {
+        $this->requirePosixPermissions();
+        $this->write($writer);
+        chmod($this->file, 0o666);
+        $this->write($writer);
+        clearstatcache(true, $this->file);
+        self::assertSame(0o600, fileperms($this->file) & 0o777);
+        self::assertArrayHasKey(ClassWithoutDependencies::class, $this->load($writer, $this->file));
+    }
+
     /**
      * @return iterable<string, array{string, int}>
      */

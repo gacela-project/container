@@ -540,9 +540,7 @@ bit set, as a system temporary directory normally does.
 
 Use a private cache directory and generate caches as the account that loads
 them. The writers create staging files with mode `0600` before writing code,
-then publish the complete file with one rename. New and rewritten files keep
-that private mode, including when the process uses a permissive umask. Writing
-into an unsafe directory is refused too.
+then publish the complete file with one rename. Immediately before publication, replacements inherit existing POSIX permission bits when they do not allow group or world writes, including `0600`, `0640` and `0644`. New files and replacements of unsafe writable files keep `0600`, independent of the umask. Writing into an unsafe directory is refused too.
 
 `loadCompiledCache()` and `loadCompiledFactories()` throw a `ContainerException`
 for an untrusted file. `PlanCache::fromFile()` treats it as an empty cache and
