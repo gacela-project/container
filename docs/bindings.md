@@ -43,13 +43,36 @@ $container->get(CacheInterface::class); // same instance every time
 - a **closure or callable array** is a factory, memoized on the first resolution
 - **omitted** — the `$abstract` itself is treated as the concrete class
 
-A **string concrete is always read as a class name**, never as a callable. That
+A **string concrete is always read as a type name**, never as a callable. That
 matters in the one case where it is ambiguous: PHP keeps classes and functions
 in separate tables, so `App\Mailer` can name both, and a container that asked
 `is_callable()` first would call the function and hand back whatever it
 returned. Use a closure or callable array when you want a factory invoked.
 
 These object and factory rules also apply to type-based contextual `give()`. An invokable object passed to `set()` acts as a shared service definition and is called on the first `get()`. If an invokable object was intended as a factory for `bind()`, `singleton()`, or type-based `give()`, see the [upgrade example](../UPGRADE.md#invokable-object-bindings).
+
+### Interface binding chains
+
+An interface binding can point to another registered interface:
+
+```php
+$container->bind(CacheInterface::class, TaggableCacheInterface::class);
+$container->singleton(TaggableCacheInterface::class, RedisCache::class);
+
+$container->get(CacheInterface::class); // The same instance as get(TaggableCacheInterface::class)
+```
+
+Each interface target goes through normal container resolution. The final
+registration keeps its lifetime, stored value or factory behavior, owning scope,
+aliases, lazy construction, and resolution hooks. Constructor injection follows
+the same chain. Class-string chains also guide `make()` constructor overrides
+and `dependencyGraph()`. Graph inspection never invokes a terminal factory to
+guess its result, and marks binding cycles instead of throwing them.
+
+An unregistered terminal interface or missing class raises
+`DependencyNotFoundException`. A terminal class that cannot be instantiated raises
+`ContainerException`. Circular bindings raise `CircularDependencyException`.
+Factory results keep the behavior described [below](#factory-results).
 
 ### Container-aware closures
 

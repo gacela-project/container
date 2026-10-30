@@ -119,8 +119,7 @@ public function setRepository(
 ): void { ... }
 ```
 
-Inherited methods are called. The constructor is never treated as one of these,
-whatever it is annotated with.
+Inherited methods are called. A `#[Inject]` marker on an interface method or a non-private parent method also applies to its implementation or override, without repeating the attribute. Each method runs once, using the implementation's parameter names, attributes and defaults. The constructor is never treated as an injected method, whatever it is annotated with.
 
 #### What a property cannot do
 
@@ -265,6 +264,8 @@ A class with no instance properties, its own or inherited, cannot be lazy: PHP
 treats a lazy object with nothing to defer as initialized at once and would skip
 the constructor. The container builds such a class straight away instead, and a
 `lazy()` factory for it is called straight away.
+
+Internal PHP classes and their descendants, except `stdClass`, also build eagerly. A `lazy()` factory for such a class runs immediately and returns its result unchanged. `stdClass` descendants remain eligible for native deferral. See [PHP's lazy-object restrictions](https://www.php.net/manual/en/reflectionclass.newlazyghost.php).
 
 A class with instance properties does not need a constructor to be lazy. Its
 property defaults are preserved, and `#[Inject]` properties and methods are

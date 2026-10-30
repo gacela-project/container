@@ -16,9 +16,11 @@ use Gacela\Container\Exception\DependencyNotFoundException;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionProperty;
+use stdClass;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -134,7 +136,7 @@ final class DependencyResolver
     private static array $lazyAttribute = [];
 
     /** @var array<class-string, bool> */
-    private static array $hasInstanceProperties = [];
+    private static array $lazyClassSupport = [];
 
     /** @var array<string, ReflectionProperty> */
     private array $propertyHandles = [];
@@ -228,7 +230,7 @@ final class DependencyResolver
         self::$propertyPlans = [];
         self::$methodPlans = [];
         self::$lazyAttribute = [];
-        self::$hasInstanceProperties = [];
+        self::$lazyClassSupport = [];
         self::$lazyObjectsAvailable = null;
     }
 
@@ -487,11 +489,7 @@ final class DependencyResolver
     {
         $factory = $this->lazyFactories[$className] ?? null;
 
-        // PHP marks a lazy object with no properties initialized the moment it
-        // is created, so its initializer never runs: a ghost would never be
-        // constructed, and a proxy would be an unconstructed $className rather
-        // than what the factory returns. Such a class is built now instead.
-        if (!self::hasInstanceProperties($className)) {
+        if (!self::supportsLazyClass($className)) {
             /** @var object */
             return $factory === null ? $this->constructNow($className) : $factory($this->container());
         }
@@ -1025,7 +1023,9 @@ final class DependencyResolver
             return $bindClass;
         }
 
-        if ($contextualBinding === null && is_string($bindClass) && $bindClass !== $paramTypeName && class_exists($bindClass)) {
+        $interfaceTarget = is_string($bindClass) && interface_exists($bindClass);
+        if (($contextualBinding === null || interface_exists($paramTypeName)) && is_string($bindClass)
+            && (($bindClass !== $paramTypeName && class_exists($bindClass)) || $interfaceTarget)) {
             // Keep the requested type in compilation reports before delegating.
             $this->describeClass($paramTypeName);
             $owner = $this->container();
@@ -1033,7 +1033,20 @@ final class DependencyResolver
                 return $this->delegateTo($owner, $paramTypeName);
             }
 
-            $paramTypeName = $bindClass;
+            if (interface_exists($bindClass)) {
+                $this->checkCircularDependency($paramTypeName);
+                $this->resolvingStack[$paramTypeName] = true;
+
+                try {
+                    return $this->resolveClass($bindClass);
+                } finally {
+                    unset($this->resolvingStack[$paramTypeName]);
+                }
+            }
+
+            if (class_exists($bindClass)) {
+                $paramTypeName = $bindClass;
+            }
         }
 
         $plan = $this->describeClass($paramTypeName);
@@ -1173,26 +1186,28 @@ final class DependencyResolver
     }
 
     /**
-     * Whether $className or an ancestor declares an instance property, which
-     * is what PHP needs to keep a lazy object uninitialized.
-     *
      * @param class-string $className
      */
-    private static function hasInstanceProperties(string $className): bool
+    private static function supportsLazyClass(string $className): bool
     {
-        if (isset(self::$hasInstanceProperties[$className])) {
-            return self::$hasInstanceProperties[$className];
+        if (isset(self::$lazyClassSupport[$className])) {
+            return self::$lazyClassSupport[$className];
         }
 
+        $hasProperties = false;
         for ($class = new ReflectionClass($className); $class instanceof ReflectionClass; $class = $class->getParentClass()) {
+            if ($class->isInternal() && $class->getName() !== stdClass::class) {
+                return self::$lazyClassSupport[$className] = false;
+            }
+
             foreach ($class->getProperties() as $property) {
                 if (!$property->isStatic()) {
-                    return self::$hasInstanceProperties[$className] = true;
+                    $hasProperties = true;
                 }
             }
         }
 
-        return self::$hasInstanceProperties[$className] = false;
+        return self::$lazyClassSupport[$className] = $hasProperties;
     }
 
     /**
@@ -1539,12 +1554,11 @@ final class DependencyResolver
         $methods = [];
 
         foreach ($reflection->getMethods() as $method) {
-            if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) === []) {
+            if ($method->isConstructor()) {
                 continue;
             }
 
-            // The constructor is injected by being the constructor.
-            if ($method->isConstructor()) {
+            if (!$this->hasMethodInjection($method, $reflection)) {
                 continue;
             }
 
@@ -1566,6 +1580,38 @@ final class DependencyResolver
         }
 
         return $methods;
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private function hasMethodInjection(ReflectionMethod $method, ReflectionClass $reflection): bool
+    {
+        if ($method->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+            return true;
+        }
+
+        $name = $method->getName();
+        $parent = $method->getDeclaringClass()->getParentClass();
+        while ($parent !== false) {
+            if ($parent->hasMethod($name)) {
+                $ancestor = $parent->getMethod($name);
+                if (!$ancestor->isPrivate() && $ancestor->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                    return true;
+                }
+            }
+
+            $parent = $parent->getParentClass();
+        }
+
+        foreach ($reflection->getInterfaces() as $interface) {
+            if ($interface->hasMethod($name)
+                && $interface->getMethod($name)->getAttributes(Inject::class, ReflectionAttribute::IS_INSTANCEOF) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
