@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Compilation inputs:** class names with leading namespace separators generate valid PHP and normalized plan and factory keys. Equivalent inputs are deduplicated. See [class sources](docs/performance.md#finding-the-classes-to-compile).
+
 - **Cache source checks:** SHA-256 stamps detect same-size source edits with preserved timestamps. File checks are reused within each cache operation. Regenerate older cache formats. See [staleness](docs/performance.md#staleness).
 
 - **Compilation reports:** account only for requested classes, explicitly refuse missing inputs and exclude unrelated warmed plans. `wasCompiled()` checks the compiled set. See [reports](docs/performance.md#asking-why).

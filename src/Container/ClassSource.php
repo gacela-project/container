@@ -18,6 +18,7 @@ use function is_array;
 use function is_file;
 use function is_readable;
 use function is_string;
+use function ltrim;
 
 /**
  * Where the classes to compile come from.
@@ -127,7 +128,17 @@ final class ClassSource
      */
     public function classNames(): array
     {
-        return $this->resolved ??= ($this->discover)();
+        if ($this->resolved === null) {
+            $classes = [];
+            foreach (($this->discover)() as $class) {
+                $classes[ltrim($class, '\\')] = true;
+            }
+            /** @var list<class-string> $names */
+            $names = array_keys($classes);
+            $this->resolved = $names;
+        }
+
+        return $this->resolved;
     }
 
     /**
