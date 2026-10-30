@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) from 1.0.0 — see the
 
 ### Fixed
 
+- **Cache permissions:** replacements preserve safe existing POSIX modes instead of resetting operator-selected read access. New files and replacements of group- or world-writable files remain private. See [cache permissions](docs/performance.md#cache-file-permissions).
+
 - **Shared plan persistence:** `writeTo()` requires a non-empty loaded-release stamp for user-class plans; readers without the matching stamp discard them. Unstamped writes retain native internal-class plans, and in-memory sharing is unchanged. Regenerate older cache formats. See [migration](UPGRADE.md#persisted-shared-plans-require-a-release-stamp).
 
 - **CLI reporting:** reject values on `--strict` instead of silently disabling the failure gate. Use bare `--strict` to enable it. See [CLI compilation](docs/performance.md#compiling-from-the-command-line).
