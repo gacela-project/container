@@ -285,7 +285,11 @@ final class DependencyCacheManager
 
     public function canReuse(string $id, bool $contextual = false): bool
     {
-        return $this->sharedReadiness?->__invoke($id, $contextual) ?? false;
+        if ($this->sharedReadiness === null) {
+            return false;
+        }
+
+        return ($this->sharedReadiness)($id, $contextual);
     }
 
     public function forget(string $id): void
