@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GacelaTest\Unit;
 
 use Gacela\Container\CacheFile;
+use Gacela\Container\CompiledCacheWriter;
 use Gacela\Container\Container;
 use Gacela\Container\Exception\ContainerException;
 use Gacela\Container\PlanCache;
@@ -213,7 +214,7 @@ final class CompiledCacheTrustTest extends TestCase
     private function plant(string $file): void
     {
         file_put_contents($file, '<?php file_put_contents(' . var_export($this->marker, true)
-            . ", 'executed'); return ['format' => 1, 'plans' => [], 'factories' => [], 'stamps' => []];");
+            . ", 'executed'); return ['format' => " . CompiledCacheWriter::FORMAT . ", 'plans' => [], 'factories' => [], 'stamps' => []];");
         chmod($file, 0o600);
     }
 

@@ -98,7 +98,7 @@ final class ContainerCompiler
             }
 
             $entries[] = '        ' . var_export($class, true) . ' => ' . $factory . ',';
-            $stamps[$class] = CacheStamp::of($class);
+            $stamps[$class] = CacheStamp::of($class, $dependencies);
         }
 
         return CompiledCacheWriter::envelope($buildStamp, $stamps, 'factories', $entries);

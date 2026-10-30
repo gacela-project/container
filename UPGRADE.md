@@ -74,6 +74,18 @@ Boolean, floating-point, array and object offsets are also rejected with
 `TypeError`. Pass the intended string id explicitly. An explicit empty-string
 id (`$container['']`) continues to work. See [array access](docs/resolution.md#array-access).
 
+### Cache source stamps
+
+Regenerate compiled plans and factories after upgrading. Format 2 records inherited and inlined source files; loaders reject older formats even when the build stamp matches. Rebuild from your configured container and entry points:
+
+```php
+$classes = [UserService::class, OrderService::class];
+$container->writeCompiledCache($classes, __DIR__ . '/cache/container.php');
+$container->writeCompiledFactories($classes, __DIR__ . '/cache/factories.php');
+```
+
+Keep passing your existing build stamp as the third argument if you use one. `PlanCache::fromFile()` starts empty when given an older format. See [staleness checks](docs/performance.md#staleness).
+
 ### Cache ownership and permissions
 
 Compiled PHP caches now require trusted ownership and permissions before they
