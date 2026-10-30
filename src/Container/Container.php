@@ -166,9 +166,13 @@ final class Container implements FullContainerInterface, ArrayAccess
             $containerRef,
             static function (string $id) use ($containerRef): array {
                 $owner = $containerRef->get();
-                $id = $owner?->aliasRegistry->resolve($id) ?? $id;
+                if ($owner === null) {
+                    return [$id, false];
+                }
 
-                return [$id, $owner?->instanceRegistry->has($id) ?? false];
+                $id = $owner->aliasRegistry->resolve($id);
+
+                return [$id, $owner->instanceRegistry->has($id)];
             },
         );
         $this->cacheManager = new DependencyCacheManager(

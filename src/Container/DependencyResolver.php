@@ -1036,7 +1036,7 @@ final class DependencyResolver
                 return $this->delegateTo($owner, $paramTypeName);
             }
 
-            if ($interfaceTarget) {
+            if (interface_exists($bindClass)) {
                 $this->checkCircularDependency($paramTypeName);
                 $this->resolvingStack[$paramTypeName] = true;
 
@@ -1047,7 +1047,9 @@ final class DependencyResolver
                 }
             }
 
-            $paramTypeName = $bindClass;
+            if (class_exists($bindClass)) {
+                $paramTypeName = $bindClass;
+            }
         }
 
         $plan = $this->describeClass($paramTypeName);
