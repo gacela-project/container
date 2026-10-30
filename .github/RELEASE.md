@@ -54,3 +54,9 @@ If the script fails mid-way before pushing, restore local file changes:
 ```
 
 Tags are unprefixed (e.g., `1.12.0`, not `v1.12.0`).
+
+## Missing version tags
+
+The script reads the current version from the latest reachable tag. If no tag is available, or that tag contains no `X.Y.Z` version, it exits with `Could not read current version from git tags.` Fetch missing tags with `git fetch --tags` and check the release history before retrying.
+
+Passing an explicit next version still requires the current version for the changelog comparison link.
