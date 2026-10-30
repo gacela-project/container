@@ -47,7 +47,7 @@ use function var_export;
 final class CompiledCacheWriter
 {
     // Format changes also invalidate plans written under older provenance rules.
-    public const FORMAT = 3;
+    public const FORMAT = 4;
 
     /**
      * Classes whose default values cannot be statically exported are skipped
@@ -63,6 +63,7 @@ final class CompiledCacheWriter
     {
         $entries = [];
         $stamps = [];
+        $checked = [];
 
         foreach ($plans as $class => $plan) {
             if (!self::isExportable($plan)) {
@@ -75,7 +76,7 @@ final class CompiledCacheWriter
                 continue;
             }
 
-            $stamp = CacheStamp::of($class);
+            $stamp = CacheStamp::of($class, [], $checked);
             if ($stamp === null) {
                 continue;
             }
@@ -247,8 +248,9 @@ final class CompiledCacheWriter
         /** @var array<class-string, SourceStamp|null> $stamps */
         $stamps = is_array($envelope['stamps'] ?? null) ? $envelope['stamps'] : [];
 
+        $checked = [];
         foreach ($entries as $class => $_) {
-            if (!CacheStamp::isCurrent($stamps[$class] ?? null)) {
+            if (!CacheStamp::isCurrent($stamps[$class] ?? null, $checked)) {
                 unset($entries[$class]);
             }
         }
@@ -336,8 +338,8 @@ final class CompiledCacheWriter
         }
 
         $files = [];
-        foreach ($stamp as [$file, $mtime, $size]) {
-            $files[] = '[' . var_export($file, true) . ', ' . $mtime . ', ' . $size . ']';
+        foreach ($stamp as [$file, $mtime, $size, $hash]) {
+            $files[] = '[' . var_export($file, true) . ', ' . $mtime . ', ' . $size . ', ' . var_export($hash, true) . ']';
         }
 
         return '[' . implode(', ', $files) . ']';

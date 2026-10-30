@@ -509,7 +509,7 @@ about both:
   done nothing. It says so instead.
 
 Omitting `--stamp` is legal and mentioned in the output, since the per-entry
-mtime check that replaces it is the slower of the two — see
+source check that replaces it is the slower of the two — see
 [staleness](#staleness).
 
 No console framework: the argv parsing is thirty lines, and `psr/container`
@@ -554,9 +554,9 @@ when PHP does not provide `posix_geteuid()`.
 
 ## Staleness
 
-Shared plans persisted through `PlanCache::writeTo()` use [loaded-release checks](#carry-it-to-the-next-process). The metadata checks below apply to build-time compiled caches.
+Shared plans persisted through `PlanCache::writeTo()` use [loaded-release checks](#carry-it-to-the-next-process). The source checks below apply to build-time compiled caches.
 
-Regenerate plan and factory caches when code changes. Each entry records source-file signatures (path, modification time and size).
+Regenerate plan and factory caches when code changes. Each entry records source-file signatures (path, modification time, size and SHA-256 content hash).
 
 A plan records its class, parent classes, interfaces and traits, including nested traits and interface ancestors. Changes to an inherited constructor, an injected property or method, or an inherited injection marker therefore invalidate the plan even when the class's own file is unchanged. A generated factory also records every class inlined into its expression, with each class's source hierarchy.
 
@@ -564,12 +564,11 @@ A plan records its class, parent classes, interfaces and traits, including neste
 
 Writers omit a user class when any required source cannot be verified, including classes defined through `eval()` or removed deployment files. Per-entry checks reject null or missing source stamps. Native internal classes remain cacheable.
 
-These are metadata comparisons, rather than content hashes or constructor reflection. Regenerate existing cache files after upgrading: the source groups use a new format, and older cache formats are rejected. `PlanCache::fromFile()` starts empty for an unsupported format.
+The content hash also detects same-size edits with preserved timestamps, including reproducible builds and edits within one second. Each source file is checked once per cache read or write. Regenerate existing cache files after upgrading: the source groups use a new format, and older cache formats are rejected. `PlanCache::fromFile()` starts empty for an unsupported format.
 
 ### Trading the per-entry check for a build stamp
 
-The check costs one `stat` per recorded file in each entry. For a map of a few thousand classes that
-can cost more than the reflection it saves, so pass a **build stamp** instead —
+The check reads metadata and hashes each distinct source file once. For large maps this can cost more than the reflection it saves, so pass a **build stamp** instead —
 a deploy id, a commit sha, anything that changes when the code does:
 
 ```php

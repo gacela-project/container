@@ -139,7 +139,7 @@ final class Cli
         }
 
         if ($stamp === null) {
-            $this->write($this->out, "No --stamp given: every entry is validated by its file's mtime instead.\n");
+            $this->write($this->out, "No --stamp given: entries are validated by source metadata and content hashes.\n");
         }
 
         return self::EXIT_OK;
@@ -385,7 +385,7 @@ final class Cli
           --stamp=VALUE      Build id — a commit sha, a deploy id. Pass the same
                              value to loadCompiledCache()/loadCompiledFactories()
                              and the whole file is validated in one comparison
-                             instead of one stat per class.
+                             instead of checking source files.
           --source=WHAT      'classmap' for Composer's optimized classmap, a
                              directory to scan, or a path to a classmap file.
           --config=FILE      Defaults to ./gacela-container.php.

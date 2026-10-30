@@ -7,12 +7,15 @@ namespace Gacela\Container;
 use ReflectionClass;
 use Throwable;
 
+use function array_key_exists;
 use function array_keys;
 use function array_pop;
+use function clearstatcache;
+use function hash_file;
 use function stat;
 
 /**
- * @psalm-type FileStamp = array{string, int, int}
+ * @psalm-type FileStamp = array{string, int, int, string}
  * @psalm-type SourceStamp = list<FileStamp>
  *
  * @internal
@@ -24,10 +27,11 @@ final class CacheStamp
     /**
      * @param class-string $class
      * @param list<class-string> $dependencies
+     * @param array<string, FileStamp|null> $checked
      *
      * @return SourceStamp|null null when a user source cannot be stamped
      */
-    public static function of(string $class, array $dependencies = []): ?array
+    public static function of(string $class, array $dependencies = [], array &$checked = []): ?array
     {
         try {
             $pending = [];
@@ -70,11 +74,14 @@ final class CacheStamp
 
         $stamps = [];
         foreach (array_keys($files) as $file) {
-            $stat = @stat($file);
-            if ($stat === false) {
+            if (!array_key_exists($file, $checked)) {
+                $checked[$file] = self::sourceStamp($file);
+            }
+            $stamp = $checked[$file];
+            if ($stamp === null) {
                 return null;
             }
-            $stamps[] = [$file, $stat['mtime'], $stat['size']];
+            $stamps[] = $stamp;
         }
 
         return $stamps;
@@ -85,20 +92,42 @@ final class CacheStamp
      * falls back to reflection, which will report the real problem.
      *
      * @param SourceStamp|null $stamp
+     * @param array<string, FileStamp|null> $checked
      */
-    public static function isCurrent(?array $stamp): bool
+    public static function isCurrent(?array $stamp, array &$checked = []): bool
     {
         if ($stamp === null) {
             return false;
         }
 
-        foreach ($stamp as [$file, $mtime, $size]) {
-            $stat = @stat($file);
-            if ($stat === false || $stat['mtime'] !== $mtime || $stat['size'] !== $size) {
+        foreach ($stamp as $expected) {
+            $file = $expected[0];
+            if (!array_key_exists($file, $checked)) {
+                $checked[$file] = self::sourceStamp($file);
+            }
+            if ($checked[$file] !== $expected) {
                 return false;
             }
         }
 
         return true;
     }
+    /**
+     * @return FileStamp|null
+     */
+    private static function sourceStamp(string $file): ?array
+    {
+        clearstatcache(true, $file);
+        $stat = @stat($file);
+        if ($stat === false) {
+            return null;
+        }
+        $hash = @hash_file('sha256', $file);
+        if ($hash === false) {
+            return null;
+        }
+
+        return [$file, $stat['mtime'], $stat['size'], $hash];
+    }
+
 }
