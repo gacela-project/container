@@ -381,6 +381,40 @@ final class CliTest extends TestCase
         self::assertStringContainsString('--factorys', $err);
     }
 
+    #[TestWith(['plans', false])]
+    #[TestWith(['plans', true])]
+    #[TestWith(['factories', false])]
+    #[TestWith(['factories', true])]
+    #[TestWith(['stamp', false])]
+    #[TestWith(['stamp', true])]
+    #[TestWith(['source', false])]
+    #[TestWith(['source', true])]
+    #[TestWith(['config', false])]
+    #[TestWith(['config', true])]
+    public function test_value_options_require_a_non_empty_value(string $name, bool $equals): void
+    {
+        [$status, $out, $err] = $this->cli([
+            'compile',
+            $this->configFlag(),
+            '--' . $name . ($equals ? '=' : ''),
+        ]);
+
+        self::assertSame(Cli::EXIT_FAILURE, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString('--' . $name, $err);
+        self::assertStringContainsString('requires a non-empty value', $err);
+        self::assertFileDoesNotExist($this->workspace . '/var/plans.php');
+        self::assertFileDoesNotExist($this->workspace . '/var/factories.php');
+    }
+
+    public function test_a_zero_stamp_is_a_value(): void
+    {
+        [$status] = $this->cli(['compile', '--stamp=0', $this->configFlag()]);
+
+        self::assertSame(Cli::EXIT_OK, $status);
+        self::assertNotSame([], Container::loadCompiledFactories($this->workspace . '/var/factories.php', '0'));
+    }
+
     public function test_a_missing_config_explains_why_one_is_needed(): void
     {
         [$status, , $err] = $this->cli(['report', '--config=' . $this->workspace . '/absent.php']);
