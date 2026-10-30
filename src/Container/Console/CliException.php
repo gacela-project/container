@@ -39,6 +39,11 @@ final class CliException extends RuntimeException
         return new self("Option '{$option}' does not take a value. Use '{$option}' or omit it.");
     }
 
+    public static function optionRequiresValue(string $option): self
+    {
+        return new self("Option '{$option}' requires a non-empty value. Use '{$option}=VALUE'.");
+    }
+
     public static function configNotFound(string $file): self
     {
         $message = <<<TXT

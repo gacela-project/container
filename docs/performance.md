@@ -502,11 +502,11 @@ developer's shell run the same thing without repeating the flags.
 
 #### It does not guess
 
-Two failure modes this replaces are silent, so the command is deliberately loud
-about both:
+The command reports mistakes that could otherwise silently change its output:
 
 - **An unknown option is an error.** `--factorys=…` does not quietly write no
   factories and exit 0; it names the option and fails.
+- **Value options require `=VALUE`.** `--plans`, `--factories`, `--stamp`, `--source` and `--config` reject bare options and empty values such as `--factories=` before reading configuration or writing files. Omit an option to use its configured default.
 - **Classes that could not be autoloaded are reported.** Discovery reads
   declarations off disk, planning needs them loaded, and a `report` that finds
   200 classes and can load none of them otherwise prints a cheerful zero having

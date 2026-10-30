@@ -320,24 +320,31 @@ final class Cli
 
             $argument = substr($argument, 2);
             $equals = strpos($argument, '=');
+            $name = $equals === false ? $argument : substr($argument, 0, $equals);
+
+            if (!in_array($name, ['plans', 'factories', 'stamp', 'source', 'config', 'strict'], true)) {
+                throw CliException::unknownOption('--' . $name);
+            }
 
             if ($equals === false) {
-                $options[$argument] = true;
+                if ($name !== 'strict') {
+                    throw CliException::optionRequiresValue('--' . $name);
+                }
+
+                $options[$name] = true;
                 continue;
             }
 
-            $name = substr($argument, 0, $equals);
             if ($name === 'strict') {
                 throw CliException::optionTakesNoValue('--strict');
             }
 
-            $options[$name] = substr($argument, $equals + 1);
-        }
-
-        foreach (array_keys($options) as $name) {
-            if (!in_array($name, ['plans', 'factories', 'stamp', 'source', 'config', 'strict'], true)) {
-                throw CliException::unknownOption('--' . $name);
+            $value = substr($argument, $equals + 1);
+            if ($value === '') {
+                throw CliException::optionRequiresValue('--' . $name);
             }
+
+            $options[$name] = $value;
         }
 
         return $options;
