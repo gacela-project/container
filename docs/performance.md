@@ -69,28 +69,28 @@ the sharing is happening at all.
 
 ### Carry it to the next process
 
-Under PHP-FPM every request starts with an empty cache. `writeTo()` saves what
-the cache holds, and `fromFile()` starts the next process from it:
+`writeTo()` carries plans between processes when both calls use the identifier of the loaded release:
 
 ```php
 $file = __DIR__ . '/cache/plans.php';
-$plans = PlanCache::fromFile($file);
+$buildStamp = Release::ID;
+$plans = PlanCache::fromFile($file, $buildStamp);
+$countAtStart = $plans->count();
 
 // ... build containers with $plans and handle the request ...
 
 if ($plans->count() > $countAtStart) {
-    $plans->writeTo($file);
+    $plans->writeTo($file, $buildStamp);
 }
 ```
 
-Nothing is resolved to write it: the file holds exactly the classes earlier
-requests planned. It is the same format as `writeCompiledCache()`, so an entry
-whose class file changed since is dropped on read, and passing the same build
-stamp to both calls trusts the whole file on one comparison instead. The file is
-replaced with one rename, so a request reading it while another writes it never
-sees half of it.
+The stamp must identify the code loaded by the worker, such as a release constant loaded at startup. Keep each release's source files immutable and restart workers for a new release. Do not read the stamp from a mutable deployment pointer after the worker has started.
 
-`fromFile()` returns an empty cache after any read failure, including missing or unreadable files, another container version, corrupt PHP and errors from older object-default exports. The request falls back to reflection and can write the file again.
+PHP cannot prove that an already-loaded class matches a file replaced on disk. Without a non-empty build stamp, `writeTo()` therefore omits user-class plans and persists only native internal-class plans. All plans remain available for in-memory sharing, and runtime resolution still works.
+
+User-class entries written by `writeTo()` require the same stamp on read. A different stamp or a reader without one drops those entries, even if the files on disk appear unchanged. This prevents an old worker from publishing old plans with new file metadata. Build-time `writeCompiledCache()` retains its per-file source checks; generate it in a fresh process for the release being deployed.
+
+Nothing is resolved to write the cache. The file is replaced with one rename, so readers never see a partial write. `fromFile()` returns an empty cache after any read failure, including missing files, an unsupported format or corrupt PHP. Regenerate older cache files after upgrading.
 
 ## Process-global caches
 
@@ -554,6 +554,8 @@ permission-bit checks are skipped there. The ownership check is skipped only
 when PHP does not provide `posix_geteuid()`.
 
 ## Staleness
+
+Shared plans persisted through `PlanCache::writeTo()` use [loaded-release checks](#carry-it-to-the-next-process). The metadata checks below apply to build-time compiled caches.
 
 Regenerate plan and factory caches when code changes. Each entry records source-file signatures (path, modification time and size).
 

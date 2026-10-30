@@ -239,7 +239,7 @@ final class CompiledCacheTrustTest extends TestCase
         return match ($loader) {
             'plans' => Container::loadCompiledCache($file),
             'factories' => Container::loadCompiledFactories($file),
-            default => array_fill_keys(PlanCache::fromFile($file)->classes(), true),
+            default => array_fill_keys(PlanCache::fromFile($file, 'loaded-release')->classes(), true),
         };
     }
 
@@ -253,7 +253,7 @@ final class CompiledCacheTrustTest extends TestCase
         } else {
             $plans = new PlanCache();
             (new Container([], [], [], $plans))->get(ClassWithoutDependencies::class);
-            $plans->writeTo($this->file);
+            $plans->writeTo($this->file, 'loaded-release');
         }
     }
 

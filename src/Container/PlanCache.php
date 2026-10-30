@@ -9,7 +9,6 @@ use Throwable;
 
 use function array_keys;
 use function count;
-use function time;
 
 /**
  * One constructor-plan cache, shared by containers that are not related.
@@ -54,8 +53,6 @@ final class PlanCache
 {
     private readonly PlanRegistry $registry;
 
-    private readonly int $createdAt;
-
     /**
      * @param CompiledPlans $compiledPlans seeds the cache from a compiled cache
      *   file, so several containers share one read of it instead of one each
@@ -63,7 +60,6 @@ final class PlanCache
     public function __construct(array $compiledPlans = [])
     {
         $this->registry = new PlanRegistry($compiledPlans);
-        $this->createdAt = time();
     }
 
     /**
@@ -87,22 +83,16 @@ final class PlanCache
     }
 
     /**
-     * Write every plan held so far to $file, in the format fromFile() and
-     * loadCompiledCache() read. Nothing is resolved to produce it: this is
-     * what the containers sharing this cache have already planned, so calling
-     * it at the end of a request persists exactly the classes that request
-     * needed. The file is replaced in one rename, so a process reading it
-     * meanwhile never sees half of it.
-     *
-     * A class whose file changed after this cache was created is left out: a
-     * process that loaded the old file and lived across a deploy holds a plan
-     * of the old constructor, and the stamp taken now would vouch for it.
+     * Persist exportable plans using the release identifier of the loaded code.
+     * User-class plans require a non-empty $buildStamp and the same stamp on
+     * read. Without one, only native internal-class plans are written; all
+     * plans remain available in memory. The file is replaced in one rename.
      *
      * @throws ContainerException when the file cannot be written
      */
     public function writeTo(string $file, ?string $buildStamp = null): void
     {
-        CompiledCacheWriter::write($this->registry->plans, $file, $buildStamp, $this->createdAt);
+        CompiledCacheWriter::write($this->registry->plans, $file, $buildStamp, releaseBound: true);
     }
 
     /**

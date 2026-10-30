@@ -220,7 +220,7 @@ final class CompiledCacheStampTest extends TestCase
         $envelope = require $cache;
 
         self::assertIsArray($envelope);
-        self::assertSame(2, $envelope['format']);
+        self::assertSame(3, $envelope['format']);
         self::assertCount(1, $envelope['stamps'][$class]);
         self::assertSame(realpath($classFile), $envelope['stamps'][$class][0][0]);
     }
