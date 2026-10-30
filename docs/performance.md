@@ -467,7 +467,7 @@ were discovered, how many factories were generated, how many were refused.
 `report` prints the same verdict `compileReport()` returns, one line per refusal
 with its `CompilationSkipReason`, and `--strict` exits non-zero if anything was
 refused, so a build can assert that a class it expects to be compiled actually
-is.
+is. `--strict` takes no value: forms such as `--strict=true`, `--strict=1` and `--strict=false` are rejected. Omit the flag to disable strict reporting.
 
 #### It has to build *your* container
 
