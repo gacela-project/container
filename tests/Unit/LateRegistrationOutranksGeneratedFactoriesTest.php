@@ -10,17 +10,74 @@ use GacelaTest\Fake\AlternativeCompilableDependency;
 use GacelaTest\Fake\ClassWithDependencyWithoutDependencies;
 use GacelaTest\Fake\ClassWithoutDependencies;
 use GacelaTest\Fake\CompilableConsumer;
+use GacelaTest\Fake\CompilableContextualChild;
+use GacelaTest\Fake\CompilableContextualParent;
 use GacelaTest\Fake\CompilableDependency;
+use GacelaTest\Fake\ConstructionCounter;
 use GacelaTest\Fake\DatabaseRepository;
+use GacelaTest\Fake\ExpensiveReportGenerator;
 use GacelaTest\Fake\Graph\Diamond;
 use GacelaTest\Fake\Graph\Leaf;
 use GacelaTest\Fake\InMemoryRepository;
+use GacelaTest\Fake\OuterCompilableContextualConsumer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 final class LateRegistrationOutranksGeneratedFactoriesTest extends TestCase
 {
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_receiving_contexts_outrank_root_and_nested_factories(bool $registerFirst): void
+    {
+        foreach ([CompilableDependency::class, '$dependency'] as $need) {
+            $container = new Container();
+            $scope = $container->createScope();
+            $value = new AlternativeCompilableDependency();
+            if ($registerFirst) {
+                $container->when(CompilableContextualParent::class)->needs($need)->give($value);
+            }
+            $container->useCompiledFactories(self::factoriesFor(OuterCompilableContextualConsumer::class));
+            $container->get(OuterCompilableContextualConsumer::class);
+            if (!$registerFirst) {
+                $container->when(CompilableContextualParent::class)->needs($need)->give($value);
+            }
+            foreach ([$container, $scope] as $receiver) {
+                self::assertSame($value, $receiver->get(CompilableContextualParent::class)->dependency);
+                self::assertSame($value, $receiver->get(OuterCompilableContextualConsumer::class)->consumer->dependency);
+            }
+        }
+    }
+
+    public function test_a_receiving_named_context_applies_to_an_inherited_constructor(): void
+    {
+        $container = new Container();
+        $container->useCompiledFactories(self::factoriesFor(CompilableContextualChild::class));
+        $container->when(CompilableContextualParent::class)->needs('$dependency')->give(null);
+
+        self::assertNull($container->get(CompilableContextualChild::class)->dependency);
+    }
+
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_receiving_lazy_registrations_outrank_generated_roots(bool $registerFirst): void
+    {
+        ConstructionCounter::reset();
+        $container = new Container();
+        if ($registerFirst) {
+            $container->lazy(ExpensiveReportGenerator::class);
+        }
+        $container->useCompiledFactories(self::factoriesFor(ExpensiveReportGenerator::class));
+        if (!$registerFirst) {
+            $container->lazy(ExpensiveReportGenerator::class);
+        }
+        $service = $container->get(ExpensiveReportGenerator::class);
+        self::assertSame(method_exists(ReflectionClass::class, 'newLazyGhost') ? 0 : 1, ConstructionCounter::countFor(ExpensiveReportGenerator::class));
+        self::assertInstanceOf(ClassWithoutDependencies::class, $service->dependency);
+        self::assertSame(1, ConstructionCounter::countFor(ExpensiveReportGenerator::class));
+    }
+
     /**
      * @param Closure(Container): void $register
      */

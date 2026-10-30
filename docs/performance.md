@@ -271,7 +271,7 @@ $container->bind(Mailer::class, LoggingMailer::class);
 $container->get(Mailer::class);   // LoggingMailer, not the generated `new Mailer`
 ```
 
-A `bind()`, a `singleton()` or a `set()` for the same class sends it back down
+A `bind()`, a `singleton()`, a `set()`, a `lazy()` registration or a contextual constructor binding for the same class sends it back down
 the normal path, whichever side of `useCompiledFactories()` the call happens on.
 Order does not matter, and neither does whether the build container had the same
 bindings — the generated file cannot quietly out-vote the container you
