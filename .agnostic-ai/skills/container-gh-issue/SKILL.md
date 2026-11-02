@@ -1,15 +1,15 @@
 ---
 name: container-gh-issue
-description: "Implement a Gacela Container GitHub issue identified by number or URL and prepare its PR. Use when asked to fix, work, or pick up one issue."
+description: Use to fix, work or pick up one Gacela Container GitHub issue by number or URL and open its PR.
 ---
 
 # Container issue workflow
 
-Paths and commands are relative to the repository root. Follow the project compatibility, validation, and delivery rules. This is the repository workflow for issue work; use the global `gh-issue` skill only for guidance it does not cover.
+Follow the compatibility, validation and delivery rules in `.agnostic-ai/AGNOSTIC_AI.md`. Use the global `gh-issue` skill only for what this one omits.
 
-1. Read the issue and every comment, inspect current code, and verify each acceptance criterion against the current checkout. Do not treat old issue findings as current facts.
-2. Fetch `origin/main`. Preserve local changes and commits; use an isolated worktree if needed. Never reset main with `--hard`. Self-assign to `Chemaclass` when working the issue.
-3. Branch from current main: `fix/<number>-<slug>` for bugs, `feat/` for enhancements, `docs/` for docs, `ref/` for refactors. Confirm the acceptance scenario and scope before editing.
-4. Implement the smallest complete outcome and verify each acceptance criterion with the project validation rules.
-5. Review the diff before pushing. Use a signed conventional commit with the repo's types, then open a PR assigned to `Chemaclass`, with an appropriate label and `Closes #<number>`. For multiline GitHub text use a body file or structured tool argument.
-6. Check every required CI job and fix failures within scope. Report the PR link, acceptance evidence, and validation limits. Merge only within the user's requested scope; otherwise leave a reviewable PR.
+1. Read the issue and every comment. Verify each acceptance criterion against the current checkout; old findings are not facts.
+2. Fetch `origin/main`. Keep local changes and commits; use a worktree if needed. Never `git reset --hard` main. Self-assign to `Chemaclass`.
+3. Branch from main: `fix/<number>-<slug>` (bugs), `feat/` (enhancements), `docs/`, `ref/` (refactors). Confirm acceptance scenario and scope before editing.
+4. Implement the smallest complete outcome; verify each criterion.
+5. Review the diff before pushing. Signed conventional commit, then a PR assigned to `Chemaclass` with a label and `Closes #<number>`. Pass multiline text by body file or structured argument.
+6. Check every required CI job; fix failures within scope. Report PR link, acceptance evidence and validation limits. Merge only if the user asked; otherwise leave the PR for review.

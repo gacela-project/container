@@ -1,24 +1,24 @@
 ---
 name: container-optimize-changelog
-description: "Prepare or tighten Gacela Container Unreleased notes when release notes or changelog cleanup is requested. Supports dry run and release-version suggestions."
+description: Use to prepare or tighten Gacela Container Unreleased changelog notes, clean up release notes, or suggest a release version (supports --dry-run).
 ---
 
 # Prepare container release notes
 
-Paths and commands are relative to the repository root. Read `CHANGELOG.md`, the latest tag, and commits since that tag. With `--dry-run`, report proposed edits without writing.
+Read `CHANGELOG.md`, the latest tag and commits since it. `--dry-run` reports proposed edits without writing.
 
-Account for each consumer-visible or maintainer-visible change since the latest tag. Exclude release bookkeeping and invisible housekeeping. Verify missing entries against the code or PR before adding them.
+List every consumer-visible or maintainer-visible change since the latest tag; skip release bookkeeping and invisible housekeeping. Verify missing entries against code or PR before adding.
 
-Measure entry counts and words per entry for recent released sections and Unreleased. Use that density as guidance. If the notes already fit and have no structural problems, leave them alone.
+Count entries and words per entry in recent released sections and Unreleased, and use that density as the guide. If the notes already fit and are structurally sound, leave them.
 
-Merge duplicate headings. Collapse entries describing the same change, preserving both correctness and performance facts. Resolve contradictions by checking their sources. Put tooling and CI under Internal, behaviour widening under Changed, and mark breaking entries with a warning and a clear caller action. Put breaking Changed entries first.
+Merge duplicate headings. Collapse entries for the same change, keeping correctness and performance facts. Resolve contradictions from their sources. Tooling and CI go under Internal; behaviour widening under Changed; mark breaking entries with a warning and the caller action; put breaking Changed entries first.
 
-Keep API names and signatures, measurements, doc links, and breaking-change markers. Cut implementation detail already explained in linked docs. Never invent numbers or silently discard an unverified claim.
+Keep API names and signatures, measurements, doc links and breaking markers. Cut detail already in linked docs. Never invent numbers or drop an unverified claim silently.
 
-Verify every relative link and heading anchor in the changed notes against its actual target, including `UPGRADE.md`. Use GitHub's heading slug rules, including duplicate-heading suffixes. Report factual errors separately.
+Verify every relative link and heading anchor in the changed notes against its target, including `UPGRADE.md`. Use GitHub slug rules, including duplicate-heading suffixes. Report factual errors separately.
 
-Changelog-only edits may go directly to current main when committing or publishing is requested, using a signed `docs:` commit. Otherwise leave edits for review. If other files change, use a branch and PR. Put the structural edits and before/after counts in the commit body when needed.
+When asked to commit or publish, changelog-only edits go straight to current main as a signed `docs:` commit; otherwise leave them for review. If other files change, use a branch and PR. Put structural edits and before/after counts in the commit body when needed.
 
-Only with an explicit release request, use `container-release`. An explicit version is needed when breaking changes require a major instead of the script's default minor. Verify the published artifact.
+Release only on an explicit request, with `container-release`. Pass an explicit version when breaking changes need a major (the script defaults to minor). Verify the published artifact.
 
-Report missing entries added, before/after counts, merged sections or entries, corrected anchors, and the suggested version when a release was not requested.
+Report entries added, before/after counts, merged sections or entries, corrected anchors, and the suggested version when no release was requested.

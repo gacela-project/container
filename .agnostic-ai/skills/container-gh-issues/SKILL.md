@@ -1,16 +1,16 @@
 ---
 name: container-gh-issues
-description: "Process a requested Gacela Container GitHub issue queue or backlog, with optional filters, limits, dry run, or merge policy. Use only when queue processing is requested."
+description: Use only when asked to process a queue or backlog of Gacela Container GitHub issues (filters, limit, --dry-run, --no-merge).
 ---
 
 # Container issue queue
 
-Paths and commands are relative to the repository root. Use `container-gh-issue` for each issue; do not duplicate its implementation workflow.
+Run `container-gh-issue` for each issue; do not restate its steps.
 
-Read the arguments from the user's request. A supplied issue number selects only that issue. Otherwise fetch open issues unassigned or assigned to the current authenticated user, deduplicate, and order by creation date. Paginate when necessary. Skip any issue assigned to someone else. Apply the requested label and limit, then show the queue. With `--dry-run`, stop without writes.
+Queue: a supplied issue number selects only that issue. Otherwise fetch open issues unassigned or assigned to the current user (paginate, deduplicate), oldest first. Skip issues assigned to someone else. Apply the requested label and limit, then show the queue. `--dry-run` stops here without writes.
 
-Before each issue, reread its assignment and state. Work sequentially unless the user authorizes parallel issue work, with at most four active issues in separate worktrees. Parallelize independent issues, then coordinate integration and final checks. Read every comment and verify current code. Never discard work to refresh main.
+Before each issue, reread its assignment and state. Work sequentially, or in parallel only if the user allows it: at most four independent issues, each in its own worktree. Never discard work to refresh main.
 
-Wait for required CI checks. With `--no-merge`, leave the PR open. If the user requested queue processing with merging, squash-merge only after all required checks pass, then refresh main with a fast-forward update. Clean up merged branches and worktrees while preserving unpushed commits and open PRs.
+Wait for required CI. `--no-merge` leaves the PR open. When merging is requested, squash-merge only after all required checks pass, then fast-forward main. Clean up merged branches and worktrees; keep unpushed commits and open PRs.
 
-Stop and report a concrete blocker if ownership changes, branch protection blocks merging, a required external decision is missing, or a fix cannot be validated. Stop at the requested limit or an empty queue. Report PRs, acceptance results, and remaining issues.
+Stop and report a concrete blocker if ownership changes, branch protection blocks the merge, a decision is missing, or a fix cannot be validated. Stop at the limit or an empty queue. Report PRs, acceptance results and remaining issues.
