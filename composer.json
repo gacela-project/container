@@ -39,7 +39,7 @@
         "phpunit/phpunit": "^12.5",
         "phpstan/phpstan": "^2.2",
         "symfony/var-dumper": "^6.4 || ^7.0",
-        "vimeo/psalm": "^6.16",
+        "vimeo/psalm": "^6.16 || ^7.0",
         "phpbench/phpbench": "^1.4",
         "infection/infection": "^0.31 || ^0.34 || ^0.35",
         "symfony/yaml": "^6.4 || ^7.0"
